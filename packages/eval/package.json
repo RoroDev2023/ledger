@@ -12,7 +12,8 @@
     "eval": "tsx src/run.ts",
     "plan-eval": "tsx src/plan-eval.ts",
     "kit": "tsx src/kit.ts",
-    "baseline": "tsx src/baseline-run.ts"
+    "baseline": "tsx src/baseline-run.ts",
+    "proof-slide": "tsx src/proof-slide.ts"
   },
   "dependencies": {
     "@ledger/shared": "workspace:*",

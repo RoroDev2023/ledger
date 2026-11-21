@@ -11,6 +11,12 @@ Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluat
 - **Live on Alex's own test plan** (`apps/api/test/plans/unit-4b.pdf`, 4-room L shape, drawn by Alex), via a local merge of main + #20 + #12 and his `check-plan` script: rooms 4/4 within 0.8% area, doors 4/4 and windows 4/4 within 9 cm, scale from labels, 15.4 s. Fixtures 0/5 (not used for pricing).
 - **Fixed in #12 (asked by Alex):** `loadPlanImage` falls back to macOS `sips` when pdftoppm is missing; real MIME types and header-based sizes for WEBP and GIF (tests added). Alex's API can call `parsePlan` on the PDF directly once #12 is in.
 - **#12 is needed before #20 works live:** without it every Argon call 400s on the tuple schema.
+## 2026-11-21 11:56 ET · E5 proof slide generator (branch `elmir/e5-proof-slide`, stacked on #12)
+
+- `pnpm eval` now also writes `eval/results.json`. `pnpm --filter @ledger/eval proof-slide` renders `eval/proof-slide.{html,png}` (1280x720) from it: false charges on clean re-shoots, dollars charged for moved objects, new damage found (+ precision, not-provable count), and the latest entry of `eval/failures.md` as "a failure we fixed".
+- Colours follow whichever system actually did better on each metric (grey on a tie), never assumed. `--sample` renders a layout preview stamped "SAMPLE NUMBERS"; sample files are git-ignored.
+- At freeze: `pnpm eval --split test && pnpm --filter @ledger/eval proof-slide` -> drop the PNG into the deck.
+- #11 closed as superseded by #12 (same commits, rebased on the new main).
 
 ## 2026-11-21 11:47 ET · Integration test with R1: plan parsing works live through packages/gemini
 
