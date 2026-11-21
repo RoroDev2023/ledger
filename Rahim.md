@@ -2,6 +2,14 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 11:35 ET · R2 frames + Hydrogen caption interface (branch `rahim/r2-frames`)
+
+- **Ready:** `extractFrames(videoPath, walkthroughId, { workDir? | unitId?, dataDir?, onProgress? }) → Frame[]` in `@ledger/pipeline`. ffmpeg `fps=2,scale=1280:-2` into `<workDir>/frames/` (Alex: pass the walkthrough dir you already give `runWalkthrough`), else `.data/units/<unitId>/walkthroughs/<wid>/frames/`. `tMs = (index−1)·500`. Sharpness = Laplacian variance on grayscale via `sharp`; drops frames strictly below the video's p30. dHash 64-bit (16 hex chars in `Frame.phash`); drops a frame within Hamming ≤ 5 of the last kept one. Rejected JPEGs are deleted unless `keepRejected`. Frame IDs: `<wid>.f00042`. `extractKeyframes()` also returns raw frames, reject reasons and the threshold (for eval/failures.md).
+- **Hydrogen:** `captionFrames(frames, { captioner? }) → { frameId, landmarks[], objects[] }[]`, batches of 8, zod-validated (`HydrogenBatchSchema`), terms lowercased/deduped, skipped frames get empty lists. **Runs on a local deterministic mock** (`mockCaptioner`). TODO in `landmarks.ts`: swap in `generate({ model: MODEL_FAST, schema: HydrogenBatchSchema, ... })` once R1 merges. In non-mock mode without a captioner it returns empty captions + a warning (no fake hints).
+- **Verified:** 14 pipeline tests (pure helpers + 5 s `testsrc2`/blurred/still videos made by ffmpeg in the test: 10 frames, 1280×720, tMs, 3 blurry dropped from the blurred segment, still video dedupes to 1), `pnpm -r typecheck`, `pnpm lint`, all package tests on Node 22.
+- **For Elmir:** the ffmpeg tests `skipIf` ffmpeg is missing. Please add `sudo apt-get install -y ffmpeg` to CI so they run there. Added `sharp`, `zod` deps (lockfile touched by me).
+- **Next:** R1 mock client in `packages/gemini`, then wire `captionFrames` to it; then R3 localization.
+
 ## 2026-11-21 11:16 ET · Integrating team branches
 
 Merged the E4 eval into its E2 parent branch and the E1 handoff into main. Incorporated Alex’s project-structure follow-up into PR #8 and reconciled both handoff histories. Next for Rahim is R1 mock telemetry.
