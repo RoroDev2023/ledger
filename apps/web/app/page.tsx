@@ -76,8 +76,8 @@ export default function Home() {
   return (
     <>
       <Header />
-      <main>
-        <section ref={hero} style={{ maxWidth: 1320, margin: '0 auto', padding: '64px 28px 40px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 48, alignItems: 'center' }}>
+      <main style={{ overflowX: 'hidden' }}>
+        <section ref={hero} style={{ maxWidth: 1320, margin: '0 auto', padding: '64px 28px 40px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.15fr)', gap: 40, alignItems: 'center' }}>
           <div>
             <motion.div className="chip" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }}>
               <span className="dot" style={{ color: 'var(--red)' }} /> New York gives landlords 14 days. This takes minutes.
@@ -112,12 +112,12 @@ export default function Home() {
 
           <div style={{ position: 'relative' }}>
             <motion.div style={{ y: modelY }} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.2, ease: EASE, delay: 0.3 }}>
-              <div className="card" style={{ height: 540, padding: 0, overflow: 'hidden', boxShadow: 'var(--shadow-lg)', background: 'linear-gradient(180deg, #fff, #f1efe9)' }}>
+              <div className="card" style={{ height: 540, marginRight: 140, padding: 0, overflow: 'hidden', boxShadow: 'var(--shadow-lg)', background: 'linear-gradient(180deg, #fff, #f1efe9)' }}>
                 <UnitModel plan={HERO.plan} items={HERO.items} autoRotate />
               </div>
             </motion.div>
             {/* Decorative: tucked into the corner and click-through, so the 3D underneath stays draggable. */}
-            <motion.div style={{ position: 'absolute', right: -50, top: -30, y: receiptY, scale: 0.82, transformOrigin: '100% 0%', pointerEvents: 'none' }}>
+            <motion.div style={{ position: 'absolute', right: -80, top: 70, y: receiptY, scale: 0.72, transformOrigin: '100% 0%', pointerEvents: 'none' }}>
               <Receipt />
             </motion.div>
           </div>
