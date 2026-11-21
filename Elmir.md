@@ -2,6 +2,11 @@
 
 Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluation (`packages/shared`, `packages/plan`, and `packages/eval`, E1–E5).
 
+## 2026-11-21 11:50 ET · From Rahim: `uploadFile` is available for the Neon baseline
+
+- `import { uploadFile, gemini } from '@ledger/gemini'` (branch `rahim/r1-files-upload`, stacked on PR #14). `await uploadFile('data/pairs/<id>/baseline.mp4', 'video/mp4')` returns `{ uri, mime_type }` once the file is ACTIVE and usable. Your `runBaseline` takes `{ uri, mime }`, so pass `{ uri: f.uri, mime: f.mime_type }`, and pass `gemini` as the `BaselineModel`.
+- It handles videos over the 100 MB inline cap (Files API limit: 2 GB per file, 48 h lifetime). Re-running the eval within 47 h reuses the upload. `GEMINI_MODE=mock` returns a fake URI with no network. Uploads appear in `calls.jsonl` as `model: "files-api"`, `tag: "upload"` with 0 tokens, so `summarizeCalls` will show a `files-api` row. Filter it out if you only want model costs.
+
 ## 2026-11-21 11:11 ET · E4 eval + protocol + README (branch `elmir/e4-eval`, stacked on PR #7)
 
 - **Matches the team-review changes on main (59f6dfe):** headline numbers are false charges on clean re-shoots and charges for moved objects; "not provable" = `not-visible` with reason starting "Not provable:" until the contract gets its own verdict.

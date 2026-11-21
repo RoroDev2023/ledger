@@ -1,0 +1,6 @@
+{
+  "rules": [
+    { "match": "clearly visible and unobstructed", "noul": 0.9 },
+    { "match": "same region", "noul": 0.85 }
+  ]
+}

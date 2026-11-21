@@ -8,9 +8,13 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {
-    "@ledger/shared": "workspace:*"
+    "@ledger/shared": "workspace:*",
+    "p-limit": "^6.2.0",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.24.6"
   }
 }
