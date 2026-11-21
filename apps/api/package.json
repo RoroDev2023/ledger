@@ -1,0 +1,16 @@
+{
+  "name": "@ledger/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@ledger/shared": "workspace:*",
+    "@ledger/pipeline": "workspace:*",
+    "@ledger/plan": "workspace:*"
+  }
+}

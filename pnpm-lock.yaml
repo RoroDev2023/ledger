@@ -30,11 +30,47 @@ importers:
         specifier: ^3.2.7
         version: 3.2.7(@types/node@22.20.5)(tsx@4.23.15)
 
+  apps/api:
+    dependencies:
+      '@ledger/pipeline':
+        specifier: workspace:*
+        version: link:../../packages/pipeline
+      '@ledger/plan':
+        specifier: workspace:*
+        version: link:../../packages/plan
+      '@ledger/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  apps/web:
+    dependencies:
+      '@ledger/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@ledger/viewer':
+        specifier: workspace:*
+        version: link:../../packages/viewer
+
   packages/eval:
     dependencies:
       '@ledger/plan':
         specifier: workspace:*
         version: link:../plan
+      '@ledger/shared':
+        specifier: workspace:*
+        version: link:../shared
+
+  packages/gemini:
+    dependencies:
+      '@ledger/shared':
+        specifier: workspace:*
+        version: link:../shared
+
+  packages/pipeline:
+    dependencies:
+      '@ledger/gemini':
+        specifier: workspace:*
+        version: link:../gemini
       '@ledger/shared':
         specifier: workspace:*
         version: link:../shared
@@ -50,6 +86,12 @@ importers:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+
+  packages/viewer:
+    dependencies:
+      '@ledger/shared':
+        specifier: workspace:*
+        version: link:../shared
 
 packages:
 
