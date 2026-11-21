@@ -13,7 +13,11 @@ export function Header({ unitId, draftName }: { unitId?: string; draftName?: str
   return (
     <header className="topbar">
       <Link href="/" className="brand">
-        <i /> LEDGER
+        <svg viewBox="0 0 64 64" width="22" height="22" aria-hidden="true" style={{ flex: 'none' }}>
+          <path d="M10 8 h11 v35 h35 v11 H10 Z" fill="var(--ink)" />
+          <circle cx="35" cy="29" r="7.5" fill="var(--red)" />
+        </svg>
+        LEDGER
       </Link>
       <nav style={{ display: 'flex', gap: 20, alignItems: 'center', flex: 1 }}>
         {nav('/owner/new', 'Add an apartment')}
