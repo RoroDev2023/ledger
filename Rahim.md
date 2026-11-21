@@ -2,9 +2,17 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 11:16 ET · Integrating team branches
+
+Merged the E4 eval into its E2 parent branch and the E1 handoff into main. Incorporated Alex’s project-structure follow-up into PR #8 and reconciled both handoff histories. Next for Rahim is R1 mock telemetry.
+
 ## 2026-11-21 11:13 ET · Repository status
 
 Fetched origin and inspected main at `59f6dfe`. The revised proof and demo rules are in AGENTS.md and the script. PR #8 aligns the proposal; PR #7 contains plan parsing and PR #9 stacks eval on it. Alex's follow-up `c1e1820` is on his branch. The diff and call-log modules on main are still placeholders. Next for Rahim is the mock client with per-call telemetry.
+
+## 2026-11-21 11:09 ET · Two-pair proof and demo plan
+
+On `rorodev/proof-plan`, reconciled the proposal and implementation notes with Alex's merged plan at `59f6dfe`. Two crops of one comparison count as one pair. Keep both supporting frame pairs for Alex’s evidence panel and log each Decisions request after chunking. The two-room demo fixture is on main. These are planning changes; Rahim’s next implementation step is the R1 mock client and call log. Elmir owns the held-out eval.
 
 ## 2026-11-21 11:04 ET · Shared contract review
 

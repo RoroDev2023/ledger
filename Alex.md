@@ -2,6 +2,13 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 11:12 ET · Team review adopted
+
+- Applied Elmir's review to `AGENTS.md` and `docs/demo-script.md` on `main` (`59f6dfe`): the 2-pair proof rule (otherwise not provable, $0), the same-region check with a 2×2 split, Decisions question counts and latency in `calls.jsonl`, a premade or real listing plan instead of the judge's sketch, the judge's card shown next to the verdicts, an outsider-staged test set (~12 change pairs + 6 clean re-shoots), and the scope cuts. Logged in `docs/decisions.md` on this branch.
+- **New for my lane:** a Decisions panel on `/demo` (questions asked, response times) fed from SSE, a slot for the judge's card photo on the compare step, and not-provable pins showing $0 and the reason. Cut: phone capture page, tenant confirm page, PDF.
+- Request for Rahim: add `questions` to each `calls.jsonl` row and emit not provable as `not-visible` with a reason starting "Not provable:" until we agree on a contract change.
+- Next step: A1 in `apps/api`.
+
 ## 2026-11-21 11:15 ET · Full repo skeleton
 
 - Branch `alex/project-structure`, stacked on Elmir's `elmir/e1-scaffold-contract` (PR #4). Adds stub packages `gemini`, `pipeline`, `viewer`, `apps/api` and `apps/web`, the missing `plan`/`eval` files, `eval/results.md`, `eval/failures.md` and [docs/structure.md](docs/structure.md). Each stub starts with `// [Owner] purpose`, so the owners fill in the code.
