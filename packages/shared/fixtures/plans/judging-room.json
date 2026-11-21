@@ -1,0 +1,141 @@
+{
+  "unitId": "judging-room",
+  "ceilingHeightM": 2.7,
+  "metersPerPixel": 0.01,
+  "scaleSource": "assumed",
+  "rooms": [
+    {
+      "id": "room",
+      "name": "Room",
+      "polygon": [
+        [
+          0,
+          0
+        ],
+        [
+          5,
+          0
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          0,
+          4
+        ]
+      ]
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "room.wall-s",
+      "roomId": "room",
+      "kind": "wall",
+      "label": "Room south wall",
+      "segment": [
+        [
+          0,
+          0
+        ],
+        [
+          5,
+          0
+        ]
+      ],
+      "areaM2": 11.7,
+      "neighbors": [
+        "room.wall-w",
+        "room.wall-e"
+      ],
+      "landmarks": [
+        "door"
+      ]
+    },
+    {
+      "id": "room.wall-e",
+      "roomId": "room",
+      "kind": "wall",
+      "label": "Room east wall",
+      "segment": [
+        [
+          5,
+          0
+        ],
+        [
+          5,
+          4
+        ]
+      ],
+      "areaM2": 10.8,
+      "neighbors": [
+        "room.wall-s",
+        "room.wall-n"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "room.wall-n",
+      "roomId": "room",
+      "kind": "wall",
+      "label": "Room north wall",
+      "segment": [
+        [
+          5,
+          4
+        ],
+        [
+          0,
+          4
+        ]
+      ],
+      "areaM2": 13.5,
+      "neighbors": [
+        "room.wall-e",
+        "room.wall-w"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "room.wall-w",
+      "roomId": "room",
+      "kind": "wall",
+      "label": "Room west wall",
+      "segment": [
+        [
+          0,
+          4
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "areaM2": 10.8,
+      "neighbors": [
+        "room.wall-n",
+        "room.wall-s"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "room.floor",
+      "roomId": "room",
+      "kind": "floor",
+      "label": "Room floor",
+      "areaM2": 20
+    }
+  ],
+  "openings": [
+    {
+      "id": "door-entry",
+      "kind": "door",
+      "wallId": "room.wall-s",
+      "offsetM": 3.75,
+      "widthM": 0.9
+    }
+  ],
+  "warnings": [
+    "generic room for a live demo: the filmed wall is the north wall; sizes are approximate"
+  ]
+}

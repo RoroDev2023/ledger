@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 480" width="580" height="480" font-family="Helvetica, Arial, sans-serif">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<polygon data-surface-id="room.floor" points="40.0,440.0 540.0,440.0 540.0,40.0 40.0,40.0" fill="#eef6f7" stroke="none"/>
+<text x="290.0" y="240.0" text-anchor="middle" font-size="16" font-weight="bold" fill="#1f2a30">Room</text>
+<text x="290.0" y="258.0" text-anchor="middle" font-size="11" fill="#5f6b72">room.floor</text>
+<line data-surface-id="room.wall-s" x1="40.0" y1="440.0" x2="540.0" y2="440.0" stroke="#1f2a30" stroke-width="6" stroke-linecap="square"/>
+<text x="290.0" y="405.0" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#006e79">wall-s</text>
+<line data-surface-id="room.wall-e" x1="540.0" y1="440.0" x2="540.0" y2="40.0" stroke="#1f2a30" stroke-width="6" stroke-linecap="square"/>
+<text x="505.0" y="240.0" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#006e79">wall-e</text>
+<line data-surface-id="room.wall-n" x1="540.0" y1="40.0" x2="40.0" y2="40.0" stroke="#1f2a30" stroke-width="6" stroke-linecap="square"/>
+<text x="290.0" y="75.0" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#006e79">wall-n</text>
+<line data-surface-id="room.wall-w" x1="40.0" y1="40.0" x2="40.0" y2="440.0" stroke="#1f2a30" stroke-width="6" stroke-linecap="square"/>
+<text x="75.0" y="240.0" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#006e79">wall-w</text>
+<line data-opening-id="door-entry" x1="415.0" y1="440.0" x2="505.0" y2="440.0" stroke="#ff9015" stroke-width="8"/>
+<text x="558" y="24" text-anchor="middle" font-size="14" font-weight="bold" fill="#1f2a30">N ↑</text>
+</svg>
