@@ -7,7 +7,7 @@ import { Header } from '../../../../components/Header';
 import { FixKitPanel } from '../../../../components/FixKitPanel';
 import { StatementView } from '../../../../components/StatementView';
 import { api, type Proof } from '../../../../lib/api';
-import { EASE } from '../../../../components/motion';
+import { EASE, Skeleton } from '../../../../components/motion';
 import { motion } from 'motion/react';
 
 export default function StatementPage() {
@@ -36,9 +36,9 @@ export default function StatementPage() {
       <main className="page">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE }} style={{ display: 'flex', alignItems: 'end', gap: 12, marginBottom: 24 }}>
           <div style={{ flex: 1 }}>
-            <div className="eyebrow">Unit {id} · Draft</div>
+            <div className="eyebrow">Unit {id} · Draft for review</div>
             <h1 className="display" style={{ fontSize: 56, marginTop: 8 }}>
-              Itemized <em>statement</em>
+              Deposit <em>statement</em>
             </h1>
           </div>
           {data?.statement && (
@@ -49,16 +49,22 @@ export default function StatementPage() {
                 </button>
               )}
               <a href={api.statementHtmlUrl(id)} target="_blank" rel="noreferrer" className="btn btn-ghost">
-                Printable version
+                Print
               </a>
             </div>
           )}
         </motion.div>
         {error && <p style={{ color: 'var(--red)' }}>Could not load unit “{id}”: {error}</p>}
-        {!error && !data && <p className="muted">Loading…</p>}
+        {!error && !data && (
+          <div style={{ display: 'grid', gap: 14 }}>
+            <Skeleton h={120} r={20} />
+            <Skeleton h={180} r={20} />
+            <Skeleton h={180} r={20} />
+          </div>
+        )}
         {data && !data.statement && (
           <div className="card card-pad">
-            No statement yet. <a href={`/units/${id}/moveout`}>Upload the move-out video</a> to create it.
+            There’s no statement yet. <a href={`/units/${id}/moveout`}>Upload the move-out video</a> and it’s written for you.
           </div>
         )}
         {data?.statement && <StatementView statement={data.statement} plan={data.plan} findings={data.findings} proofs={data.proofs} />}

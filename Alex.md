@@ -2,6 +2,23 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 16:04 ET · Live 3D while a video is processed
+
+- `apps/web/components/LiveModel.tsx`: on the move-in and move-out upload screens the apartment's 3D sits above the progress (drag/zoom), a label follows the running step and a highlight walks the walls; when the job is done the real results drop in as pins (move-out also shows the total) and a button continues (no auto-redirect). `JobProgress` gained `onChange` and `hold`; other users (fix kit) keep the old behaviour.
+- Verified: a real move-out upload of IMG_0023.MOV in Chrome on a copy unit (`unit-livetest`, local only) finished in 41 s, pins and $85 shown, no browser errors. The highlight shows the step, not the exact wall being read (that would need per-frame events from the pipeline).
+
+## 2026-11-21 15:40 ET · New visual design for the web app
+
+- New type and colour system (`apps/web/app/globals.css`, `layout.tsx`): Bricolage Grotesque headlines, Hanken Grotesk body, JetBrains Mono for money; off-white, near-black, one receipt orange for charged money. Dropped the italic serif and spaced-caps labels.
+- Landing rebuilt: masked headline reveal, a statement receipt that prints line by line and gets stamped, parallax 3D, a marquee strip, hover rows for the steps, the proof rule in a dark block.
+- Verdict labels are coloured tags. Checked every page in Chrome after scrolling: no browser errors.
+
+## 2026-11-21 15:25 ET · Front end in plain words, page animations, pins on the item
+
+- Rewrote every on-screen line in plain language (landing, new unit, plan check, uploads, progress, unit page, statement, statement reasons from the spot check).
+- Page transitions (`app/template.tsx`), loading skeletons instead of "Loading…", a "done" moment when a video finishes.
+- Pins land on the exact spot, for any surface: the spot check's `spot.where` asks what the damage is on (a plan fixture, a wall or the floor), what it's next to (fixtures, doors, windows), which side of that item (asked by its name) and how high (bands → probability-weighted meters). Stored in a new optional `DiffItem.spot { heightM, nearId }` (additive contract field; Elmir/Rahim please note). The viewer's `spotAnchor` puts the pin on that item or wall at that height beside that thing; pins draw on top so items never hide them. Checked on unit-460c3358: column mark on the column at 0.65 m, paper at 1.46 m to the right of the portrait.
+- Verified: all tests, typecheck, lint; every page loads with no browser errors.
 ## 2026-11-21 15:45 ET · From Rahim: "Find fixes on Shopify" on the statement page (branch `rahim/shopify-button`)
 
 - **New:** `apps/web/components/FixKitPanel.tsx`, rendered at the bottom of `/units/:id/statement` only when the statement has a `new-damage` item. One primary button, "Find fixes on Shopify":

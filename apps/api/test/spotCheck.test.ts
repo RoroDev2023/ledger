@@ -24,6 +24,17 @@ function fakeDecide(opts: { wrong: number[]; changed: boolean }) {
       const choice = Object.entries(probs).sort((x, y) => y[1] - x[1])[0]![0];
       return { answers: { same: { type: 'choice', choice, probabilities: probs, confidence: 0.9 } }, usage: {} };
     }
+    if (tag === 'spot.where') {
+      return {
+        answers: {
+          on: { type: 'choice', choice: 'wall', probabilities: { wall: 0.9 }, confidence: 0.9 },
+          near: { type: 'choice', choice: 'none', probabilities: { none: 0.9 }, confidence: 0.9 },
+          side: { type: 'choice', choice: 'right', probabilities: { right: 0.9 }, confidence: 0.9 },
+          height: { type: 'choice', choice: 'chest', probabilities: { chest: 0.5, above: 0.5 }, confidence: 0.5 },
+        },
+        usage: {},
+      };
+    }
     if (tag === 'spot.merge') {
       // events of the scripted kind are "the same item" when they are within 5 frames of each other
       return { answers: { same_item: { type: 'noul', noul: Math.abs(num(ids[0]!) - num(ids[1]!)) <= 5 ? 0.9 : 0.1, confidence: 0.9 } }, usage: {} };
@@ -98,5 +109,12 @@ describe('spot check progress', () => {
     expect(progress.filter(([s]) => s === 'findings').at(-1)).toEqual(['findings', 20, 20]);
     const last = progress.filter(([s]) => s === 'diff').at(-1)!;
     expect(last[1]).toBe(last[2]);
+  });
+});
+
+describe('spot check location', () => {
+  it('records how high the change is (probability-weighted)', async () => {
+    const { items } = await run([3, 4], true);
+    expect(items[0]!.spot?.heightM).toBeCloseTo(1.7);
   });
 });

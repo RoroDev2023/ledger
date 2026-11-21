@@ -26,9 +26,9 @@ export function StatementView({ statement, plan, findings, proofs = [] }: { stat
           </div>
         </div>
         {[
-          ['Send by', statement.dueBy, days >= 0 ? `${days} day${days === 1 ? '' : 's'} left` : `${-days} days overdue`],
+          ['Send by', statement.dueBy, days >= 0 ? `${days} day${days === 1 ? '' : 's'} left` : `${-days} days late`],
           ['Move-out', statement.moveOutDate, 'NY GOL § 7-108'],
-          ['Items', `${charged.length} charged`, `${free.length} at $0`],
+          ['Items', `${charged.length} charged`, `${free.length} free`],
         ].map(([k, v, sub], i) => (
           <motion.div key={k} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 + i * 0.1 }} style={{ padding: '26px 24px', borderLeft: i ? '1px solid var(--line)' : undefined }}>
             <div className="eyebrow">{k}</div>
@@ -72,7 +72,7 @@ export function StatementView({ statement, plan, findings, proofs = [] }: { stat
                     <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: s.color }} />
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <span style={{ font: '600 11px var(--sans)', color: s.color, textTransform: 'uppercase', letterSpacing: '.1em' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: '600 12px var(--sans)', color: s.color, background: `color-mix(in srgb, ${s.color} 12%, transparent)`, padding: '4px 9px', borderRadius: 6 }}>
                           {s.label}
                           {d.issueType ? ` · ${d.issueType}` : ''}
                         </span>
@@ -83,7 +83,7 @@ export function StatementView({ statement, plan, findings, proofs = [] }: { stat
                       <div style={{ fontWeight: 600, fontSize: 17, marginTop: 4 }}>{label(d.surfaceId)}</div>
                       <div style={{ color: 'var(--ink-2)', marginTop: 6 }}>{displayReason(d)}</div>
                       <div className="faint mono" style={{ fontSize: 12, marginTop: 10 }}>
-                        confidence {Math.round(d.confidence * 100)}%{d.areaM2 ? ` · ${d.areaM2} m²` : ''} ·{' '}
+                        {Math.round(d.confidence * 100)}% sure{d.areaM2 ? ` · ${d.areaM2} m²` : ''} ·{' '}
                         <a href={`/units/${statement.unitId}?select=${encodeURIComponent(d.surfaceId)}`}>View in 3D →</a>
                       </div>
                     </div>

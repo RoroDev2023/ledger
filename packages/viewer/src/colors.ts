@@ -8,7 +8,7 @@ export const PIN_STYLE: Record<PinKind, { color: string; label: string; charged:
   'pre-existing': { color: '#2563eb', label: 'Already there', charged: false },
   wear: { color: '#6b7280', label: 'Normal wear', charged: false },
   moved: { color: '#d97706', label: 'Moved', charged: false },
-  'not-provable': { color: '#7c3aed', label: 'Not enough evidence', charged: false },
+  'not-provable': { color: '#7c3aed', label: 'Not clear enough', charged: false },
   'not-visible': { color: '#9ca3af', label: 'Not visible', charged: false },
   'no-change': { color: '#16a34a', label: 'No change', charged: false },
 };

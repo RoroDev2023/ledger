@@ -1,10 +1,10 @@
-// [Alex] Landing: the pitch, a live 3D unit, how it works (which Gemini 4 model does what), and the proof rule.
+// [Alex] Landing: a big headline, a statement that prints itself next to the live 3D unit, how it works, the rule.
 'use client';
-import { motion } from 'motion/react';
+import { motion, useScroll, useTransform } from 'motion/react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { HERO } from '@ledger/viewer/samples';
 import { Header } from '../components/Header';
 import { CountUp, EASE, Icon, Reveal } from '../components/motion';
@@ -12,59 +12,87 @@ import { API_URL } from '../lib/api';
 
 const UnitModel = dynamic(() => import('@ledger/viewer/UnitModel').then((m) => m.UnitModel), { ssr: false });
 
-const STEPS = [
-  {
-    n: '01',
-    title: 'Upload the floor plan',
-    body: 'The listing plan becomes a 3D model. Every wall, floor and fixture gets its own record.',
-    model: 'Gemini 4 Argon',
-  },
-  {
-    n: '02',
-    title: 'Film both walkthroughs',
-    body: 'Move-in and move-out, any path, any angle. Every frame lands on a wall of the same plan.',
-    model: 'Decisions API · Hydrogen',
-  },
-  {
-    n: '03',
-    title: 'Get the statement',
-    body: 'Itemized, priced, and due in 14 days. Wear, moved furniture and anything unseen cost $0.',
-    model: 'Gemini 4 Carbon',
-  },
+const LINES: [string, string, 'charge' | 'free'][] = [
+  ['Hole in bedroom wall', '$72.72', 'charge'],
+  ['Scuff by the kitchen door', '$0.00', 'free'],
+  ['Sofa moved to the window', '$0.00', 'free'],
+  ['Stain under the rug', '$0.00', 'free'],
 ];
+
+const STEPS = [
+  { n: '1', title: 'Drop in the floor plan', body: 'The one from the listing. You get a 3D model of the apartment in about a minute.' },
+  { n: '2', title: 'Walk through with your phone', body: 'Once when the tenant moves in, once when they leave. Any route, any pace.' },
+  { n: '3', title: 'Send the statement', body: 'Every charge has a before and after photo. Everything else is $0, with the reason why.' },
+];
+
+/** A headline line that slides up from behind a mask. */
+function Line({ children, delay }: { children: React.ReactNode; delay: number }) {
+  return (
+    <span style={{ display: 'block', overflow: 'hidden', paddingBottom: '0.06em' }}>
+      <motion.span style={{ display: 'block' }} initial={{ y: '105%' }} animate={{ y: 0 }} transition={{ duration: 1, ease: EASE, delay }}>
+        {children}
+      </motion.span>
+    </span>
+  );
+}
+
+function Receipt() {
+  return (
+    <motion.div className="receipt" initial={{ opacity: 0, y: -30, rotate: -2 }} animate={{ opacity: 1, y: 0, rotate: -2 }} transition={{ duration: 0.9, ease: EASE, delay: 1.1 }} style={{ width: 340, padding: '18px 22px 16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+        <span>LEDGER</span>
+        <span>APT 4B</span>
+      </div>
+      <div className="faint" style={{ marginTop: 4 }}>Deposit statement · due in 14 days</div>
+      <div style={{ borderTop: '1px dashed var(--line-2)', margin: '14px 0 10px' }} />
+      {LINES.map(([what, cost, kind], i) => (
+        <motion.div key={what} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: EASE, delay: 1.7 + i * 0.35 }} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: kind === 'charge' ? 'var(--ink)' : 'var(--muted)' }}>
+          <span>{what}</span>
+          <span style={{ fontWeight: kind === 'charge' ? 700 : 400 }}>{cost}</span>
+        </motion.div>
+      ))}
+      <div style={{ borderTop: '1px dashed var(--line-2)', margin: '10px 0' }} />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 3.2 }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 15, fontWeight: 700 }}>
+        <span>TOTAL</span>
+        <span style={{ color: 'var(--red)' }}>$72.72</span>
+      </motion.div>
+      <motion.div initial={{ opacity: 0, scale: 2.2, rotate: -20 }} animate={{ opacity: 1, scale: 1, rotate: -8 }} transition={{ type: 'spring', stiffness: 380, damping: 16, delay: 3.6 }} style={{ position: 'absolute', left: 92, bottom: 14 }}>
+        <span className="stamp" style={{ color: 'var(--red)' }}>
+          PHOTO PROOF
+        </span>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 export default function Home() {
   const router = useRouter();
   const [id, setId] = useState('');
-  const words = ['The', 'deposit', 'statement', 'that'];
+  const hero = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: hero, offset: ['start start', 'end start'] });
+  const modelY = useTransform(scrollYProgress, [0, 1], [0, 120]);
 
   return (
     <>
       <Header />
-      <main>
-        {/* Hero */}
-        <section style={{ maxWidth: 1280, margin: '0 auto', padding: '56px 28px 40px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 1fr)', gap: 40, alignItems: 'center' }}>
+      <main style={{ overflowX: 'hidden' }}>
+        <section ref={hero} style={{ maxWidth: 1320, margin: '0 auto', padding: '36px 28px 36px', display: 'grid', gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.25fr)', gap: 44, alignItems: 'center', minHeight: 'calc(100vh - 64px)' }}>
           <div>
             <motion.div className="chip" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }}>
-              <span className="dot" style={{ color: 'var(--red)' }} /> Built for New York rentals
+              <span className="dot" style={{ color: 'var(--red)' }} /> New York gives landlords 14 days. This takes minutes.
             </motion.div>
-            <h1 className="display" style={{ fontSize: 'clamp(48px, 6.4vw, 92px)', margin: '22px 0 0' }}>
-              {words.map((w, i) => (
-                <motion.span key={w} style={{ display: 'inline-block', marginRight: '0.22em' }} initial={{ opacity: 0, y: 28, filter: 'blur(6px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ duration: 0.9, ease: EASE, delay: 0.1 + i * 0.08 }}>
-                  {w}
-                </motion.span>
-              ))}
-              <br />
-              <motion.em style={{ display: 'inline-block' }} initial={{ opacity: 0, y: 28, filter: 'blur(6px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ duration: 1, ease: EASE, delay: 0.5 }}>
-                proves every dollar.
-              </motion.em>
+            <h1 className="display" style={{ fontSize: 'clamp(48px, 5.4vw, 84px)', margin: '22px 0 0' }}>
+              <Line delay={0.1}>Every dent.</Line>
+              <Line delay={0.22}>
+                <em>Proven</em> or free.
+              </Line>
             </h1>
-            <motion.p className="lede" style={{ marginTop: 26 }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.8 }}>
-              Film the apartment at move-in and move-out. LEDGER finds what changed, wall by wall, and drafts the itemized statement. If it can&apos;t prove it, it doesn&apos;t charge.
+            <motion.p className="lede" style={{ marginTop: 22 }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE, delay: 0.6 }}>
+              Film the apartment when the tenant moves in and again when they move out. LEDGER spots what changed and writes the deposit statement. No photo proof, no charge.
             </motion.p>
-            <motion.div style={{ display: 'flex', gap: 12, marginTop: 30, flexWrap: 'wrap' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE, delay: 1 }}>
+            <motion.div style={{ display: 'flex', gap: 10, marginTop: 28, flexWrap: 'wrap' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE, delay: 0.8 }}>
               <Link href="/owner/new" className="btn btn-lg">
-                Start with a floor plan {Icon.arrow}
+                Add an apartment {Icon.arrow}
               </Link>
               <form
                 onSubmit={(e) => {
@@ -73,54 +101,58 @@ export default function Home() {
                 }}
                 style={{ display: 'flex', gap: 8 }}
               >
-                <input className="input" value={id} onChange={(e) => setId(e.target.value)} placeholder="Unit ID" style={{ width: 210, borderRadius: 999 }} />
+                <input className="input" value={id} onChange={(e) => setId(e.target.value)} placeholder="Apartment ID" style={{ width: 160 }} />
                 <button className="btn btn-ghost btn-lg" disabled={!id.trim()}>
                   Open
                 </button>
               </form>
             </motion.div>
+            <div style={{ marginTop: 34, paddingLeft: 6 }}>
+              <Receipt />
+            </div>
           </div>
 
-          <motion.div initial={{ opacity: 0, scale: 0.96, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 1.2, ease: EASE, delay: 0.2 }} style={{ position: 'relative' }}>
-            <div className="card" style={{ height: 520, padding: 0, overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }}>
-              <UnitModel plan={HERO.plan} items={HERO.items} autoRotate />
-            </div>
-            <motion.div className="card" style={{ position: 'absolute', left: -28, top: 36, padding: '14px 18px', width: 250 }} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, ease: EASE, delay: 2.4 }}>
-              <div className="eyebrow">Draft statement</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 8 }}>
-                <span className="muted" style={{ fontSize: 13 }}>
-                  4 findings · 1 charged
-                </span>
-                <b className="display" style={{ fontSize: 32, color: 'var(--red)' }}>
-                  $<CountUp value={72.72} format={(n) => n.toFixed(2)} />
-                </b>
+          <div style={{ position: 'relative' }}>
+            <motion.div style={{ y: modelY }} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.2, ease: EASE, delay: 0.3 }}>
+              <div className="card" style={{ height: 'min(680px, calc(100vh - 150px))', padding: 0, overflow: 'hidden', boxShadow: 'var(--shadow-lg)', background: 'linear-gradient(180deg, #fff, #f1efe9)' }}>
+                <UnitModel plan={HERO.plan} items={HERO.items} autoRotate />
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         </section>
 
+        {/* Strip */}
+        <div className="marquee" style={{ borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)', padding: '18px 0', marginTop: 70, background: 'var(--card)' }}>
+          <div>
+            {[0, 1].flatMap((k) =>
+              ['Floor plan to 3D in a minute', 'Two walkthroughs, any route', 'Two photo pairs per charge', 'Moved furniture is free', 'Already there? $0', 'Statement ready in 14 days or less'].map((t) => (
+                <span key={`${k}-${t}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 48, font: '700 22px var(--display)', letterSpacing: '-0.03em' }}>
+                  {t}
+                  <span style={{ width: 10, height: 10, background: 'var(--red)', transform: 'rotate(45deg)', borderRadius: 2 }} />
+                </span>
+              )),
+            )}
+          </div>
+        </div>
+
         {/* How it works */}
-        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '60px 28px 30px' }}>
+        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '100px 28px 40px' }}>
           <Reveal>
-            <div className="eyebrow">How it works</div>
-            <h2 className="h2" style={{ marginTop: 10, maxWidth: 640 }}>
-              Floor plan in. Itemized statement out.
+            <h2 className="display" style={{ fontSize: 'clamp(40px, 5vw, 68px)', maxWidth: 760 }}>
+              Three steps. <span style={{ color: 'var(--faint)' }}>No arguing about what was there before.</span>
             </h2>
           </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18, marginTop: 34 }}>
+          <div style={{ marginTop: 50, borderTop: '1px solid var(--ink)' }}>
             {STEPS.map((s, i) => (
-              <Reveal key={s.n} delay={i * 0.12}>
-                <motion.div className="card card-pad" whileHover={{ y: -4 }} transition={{ duration: 0.3, ease: EASE }} style={{ height: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span className="display" style={{ fontSize: 44, color: 'var(--brass)' }}>
-                      {s.n}
-                    </span>
-                    <span className="chip" style={{ fontSize: 11.5 }}>
-                      {s.model}
-                    </span>
-                  </div>
-                  <h3 style={{ fontSize: 19, margin: '18px 0 8px', fontWeight: 600 }}>{s.title}</h3>
-                  <p className="muted" style={{ margin: 0 }}>
+              <Reveal key={s.n} delay={i * 0.08}>
+                <motion.div whileHover="hover" initial="rest" animate="rest" style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1.2fr', gap: 24, alignItems: 'baseline', padding: '30px 0', borderBottom: '1px solid var(--line-2)', cursor: 'default' }}>
+                  <motion.span variants={{ rest: { color: 'var(--faint)' }, hover: { color: 'var(--red)' } }} className="display" style={{ fontSize: 64 }}>
+                    {s.n}
+                  </motion.span>
+                  <motion.h3 variants={{ rest: { x: 0 }, hover: { x: 10 } }} transition={{ duration: 0.4, ease: EASE }} className="display" style={{ fontSize: 34, letterSpacing: '-0.035em' }}>
+                    {s.title}
+                  </motion.h3>
+                  <p className="muted" style={{ margin: 0, fontSize: 18 }}>
                     {s.body}
                   </p>
                 </motion.div>
@@ -130,37 +162,36 @@ export default function Home() {
         </section>
 
         {/* The rule */}
-        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '40px 28px 90px' }}>
+        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '60px 28px 100px' }}>
           <Reveal>
-            <div className="card" style={{ padding: '44px 48px', background: 'var(--ink)', color: 'var(--paper)', border: 0, display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 40, alignItems: 'center' }}>
+            <div style={{ borderRadius: 20, padding: '56px 56px', background: 'var(--ink)', color: '#fff', display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 48, alignItems: 'center', overflow: 'hidden', position: 'relative' }}>
               <div>
-                <div className="eyebrow" style={{ color: '#b9ad99' }}>
-                  The rule
-                </div>
-                <p className="display" style={{ fontSize: 64, marginTop: 14 }}>
-                  No proof, <em style={{ color: '#e0b878' }}>no charge.</em>
+                <div className="eyebrow" style={{ color: 'rgba(255,255,255,.55)' }}>The one rule</div>
+                <p className="display" style={{ fontSize: 'clamp(40px, 4.6vw, 64px)', marginTop: 18 }}>
+                  Two photos say it&apos;s new, <em>or it&apos;s free.</em>
+                </p>
+                <p style={{ color: 'rgba(255,255,255,.6)', fontSize: 17, maxWidth: 440, marginTop: 20 }}>
+                  A charge needs two separate before-and-after pairs of the same spot. One blurry frame isn&apos;t enough, so the tenant never pays for a guess.
                 </p>
               </div>
-              <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ display: 'grid', gap: 10 }}>
                 {[
-                  ['New damage, confirmed twice', 'Charged', 'var(--red)'],
-                  ['There at move-in', '$0', '#7ea3d6'],
-                  ['Furniture moved', '$0', '#e0b04f'],
-                  ['Not enough evidence', '$0', '#a990dc'],
-                ].map(([k, v, c]) => (
-                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 14, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
-                    <span className="dot" style={{ color: c, width: 10, height: 10 }} />
-                    <span style={{ flex: 1 }}>{k}</span>
-                    <b className="mono" style={{ color: v === '$0' ? '#b9ad99' : '#ff8a73' }}>
-                      {v}
-                    </b>
-                  </div>
+                  ['New damage, shown twice', 'Charged', 'var(--red)'],
+                  ['Already there at move-in', '$0', '#7d9bff'],
+                  ['Furniture moved', '$0', '#f2a20c'],
+                  ['Not clear enough', '$0', '#a98bff'],
+                ].map(([k, v, c], i) => (
+                  <motion.div key={k} initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, ease: EASE, delay: 0.15 + i * 0.1 }} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 3, background: c }} />
+                    <span style={{ flex: 1, fontSize: 16 }}>{k}</span>
+                    <b className="mono" style={{ color: v === '$0' ? 'rgba(255,255,255,.5)' : 'var(--red)' }}>{v === 'Charged' ? <>$<CountUp value={72.72} format={(n) => n.toFixed(2)} /></> : v}</b>
+                  </motion.div>
                 ))}
               </div>
             </div>
           </Reveal>
-          <p className="faint" style={{ fontSize: 13, marginTop: 22, textAlign: 'center' }}>
-            Statements are drafts for review, not legal advice · Developer tools: <a href={API_URL}>API test page</a> · <Link href="/lab">3D viewer lab</Link>
+          <p className="faint" style={{ fontSize: 13, marginTop: 26, textAlign: 'center' }}>
+            Statements are drafts for you to check, not legal advice · Built at the Gemini 4 NYC hackathon · <a href={API_URL}>API</a> · <Link href="/lab">3D lab</Link>
           </p>
         </section>
       </main>

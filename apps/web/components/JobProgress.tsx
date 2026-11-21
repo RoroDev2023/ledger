@@ -6,14 +6,14 @@ import { api, type DecisionsStat, type JobEvent, type Stage } from '../lib/api';
 import { EASE, Icon } from './motion';
 
 const STAGES: { id: Stage; label: string; who: string }[] = [
-  { id: 'frames', label: 'Keyframes', who: '' },
-  { id: 'rooms', label: 'Rooms', who: 'Decisions API' },
-  { id: 'surfaces', label: 'Walls', who: 'Decisions API' },
-  { id: 'findings', label: 'Damage', who: 'Decisions API · Carbon' },
-  { id: 'diff', label: 'Before and after', who: 'Decisions API' },
+  { id: 'frames', label: 'Picking the clearest frames', who: '' },
+  { id: 'rooms', label: 'Finding the rooms', who: 'Gemini' },
+  { id: 'surfaces', label: 'Matching frames to walls', who: 'Gemini' },
+  { id: 'findings', label: 'Looking for damage', who: 'Gemini' },
+  { id: 'diff', label: 'Comparing before and after', who: 'Gemini' },
 ];
 
-export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: string; withDiff: boolean; onDone?: () => void; onError?: (msg: string) => void }) {
+export function JobProgress({ jobId, withDiff, onDone, onError, onChange, hold = false }: { jobId: string; withDiff: boolean; onDone?: () => void; onError?: (msg: string) => void; onChange?: (stage: Stage | null, state: 'running' | 'done' | 'error') => void; hold?: boolean }) {
   const [progress, setProgress] = useState<Partial<Record<Stage, { done: number; total: number }>>>({});
   const [stats, setStats] = useState<DecisionsStat | null>(null);
   const [state, setState] = useState<'running' | 'done' | 'error'>('running');
@@ -58,7 +58,8 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
         else if (e.type === 'decisions') setStats(e.stats);
         else if (e.type === 'done') {
           setState('done');
-          setTimeout(() => onDone?.(), 700);
+          // hold: stay on this screen (the 3D shows the results) until the button is pressed.
+          if (!hold) setTimeout(() => onDone?.(), 1600);
         } else if (e.type === 'error') {
           setState('error');
           setError(e.message);
@@ -68,22 +69,54 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
     [jobId],
   );
 
+  // Tell the parent which step is running (the live 3D follows it).
+  const current = (['diff', 'findings', 'surfaces', 'rooms', 'frames'] as Stage[]).find((k) => progress[k] && progress[k]!.done < progress[k]!.total) ?? (['diff', 'findings', 'surfaces', 'rooms', 'frames'] as Stage[]).find((k) => progress[k]) ?? null;
+  useEffect(() => onChange?.(current, state), [current, state, onChange]);
+
   return (
     <div>
-      <div className="eyebrow">{state === 'done' ? 'Complete' : state === 'error' ? 'Stopped' : waiting ? 'Waiting in line' : 'Processing'}</div>
+      <AnimatePresence>
+        {state === 'done' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', marginBottom: 14, borderRadius: 14, background: '#e9f3ec', color: 'var(--green)' }}
+          >
+            <motion.span
+              initial={{ scale: 0, rotate: -30 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 14, delay: 0.1 }}
+              style={{ width: 34, height: 34, borderRadius: 99, background: 'var(--green)', color: '#fff', display: 'grid', placeItems: 'center' }}
+            >
+              {Icon.check}
+            </motion.span>
+            <div>
+              <b style={{ display: 'block', color: 'var(--ink)' }}>{withDiff ? 'Comparison finished' : 'Move-in saved'}</b>
+              <span style={{ fontSize: 13 }}>{hold ? 'Have a look in 3D above.' : withDiff ? 'Opening the statement…' : 'Opening the apartment…'}</span>
+            </div>
+            {hold && (
+              <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => onDone?.()}>
+                {withDiff ? 'See the statement' : 'Open the apartment'} {Icon.arrow}
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div className="eyebrow">{state === 'done' ? 'All done' : state === 'error' ? 'Something went wrong' : waiting ? 'Waiting' : 'Working on it'}</div>
       {state === 'running' && waiting === null && (
         <div className="faint mono" style={{ fontSize: 12, marginTop: 6 }}>
           {fmtClock(now - startedAt)}
           {now - lastEventAt > 6000 && Object.keys(progress).length > 0 && (
             <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginLeft: 10, color: 'var(--brass)' }}>
-              Second opinion on the unsure frames · can take up to a minute
+              Taking a closer look at a few frames…
             </motion.span>
           )}
         </div>
       )}
       {waiting !== null && (
         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="muted" style={{ margin: '8px 0 0', fontSize: 14 }}>
-          {waiting === 1 ? 'One video' : `${waiting} videos`} ahead of this one. Videos are processed one at a time; this starts automatically.
+          {waiting === 1 ? 'Another video is' : `${waiting} videos are`} being processed first. This one starts on its own.
         </motion.p>
       )}
       <div style={{ marginTop: 14 }}>
@@ -117,9 +150,9 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 16 }}>
         {[
-          ['Decisions calls', stats?.calls ?? 0],
-          ['Questions', stats?.questions ?? 0],
-          ['Avg. response', stats ? `${stats.avgLatencyMs} ms` : '–'],
+          ['Checks run', stats?.calls ?? 0],
+          ['Questions asked', stats?.questions ?? 0],
+          ['Avg. answer time', stats ? `${(stats.avgLatencyMs / 1000).toFixed(1)} s` : '–'],
         ].map(([k, v]) => (
           <div key={k} style={{ background: 'var(--paper)', borderRadius: 14, padding: '12px 14px' }}>
             <motion.div key={String(v)} initial={{ y: -6, opacity: 0.4 }} animate={{ y: 0, opacity: 1 }} className="display num" style={{ fontSize: 30 }}>
@@ -131,7 +164,7 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
           </div>
         ))}
       </div>
-      {state === 'error' && <p style={{ color: 'var(--red)', marginTop: 12 }}>Something went wrong: {error}</p>}
+      {state === 'error' && <p style={{ color: 'var(--red)', marginTop: 12 }}>{error}</p>}
     </div>
   );
 }

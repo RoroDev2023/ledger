@@ -125,6 +125,7 @@ export const DiffItemSchema = z.object({
   costUsd: z.number().finite().nonnegative().optional(),
   leaseClause: z.string().optional(),
   confidence: prob,
+  spot: z.object({ heightM: z.number().finite().nonnegative().optional(), nearId: z.string().optional(), side: z.enum(['left', 'right', 'on']).optional() }).optional(),
 });
 
 export const StatementSchema = z.object({

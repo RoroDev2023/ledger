@@ -110,3 +110,26 @@ export const Icon = {
     </svg>
   ),
 };
+
+/** Shimmering placeholder while something loads. */
+export function Skeleton({ h = 18, w = '100%', r = 10, style }: { h?: number | string; w?: number | string; r?: number; style?: React.CSSProperties }) {
+  return <div className="skeleton" style={{ height: h, width: w, borderRadius: r, ...style }} />;
+}
+
+/** A page-shaped loading state: header lines and a big block. */
+export function PageSkeleton() {
+  return (
+    <div className="page">
+      <Skeleton h={12} w={140} />
+      <Skeleton h={54} w="55%" style={{ marginTop: 14 }} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 380px', gap: 20, marginTop: 28 }}>
+        <Skeleton h={480} r={20} />
+        <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
+          <Skeleton h={110} r={16} />
+          <Skeleton h={110} r={16} />
+          <Skeleton h={110} r={16} />
+        </div>
+      </div>
+    </div>
+  );
+}
