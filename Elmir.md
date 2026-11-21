@@ -2,6 +2,16 @@
 
 Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluation (`packages/shared`, `packages/plan`, and `packages/eval`, E1–E5).
 
+## 2026-11-21 11:11 ET · E4 eval + protocol + README (branch `elmir/e4-eval`, stacked on PR #7)
+
+- **Matches the team-review changes on main (59f6dfe):** headline numbers are false charges on clean re-shoots and charges for moved objects; "not provable" = `not-visible` with reason starting "Not provable:" until the contract gets its own verdict.
+- **`runBaseline(plan, {moveIn, moveOut}, model)`**: ONE Neon call with the plan's surface IDs and both video URIs (Files API upload is the caller's job), zod-validated, drops surfaces not in the plan. Needs R1 `generate` with `{type:'video', uri, mime_type}` parts.
+- **`pnpm eval [--split test|dev]`**: reads `data/labels/*.json`, ours from `.data/units/<pairId>/diff.json`, baseline from `.data/eval/baseline/<pairId>.json`, cost/latency/question counts from `.data/calls.jsonl`; writes `eval/results.md` (headline table, P/R/F1 with raw counts, verdict confusion per system, cost table).
+- **Rahim:** please write `diff.json` per pair at `.data/units/<pairId>/diff.json` (pairId = unitId for eval runs), and add `questions` to each calls.jsonl line as AGENTS.md now says.
+- **`docs/eval-protocol.md`**: set rules, dev 4 / test 12 change + 6 clean, outsiders write the card before any output, freeze 14:30, file layout.
+- **README.md**: pitch, pipeline, model jobs, proof, run, owners, "Built during the event", limits.
+- **Verified:** 31 tests, typecheck, lint, `pnpm eval` runs with no labels. **Not verified:** live Neon call (no key).
+
 ## 2026-11-21 11:01 ET · E2 plan parsing (branch `elmir/e2-plan-parse`, stacked on E1)
 
 - **`parsePlan(path, model, {unitId, ceilingHeightM?, knownMetersPerPixel?})`** in `@ledger/plan`: PDF -> PNG (pdftoppm, 200 dpi), Argon reads rooms / openings / dimension labels / fixtures on a **0-1000 grid** (Gemini's native pointing convention), code converts to pixels with the real image size, merges shared corners (5 px), snaps walls within ±3° to the axis, sets scale from the median label (drops >15% outliers; falls back to a known measurement, then an assumption with a warning), flips y so north is up, builds walls/IDs/areas, validates. On failure: up to 2 Carbon repair rounds with the errors; anything unresolved goes into `warnings`.
