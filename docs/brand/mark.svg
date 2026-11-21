@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- The Corner Pin: an L-shaped plan wall (two walls meeting) and the damage pin inside the corner -->
+  <path d="M10 8 h11 v35 h35 v11 H10 Z" fill="#0e0e0c"/>
+  <circle cx="35" cy="29" r="7.5" fill="#ff4f1f"/>
+</svg>
