@@ -2,7 +2,7 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
-## 2026-11-21 12:58 ET · Built walls: no more doubled or overlapping walls
+## 2026-11-21 12:43 ET · Built walls: no more doubled or overlapping walls
 
 - Branch `alex/viewer-openings` (PR #25). The viewer now draws one wall per wall line (`physicalWalls()`), centered on the line and shared by the rooms on both sides, instead of one slab per room. That removes the doubled walls between rooms, the tall-wall-plus-stub combos in the cut-away, and the slivers at corners. Each side face wears its room's color (selected / charged), and a click picks the room on the side you hit. Room edges within 35 cm and 3° count as one wall (scans put the two sides ~30 cm apart). Only exterior walls are lowered in the cut-away. Wall shadows removed (they drew dark shapes on floors).
 - 102 viewer tests, including no-overlap and every-wall-covered checks on all samples; mutation-checked. Screenshots of all 5 Argon-parsed plans look like their PDFs; the scan keeps few-cm steps from tracing error.
