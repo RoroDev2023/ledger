@@ -3,6 +3,7 @@
 // layer (isCheckoutNavigation), so even a theme that redirects to checkout after add-to-cart stops at the cart.
 import { chromium, type BrowserContext, type Locator, type Page } from 'playwright';
 import type { ClickResult, StoreBrowser, StorePage } from './agent.js';
+import { closeHeldBrowser, holdBrowser, releaseBrowser, type HeldBrowser } from './held.js';
 
 export interface LaunchOptions {
   /** Default false: the browser is meant to be watched. CART_AGENT_HEADLESS=1 overrides. */
@@ -186,8 +187,13 @@ class PlaywrightStoreBrowser implements StoreBrowser {
   }
 }
 
+/**
+ * Launches the agent window. It is held at module level (held.ts) and is NOT closed when the run finishes, so
+ * the cart tabs stay on screen; the previous run's window is closed here, before the new one opens.
+ */
 export async function launchStoreBrowser(opts: LaunchOptions = {}): Promise<StoreBrowser> {
   const headless = process.env.CART_AGENT_HEADLESS === '1' ? true : (opts.headless ?? false);
+  await closeHeldBrowser();
   const browser = await chromium.launch({ headless, slowMo: opts.slowMo ?? 300 });
   const context = await browser.newContext({ viewport: { width: 1280, height: 820 }, locale: 'en-US' });
   // Network-level guard: abort any navigation into checkout. Only checkout-looking URLs and /cart are routed,
@@ -200,8 +206,15 @@ export async function launchStoreBrowser(opts: LaunchOptions = {}): Promise<Stor
       return route.fallback();
     },
   );
-  return new PlaywrightStoreBrowser(context, async () => {
-    await context.close().catch(() => {});
-    await browser.close().catch(() => {});
-  });
+  const handle: HeldBrowser = {
+    close: async () => {
+      releaseBrowser(handle);
+      await context.close().catch(() => {});
+      await browser.close().catch(() => {});
+    },
+  };
+  // Closed by hand: forget it so the next run doesn't try to close a dead window.
+  browser.on('disconnected', () => releaseBrowser(handle));
+  await holdBrowser(handle);
+  return new PlaywrightStoreBrowser(context, handle.close);
 }

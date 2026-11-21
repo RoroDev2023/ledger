@@ -2,6 +2,14 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 15:45 ET · "Find fixes on Shopify" button + cart tabs that stay open (branch `rahim/shopify-button`)
+
+- **Base:** main, which already has #35 (fixkit) and #40 (cart-agent).
+- **Web (Alex's app, small):** `FixKitPanel` on the statement page: fixkit job feed → kit with "Fix it yourself: $X vs $Y deduction" → cart job feed with screenshots → per-seller "Open cart" links. Details in Alex.md.
+- **Cart agent:** `src/held.ts` keeps the Playwright browser in a module-level reference after the run (no close at the end). `launchStoreBrowser` closes the previous window first; `closeHeldBrowser()` is exported; a window closed by hand is forgotten (`disconnected`). Never opens checkout (unchanged guards; static source test still passes).
+- **Verified:** 3 new held-browser tests; real headless Chromium script: window alive after run A, closed when run B launches, `closeHeldBrowser()` closes B. `pnpm -r typecheck`, `pnpm lint`, `pnpm -r test` (380) green. **Not verified:** the button in a browser against the live API (Rahim tests live next).
+- **Next:** live run from the statement page on the demo laptop; check the feed timing and that the tabs stay on /cart.
+
 ## 2026-11-21 15:22 ET · Cart agent: a visible browser fills each seller's real Shopify cart (branch `rahim/cart-agent`)
 
 - **Base:** main plus the open #35 (`rahim/fixkit-shop`) merged in, because `buildFixKit` isn't on main yet. Conflicts were only `Alex.md` and `.env.example` (both sides kept). This PR includes #35.

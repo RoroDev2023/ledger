@@ -36,7 +36,7 @@ export interface Unit {
   walkthroughs: Walkthrough[];
 }
 
-export type Stage = 'frames' | 'rooms' | 'surfaces' | 'findings' | 'diff';
+export type Stage = 'frames' | 'rooms' | 'surfaces' | 'findings' | 'diff' | 'fixkit' | 'cart';
 export interface DecisionsStat {
   calls: number;
   questions: number;
@@ -46,8 +46,67 @@ export interface DecisionsStat {
 export type JobEvent =
   | { type: 'progress'; stage: Stage; done: number; total: number }
   | { type: 'decisions'; stats: DecisionsStat }
-  | { type: 'done'; result: { walkthroughId: string; findings: number; diffItems?: number } }
+  | { type: 'done'; result: { walkthroughId: string; findings: number; diffItems?: number } | { fixkit: FixKitSummary } | { carts: CartSummary[] } }
+  /** Fix kit step (POST /units/:id/fixkit): `text` is a ready-made feed line. */
+  | { type: 'fixkit'; text: string; event: { step: string; done: number; total: number } }
+  /** Cart agent step (POST /units/:id/fixkit/cart): `screenshot` is an API path on product and cart-verified. */
+  | { type: 'cart'; text: string; event: { step: string; done: number; total: number; seller?: string; screenshot?: string } }
   | { type: 'error'; message: string };
+
+// Fix kit + cart agent (Rahim's apps/api routes; shapes mirror @ledger/pipeline FixKit and apps/api CartSummary).
+export interface FixKitSummary {
+  items: number;
+  checkouts: number;
+  diyTotal: number;
+  deductionTotal: number;
+  savings: number;
+  complete: boolean;
+}
+export interface FixKitItem {
+  key: string;
+  need: string;
+  needLabel: string;
+  product: { id: string; title: string };
+  variant: { id: string; options: string[] };
+  /** Unit price, USD. */
+  price: number;
+  quantity: number;
+  lineTotal: number;
+  seller: { name: string; domain: string };
+  url: string;
+  confidence: number;
+  needsChoice: boolean;
+  forDiffItem: { surfaceId: string; issueType: string; deductionUsd: number };
+}
+export interface FixKit {
+  createdAt: string;
+  items: FixKitItem[];
+  checkouts: { seller: string; shop: string; subtotal: number; error?: string }[];
+  missing: { key: string; needLabel: string; surfaceId: string; reason: string }[];
+  uncovered: { surfaceId: string; issueType?: string; reason: string }[];
+  warnings: string[];
+  diyTotal: number;
+  deductionTotal: number;
+  savings: number;
+  complete: boolean;
+}
+/** One seller's cart after the cart agent ran. Nothing is ever bought. */
+export interface CartSummary {
+  seller: string;
+  shop: string;
+  /** The store's own /cart page (the tab the agent leaves open). */
+  cartUrl: string;
+  verified: boolean;
+  itemCount: number;
+  subtotal: number;
+  currency: string;
+  lines: { title: string; quantity: number; via?: string; error?: string }[];
+  /** API path of the cart screenshot. */
+  screenshot?: string;
+  error?: string;
+  /** Shop checkout link when the browser run failed (carries an access key: never log it). */
+  fallbackUrl?: string;
+}
 
 async function send<T>(method: 'POST' | 'PATCH', path: string, body: FormData | object): Promise<T> {
   const isForm = body instanceof FormData;
@@ -114,7 +173,7 @@ export const api = {
   /** Live job events (SSE). Returns a function that stops listening. */
   followJob: (jobId: string, onEvent: (e: JobEvent) => void): (() => void) => {
     const es = new EventSource(`${API_URL}/jobs/${jobId}/events`);
-    for (const type of ['progress', 'decisions', 'done', 'error'] as const) {
+    for (const type of ['progress', 'decisions', 'fixkit', 'cart', 'done', 'error'] as const) {
       es.addEventListener(type, (m) => {
         const data = (m as MessageEvent<string>).data;
         if (!data) return; // a bare connection error, not our error event
@@ -134,4 +193,12 @@ export const api = {
   diff: (unitId: string) => maybe<DiffItem[]>(`/units/${unitId}/diff`),
   frameUrl: (unitId: string, frameId: string) => `${API_URL}/units/${unitId}/frames/${frameId}`,
   statementHtmlUrl: (unitId: string) => `${API_URL}/units/${unitId}/statement.html`,
+  /** Starts the fix kit job (Shop search + Decisions pick per repair need). */
+  buildFixKit: (unitId: string) => send<{ jobId: string }>('POST', `/units/${unitId}/fixkit`, {}),
+  fixKit: (unitId: string) => maybe<FixKit>(`/units/${unitId}/fixkit`),
+  /** Starts the cart agent: a visible browser on the API's machine fills each seller's cart (never checks out). */
+  fillCarts: (unitId: string) => send<{ jobId: string }>('POST', `/units/${unitId}/fixkit/cart`, {}),
+  carts: (unitId: string) => maybe<{ createdAt: string; carts: CartSummary[] }>(`/units/${unitId}/fixkit/cart`),
+  /** Screenshot paths in cart events and CartSummary are relative to the API. */
+  apiUrl: (path: string) => (path.startsWith('http') ? path : API_URL + path),
 };

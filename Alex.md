@@ -2,6 +2,18 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 15:45 ET · From Rahim: "Find fixes on Shopify" on the statement page (branch `rahim/shopify-button`)
+
+- **New:** `apps/web/components/FixKitPanel.tsx`, rendered at the bottom of `/units/:id/statement` only when the statement has a `new-damage` item. One primary button, "Find fixes on Shopify":
+  1. `POST /units/:id/fixkit` → live feed of the job's `fixkit` SSE lines (query written, searching, picked … (confidence), checkout …) plus the Decisions call/question count.
+  2. `GET /units/:id/fixkit` → kit table (need, product link, options, confidence, seller, qty × price, line total) under the big line **"Fix it yourself: $X vs $Y deduction"**.
+  3. After 1.2 s, automatically `POST /units/:id/fixkit/cart` → `cart` feed lines (opening <store> → product page → added → cart verified), with the latest agent screenshot beside the feed.
+  4. Done → one card per seller: verified badge, lines, subtotal, cart screenshot, **"Open cart"** (`cartUrl`) and, if the seller failed, "Shop checkout link" (`fallbackUrl`).
+  - A kit/cart from an earlier run is shown on reload; the button then reads "Find fixes on Shopify again".
+- **Small edits in your files:** `lib/api.ts` (Stage + `fixkit`/`cart`, the two JobEvent variants, `FixKit`/`CartSummary` types, `buildFixKit`/`fixKit`/`fillCarts`/`carts`/`apiUrl`, and `followJob` now also listens to `fixkit` and `cart`); `JobProgress.tsx` only changes its last `else` to `else if (e.type === 'error')` so the new event types can't be mistaken for errors; statement `page.tsx` +2 lines.
+- **Cart tabs stay open:** `packages/cart-agent/src/held.ts` holds the Playwright browser at module level. It is closed only by the next run's launch, `POST …/fixkit/cart/close`, or API exit (Playwright's own signal handlers).
+- Note: "Open cart" opens the store's /cart in the viewer's own browser, which has its own cookies, so the cart there may look empty. The filled carts are the tabs in the agent's Chromium window.
+
 ## 2026-11-21 15:22 ET · From Rahim: cart agent API, `POST /units/:id/fixkit/cart` (branch `rahim/cart-agent`)
 
 - **Button (fix kit panel, after the kit is built):** "Watch the agent fill the carts". It POSTs `/units/:id/fixkit/cart`. A visible Chromium opens **on the laptop running the API**. For each seller it shows the store, the product page, adds the picked variant and stops on that store's `/cart` page (one tab per seller, left open). It never checks out.
