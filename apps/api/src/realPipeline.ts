@@ -8,6 +8,10 @@ import { dirname, join } from 'node:path';
 import { readCallStats } from '@ledger/gemini';
 import { captionFrames, detectFindings, diffWalkthroughs, extractFrames, localizeWalkthrough, type SurfaceCoverage, type WalkthroughEvidence } from '@ledger/pipeline';
 import type { PipelineAdapter, RunHooks } from './pipeline.js';
+import { spotCheck } from './spotCheck.js';
+
+/** Move-out comparison: the spot check (default) or Rahim's per-wall findings + diff (DIFF_MODE=pipeline). */
+const useSpotCheck = (env: NodeJS.ProcessEnv = process.env) => env.DIFF_MODE !== 'pipeline';
 
 /**
  * Speed. Carbon second opinions take ~60 s each (measured live on the conference-room video) while a Decisions
@@ -74,14 +78,15 @@ export function realPipeline(base: Pick<PipelineAdapter, 'parsePlan'>): Pipeline
           captions,
           outPath: join(workDir, 'localization.json'),
           planSvgPath: join(workDir, '..', '..', 'plan.svg'),
-          config: speedConfig().localize,
+          // With the spot check, the move-out wall labels only name the lines, so no slow second opinions there.
+          config: walkthrough.kind === 'move-out' && useSpotCheck() ? { MAX_CARBON_CALLS: 0 } : speedConfig().localize,
           env,
           onProgress: (stage, d, t) => hooks.onProgress(stage, d, t),
         });
         // Both walkthroughs are checked for damage: the move-in list is the record of what was already there.
         // MOVEIN_DAMAGE=off skips it on the move-in (faster; the diff can still call a mark pre-existing when two
         // before/after pairs of that spot agree nothing changed).
-        const checkDamage = walkthrough.kind === 'move-out' || process.env.MOVEIN_DAMAGE !== 'off';
+        const checkDamage = walkthrough.kind === 'move-out' ? !useSpotCheck() : process.env.MOVEIN_DAMAGE !== 'off';
         const found = checkDamage
           ? await detectFindings(plan, frames, loc, { walkthroughId: wid, config: speedConfig().findings, env, onProgress: (_s, d, t) => hooks.onProgress('findings', d, t) })
           : { findings: [], notVisible: [] as string[] };
@@ -102,6 +107,11 @@ export function realPipeline(base: Pick<PipelineAdapter, 'parsePlan'>): Pipeline
       const stop = watchDecisions(hooks);
       try {
         const [baseline, addendum, moveOut] = await Promise.all([load(dirs.baseline), load(dirs.addendum), load(dirs.moveOut)]);
+        if (useSpotCheck() && baseline) {
+          const spot = await spotCheck({ plan, baseline, moveOut: moveOut!, onProgress: (d, t) => hooks.onProgress('diff', d, t) });
+          await writeJson(join(dirs.moveOut, '..', '..', 'diff-evidence.json'), { evidence: spot.evidence, warnings: [], method: 'spot-check' });
+          return spot.items;
+        }
         const diff = await diffWalkthroughs({ plan, baseline, addendum, moveOut: moveOut!, onProgress: (_s, d, t) => hooks.onProgress('diff', d, t) });
         // The proof (which before/after pairs, the box on the frame) for the evidence panel.
         await writeJson(join(dirs.moveOut, '..', '..', 'diff-evidence.json'), { evidence: diff.evidence, warnings: diff.warnings });

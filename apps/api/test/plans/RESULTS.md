@@ -23,3 +23,18 @@ stay within 16 cm on the scan in every run.
 
 **Also seen:** the same PDF can parse differently between runs (unit-4b: 100% in one earlier run, 14–17% off on
 small rooms in the next two), so each plan needs more than one run to judge.
+
+## Our own videos: conference room (video/IMG_0022 move-in, IMG_0023 move-out; not committed)
+
+Ground truth from the frames: a yellow mark on the concrete column is in **both** videos (pre-existing); the only
+new thing at move-out is a **sheet of paper stuck on the wall light** by the door.
+
+| Comparison | What happened | Result |
+|---|---|---|
+| Per-wall findings + diff (R4/R5), plan without wall landmarks | frames 1.5–31.5 s all placed on the west wall; findings looked at the wrong frames | **missed the paper**, $0 |
+| Same, with wall landmarks from the plan | south (door) wall got 0 frames; the paper isn't in the damage checklist | **missed the paper**, column mark as "not visible" |
+| **Spot check** (`apps/api/src/spotCheck.ts`): screen every move-out frame, match the move-in frame by picture, two-view rule | paper flagged at 32–34.5 s, 2/2 pairs say new (0.89, 0.89); column mark 2/2 pairs say unchanged (0.10, 0.14) | **paper: new, $85; column mark: pre-existing, $0** in 41 s |
+
+What changed after the failures: frames are no longer filed by wall before looking for damage; the move-out is
+screened frame by frame and each suspect spot is matched to the move-in by picture. The wall label is only used to
+name the line (it called the light's wall "east"; check against the room).
