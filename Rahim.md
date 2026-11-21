@@ -2,6 +2,36 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 15:22 ET · Cart agent: a visible browser fills each seller's real Shopify cart (branch `rahim/cart-agent`)
+
+- **Base:** main plus the open #35 (`rahim/fixkit-shop`) merged in, because `buildFixKit` isn't on main yet. Conflicts were only `Alex.md` and `.env.example` (both sides kept). This PR includes #35.
+- **Ready:** `packages/cart-agent` (new, owner Rahim). `fillCarts(kit, { launch, onEvent, screenshotDir, sellers?, maxSellers?, timeboxMs=30s })` → `{ carts, close }`.
+  - Groups items by `seller.domain` and merges identical variants. Fallback link = that seller's `continue_url`.
+  - **Per seller, in one Chromium window** (headed, slowMo 300 ms, one tab each): opens the storefront homepage for 1.5 s, then the variant URL with its query string unchanged.
+  - Closes popups (common cookie/newsletter close buttons, at most 2 passes, never blocks).
+  - Adds to cart. It first clicks the theme button, using only the `/cart/add` form whose `id` equals our variant and only after the label passes the unsafe filter. If `/cart.js` hasn't changed within 5 s, it falls back to `POST /cart/add.js` with `{ items:[{ id:<numeric>, quantity }] }`.
+  - Then `/cart`, read back with `/cart.js`, and a screenshot. The tab stays open on `/cart`.
+  - Timebox 30 s per seller. Failure → `seller-failed` with the fallback link, and the run moves on.
+- **Never checks out:** no checkout or express-pay control is ever pressed (label filter `UNSAFE_TEXT`), the only typing is the quantity field, and nothing calls complete_checkout. A Playwright route also aborts every navigation to `/checkout(s)`, `/cart/checkout`, `shop.app`, or a `POST /cart` asking for checkout.
+- **Gotcha:** `seller.domain` is the `*.myshopify.com` host, but the variant URL uses the store's own domain. Cart cookies are per host, so `/cart` and `/cart.js` are read on the variant URL's origin (`cartUrl` reports which).
+- Numeric variant ID = the `?variant=` param, else the GID's trailing number (`numericVariantId`).
+- **Events:** `start → opening → product (screenshot) → [popup] → added (via button | cart-api | button+cart-api) / add-failed → cart → cart-verified (n items, $subtotal, screenshot) / seller-failed → done`, with `done/total` and `describeCartEvent()` feed lines.
+- **API:** `POST /units/:id/fixkit/cart` (202 job + SSE, `?wait=1` → `{ carts }`), `GET …/fixkit/cart`, `GET …/fixkit/cart/shots/:file`, `POST …/fixkit/cart/close`. Details and the button for Alex are in Alex.md.
+- **CLI:** `pnpm --filter @ledger/cart-agent fill <fixkit.json> [--sellers a,b] [--max-sellers N] [--max-usd N] [--headless] [--close]`. The script is named `fill` because `pnpm … run <file>` would treat the file as a script name. It writes `cart.json` (without `continue_url`) and `cart-shots/` next to the kit.
+- **Verified:**
+  - 13 cart-agent tests: variant ID parsing, grouping and filters, the event sequence, button → API fallback, add failure, timebox → fallback, no numeric ID, the checkout guard, unsafe labels, and a static source check (no complete_checkout, no checkout click/goto/fetch, quantity is the only typing). 4 API tests with a fake browser.
+  - `pnpm -r typecheck`, `pnpm lint` and `pnpm -r test` (376) are green.
+  - **Live, headed**, on the recorded real fix kit (14:28, 12 items, 10 sellers), limited with `--max-usd 5` to the 2 cheapest sellers:
+    - Painters Solutions (putty knife $4.20): **theme button**, cart verified, 1 item, $4.20, 10.1 s.
+    - Cosmas-Hardware.com (cabinet knob $2.49): **theme button**, cart verified, 1 item, $2.49, 11.0 s.
+    - Screenshots checked by eye: both store cart pages show the item. No checkout was opened.
+  - **Not verified live:** the `/cart/add.js` fallback (unit test only), quantity > 1 (the spackle ×2 seller), sellers with several lines (TouchUp.com ×3), and the API route with the real browser.
+- **For Alex:** button "Watch the agent fill the carts"; details in Alex.md.
+- **For Elmir:** `packages/cart-agent` could get a row in the AGENTS.md layout table (owner Rahim), next to `packages/shop`.
+- **Next:**
+  - Run it once through the API from the web button on the demo laptop.
+  - Then one multi-line seller (TouchUp.com) to time the 30 s box. With slowMo, 3 product pages may need ~35 s, so raise `timeboxMs` if it trips.
+
 ## 2026-11-21 14:40 ET · Tenant fix kit via Shop MCP (Shopify bonus) (branch `rahim/fixkit-shop`)
 
 - **Ready:** `packages/shop` (new) is a stateless Shop MCP client for `https://mcp.shop.com/`.

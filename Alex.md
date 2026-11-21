@@ -2,6 +2,21 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 15:22 ET · From Rahim: cart agent API, `POST /units/:id/fixkit/cart` (branch `rahim/cart-agent`)
+
+- **Button (fix kit panel, after the kit is built):** "Watch the agent fill the carts". It POSTs `/units/:id/fixkit/cart`. A visible Chromium opens **on the laptop running the API**. For each seller it shows the store, the product page, adds the picked variant and stops on that store's `/cart` page (one tab per seller, left open). It never checks out.
+- `POST /units/:id/fixkit/cart` → `202 { jobId, events }`. Use the same `EventSource` as the other jobs. `?wait=1` runs inline → `200 { carts }`. `409` = no fixkit.json yet, or a run is already going. Optional JSON body `{ sellers?: string[], maxSellers?: number }`. A new run closes the previous run's window.
+- **SSE events on that job:**
+  - `progress` `{ stage:'cart', done, total }` (done = sellers finished).
+  - `cart` `{ type:'cart', text, event }`. `text` is a ready-made feed line, e.g. `opening Painters Solutions` → `product page: Hyde 02250 …` → `added Hyde 02250 … ×1 (store button)` → `cart verified at Painters Solutions, 1 item, $4.20`. `event.step` is `start | opening | product | popup | added | add-failed | cart | cart-verified | seller-failed | done`. `product` and `cart-verified` carry `screenshot`: a URL you can put in an `<img>` (`/units/:id/fixkit/cart/shots/<file>.png`).
+  - `done` `{ result:{ carts } }`, or `error`.
+- `carts[]`: `{ seller, shop, cartUrl, verified, itemCount, subtotal, currency, lines[{ title, quantity, via?, error? }], screenshot?, error?, fallbackUrl? }`. `verified` = every picked variant is in the store's `/cart.js` at the right quantity. `subtotal` is the store's, before tax and shipping.
+- **When a seller fails** (`verified:false`, 30 s timebox), show `fallbackUrl` as a link: it is the Shop checkout `continue_url` (an access key, so don't log it).
+- `GET /units/:id/fixkit/cart` = the last run. `POST /units/:id/fixkit/cart/close` closes the agent's window.
+- **Layout idea:** the live feed with the cart screenshots next to the real browser window. Then "Open cart at <seller>" buttons (`cartUrl`) and the line "Nothing was bought".
+- Files: new `apps/api/src/routes/cart.ts`, 2 lines in `app.ts`, additive types in `events.ts` (`Stage` + `'cart'`, a `cart` JobEvent, `CartSummary`, `done.result` may be `{ carts }`), test `apps/api/test/cart.test.ts` (fake browser).
+- Needs Chromium once on the demo laptop: `pnpm --filter @ledger/cart-agent exec playwright install chromium`. `CART_AGENT_HEADLESS=1` hides the window (CI).
+
 ## 2026-11-21 14:54 ET · Spot check finds the change on our videos, with the right proof frames
 
 - `apps/api/src/spotCheck.ts` is the move-out comparison by default (DIFF_MODE=pipeline for R4/R5): screen every move-out frame → events → confirm a second move-out view shows the same item → search every move-in frame in batches for the same spot (surroundings tell identical fixtures apart) → two independent "is this new?" pairs → merge repeated sightings of the same item.
