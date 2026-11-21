@@ -11,3 +11,5 @@ export * from './findingsConfig.js';
 export * from './diff.js';
 export * from './price.js';
 export * from './progress.js';
+export * from './diffConfig.js';
+export * from './statement.js';

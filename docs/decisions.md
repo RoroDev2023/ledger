@@ -15,3 +15,5 @@ pre-event · RoroDev · planning docs prepared before the event · give all thre
 12:19 · Rahim · R4 Carbon calls capped per walkthrough (MAX_CARBON_CALLS 8, most uncertain first); over the cap or on a Carbon error the issue abstains (no finding) · bounded cost and latency; an agent that will not charge what it cannot prove
 12:19 · Rahim · R4 applies the coverage minimum after the visibility gate: < 2 frames passing → surface not-visible · matches the two-pair proof rule downstream
 11:21 · Elmir · plan test images are drawn by us from the fixtures · exact ground truth for Argon, no listing-image rights issue
+12:21 · Rahim · R5 keeps both proof pairs, every pair's probabilities and the quadrant bbox in diff-evidence.json next to diff.json · DiffItem is frozen with one before/after frame; Alex's evidence panel needs the second pair
+12:21 · Rahim · Carbon's one-sentence deduction reason is used only if it quotes the computed $ exactly and no other figure, else a code template · a model must never put a number on the statement
