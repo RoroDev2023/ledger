@@ -2,6 +2,7 @@
 // lines with verdict, reason, cost and before/after frames (damage box drawn on the after frame).
 'use client';
 import { AnimatePresence, motion } from 'motion/react';
+import { useState } from 'react';
 import type { DiffItem, Finding } from '@ledger/shared';
 import { displayReason, pinStyle } from '@ledger/viewer/colors';
 import { api } from '../lib/api';
@@ -85,16 +86,28 @@ function Line({ unitId, item, findings, expanded, onClick, surfaceLabel }: { uni
 }
 
 export function Frame({ title, src, bbox, color = 'var(--red)' }: { title: string; src: string | null; bbox?: [number, number, number, number]; color?: string }) {
+  // Show the WHOLE frame: phone videos are portrait, and cropping to a wide box cut off what was high on the wall.
+  const [aspect, setAspect] = useState<number | null>(null);
+  const [open, setOpen] = useState(false);
+  const ratio = aspect ? Math.min(16 / 9, Math.max(9 / 16, aspect)) : 3 / 4;
   return (
     <figure style={{ margin: 0 }}>
       <figcaption className="eyebrow" style={{ fontSize: 10, marginBottom: 6 }}>
         {title}
       </figcaption>
-      <div style={{ position: 'relative', aspectRatio: '16 / 9', background: 'var(--paper-2)', borderRadius: 10, overflow: 'hidden' }}>
+      <div
+        onClick={() => src && setOpen(true)}
+        style={{ position: 'relative', aspectRatio: String(ratio), maxHeight: 340, margin: '0 auto', background: 'var(--ink)', borderRadius: 10, overflow: 'hidden', cursor: src ? 'zoom-in' : 'default' }}
+      >
         {src ? (
-          <img src={src} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <img
+            src={src}
+            alt={title}
+            onLoad={(e) => setAspect(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+          />
         ) : (
-          <div className="faint" style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 12 }}>
+          <div className="faint" style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 12, background: 'var(--paper-2)' }}>
             no frame
           </div>
         )}
@@ -116,6 +129,20 @@ export function Frame({ title, src, bbox, color = 'var(--red)' }: { title: strin
           />
         )}
       </div>
+      <AnimatePresence>
+        {open && src && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(21,18,13,.82)', display: 'grid', placeItems: 'center', cursor: 'zoom-out' }}
+          >
+            <motion.img initial={{ scale: 0.96 }} animate={{ scale: 1 }} src={src} alt={title} style={{ maxWidth: '92vw', maxHeight: '92vh', borderRadius: 12, boxShadow: 'var(--shadow-lg)' }} />
+            <div style={{ position: 'absolute', top: 18, left: 24, color: '#f4efe6', font: '600 12px var(--sans)', letterSpacing: '.12em', textTransform: 'uppercase' }}>{title}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </figure>
   );
 }

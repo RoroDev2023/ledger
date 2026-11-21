@@ -39,8 +39,10 @@ function fakeDecide(opts: { wrong: number[]; changed: boolean }) {
 }
 
 const plan = loadPlanFixture('demo-table');
+const progress: [string, number, number][] = [];
 const run = (wrong: number[], changed: boolean) =>
   spotCheck({
+    onProgress: (stage, d, t) => progress.push([stage, d, t]),
     plan,
     baseline: { walkthroughId: 'in', findings: [], frames: frames('in', 20) },
     moveOut: { walkthroughId: 'out', findings: [], frames: frames('out', 20), localizations: frames('out', 20).map((f) => ({ frameId: f.id, roomId: 'living-room', surfaceId: 'living-room.wall-s', confidence: 0.9, visible: {} })) },
@@ -85,5 +87,16 @@ describe('spot check', () => {
     const { items } = await run([3, 4, 7, 8], true); // two events within 5 frames: same item
     expect(items).toHaveLength(1);
     expect(items.every((d) => d.verdict === 'new-damage')).toBe(true);
+  });
+});
+
+describe('spot check progress', () => {
+  it('never goes past its total, and both stages finish', async () => {
+    progress.length = 0;
+    await run([3, 4, 12, 13], true);
+    for (const [, d, t] of progress) expect(d).toBeLessThanOrEqual(t);
+    expect(progress.filter(([s]) => s === 'findings').at(-1)).toEqual(['findings', 20, 20]);
+    const last = progress.filter(([s]) => s === 'diff').at(-1)!;
+    expect(last[1]).toBe(last[2]);
   });
 });

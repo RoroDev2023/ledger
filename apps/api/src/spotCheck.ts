@@ -73,7 +73,8 @@ export async function spotCheck(args: {
   plan: FloorPlan;
   baseline: WalkthroughEvidence;
   moveOut: WalkthroughEvidence;
-  onProgress?: (done: number, total: number) => void;
+  /** 'findings' = the frame scan (one per move-out frame); 'diff' = matching and comparing (total grows per event). */
+  onProgress?: (stage: 'findings' | 'diff', done: number, total: number) => void;
   env?: NodeJS.ProcessEnv;
   decideFn?: DecideFn;
   imageOf?: (f: Frame) => Promise<Content>;
@@ -88,8 +89,10 @@ export async function spotCheck(args: {
 
   // 1. Screen every move-out frame (one request each, in parallel; the client caps concurrency).
   let done = 0;
-  const steps = after.length + SPOT.MAX_EVENTS * 4;
-  const tick = () => args.onProgress?.(++done, steps);
+  let diffDone = 0;
+  let diffTotal = 0;
+  const tick = () => args.onProgress?.('findings', ++done, after.length);
+  const tickDiff = () => args.onProgress?.('diff', Math.min(++diffDone, diffTotal), diffTotal);
   const screened = await Promise.all(
     after.map(async (f) => {
       const questions = {
@@ -124,6 +127,11 @@ export async function spotCheck(args: {
     .sort((a, b) => b.p - a.p)
     .slice(0, SPOT.MAX_EVENTS);
 
+  // Exact-ish call count per event: same-item checks + (batches + final) per move-out view (at most 2) + 2 pairs; +1 merge.
+  const batches = Math.ceil(before.length / SPOT.BATCH) + 1;
+  diffTotal = ranked.reduce((n) => n + Math.min(after.length - 1, SPOT.SECOND_RADIUS * 2) + 2 * batches + 2, 0) + 1;
+  args.onProgress?.('diff', 0, diffTotal);
+
   const items: DiffItem[] = [];
   const evidence: SpotEvidence[] = [];
   const loc = new Map((moveOut.localizations ?? []).map((l) => [l.frameId, l.surfaceId]));
@@ -156,7 +164,7 @@ export async function spotCheck(args: {
     )
       .filter((x) => x.p >= SPOT.SAME_ITEM)
       .sort((x, y) => y.p * y.f.sharpness - x.p * x.f.sharpness);
-    tick();
+    tickDiff();
     const afters = [ref, ...(confirmed[0] ? [confirmed[0].f] : [])];
     // 3. The move-in frame of the same spot, by picture. Every move-in frame is shown, in batches (a sample of
     //    every 4th frame skipped the one close-up of the wall light and picked a wrong spot); batch winners then
@@ -184,7 +192,7 @@ export async function spotCheck(args: {
         tag: 'spot.match',
         env,
       });
-      tick();
+      tickDiff();
       const probs = answers.same.probabilities as Record<string, number>;
       return cands
         .map((c, i) => ({ c, p: probs[`b${i + 1}`] ?? 0 }))
@@ -219,7 +227,7 @@ export async function spotCheck(args: {
           tag: 'spot.change',
           env,
         });
-        tick();
+        tickDiff();
         return { beforeFrameId: b.id, afterFrameId: a.id, sameSpot: answers.same_spot.noul, changed: answers.changed.noul };
       }),
     );
@@ -307,7 +315,7 @@ export async function spotCheck(args: {
     }
     if (!dup) kept.push(i);
   }
-  args.onProgress?.(steps, steps);
+  args.onProgress?.('diff', diffTotal, diffTotal);
   const keep = new Set(kept);
   return { items: dedupe(items.filter((_, i) => keep.has(i))), evidence: evidence.filter((_, i) => keep.has(i)) };
 }
