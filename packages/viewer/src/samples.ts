@@ -214,6 +214,26 @@ export const SAMPLES: Sample[] = [
     items: [item('room.wall-1', 'pre-existing'), item('room.wall-3', 'new-damage')],
   },
   {
+    id: 'shared-doors',
+    title: 'Doors between rooms',
+    checks: 'A door attached to one room still opens the wall on the other side; windows show only above the stubs.',
+    plan: makePlan(
+      'shared',
+      [
+        { id: 'living', name: 'Living', polygon: rect(0, 0, 5, 4) },
+        { id: 'bed', name: 'Bedroom', polygon: rect(5, 0, 3.5, 4) },
+        { id: 'kitchen', name: 'Kitchen', polygon: rect(0, 4, 3, 2.5) },
+      ],
+      [
+        { room: 'bed', wall: 4, kind: 'door', offsetM: 2.1, widthM: 0.9 }, // bed wall-4 runs [5,4]->[5,0]
+        { room: 'kitchen', wall: 1, kind: 'door', offsetM: 1, widthM: 0.9 }, // kitchen wall-1 runs [0,4]->[3,4]
+        { room: 'living', wall: 1, kind: 'window', offsetM: 3, widthM: 1.5 },
+        { room: 'living', wall: 1, kind: 'door', offsetM: 1, widthM: 0.9 },
+      ],
+    ),
+    items: [item('living.wall-2', 'new-damage'), item('bed.wall-4', 'pre-existing')],
+  },
+  {
     id: 'no-items',
     title: 'Clean move-out, nothing found',
     checks: 'No pins, no tinted walls, still a useful model.',

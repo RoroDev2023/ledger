@@ -1,7 +1,7 @@
 // Tricky plans: L shapes, angled and rotated walls, tiny and huge rooms, crowded walls, bad data.
 import { describe, expect, it } from 'vitest';
 import { FloorPlanSchema, loadPlanFixture } from '@ledger/shared';
-import { pinAnchors, planGeometry, pointInPolygon, wallGeometry } from '../src/geometry.js';
+import { STUB_HEIGHT, openingsForWall, pinAnchors, planGeometry, pointInPolygon, wallGeometry } from '../src/geometry.js';
 import { pinKind } from '../src/colors.js';
 import { makePlan, SAMPLES } from '../src/samples.js';
 
@@ -149,5 +149,42 @@ describe('pointInPolygon', () => {
     expect(pointInPolygon([4, 4], L)).toBe(false); // the cut-out corner
     expect(pointInPolygon([5, 1], L)).toBe(true);
     expect(pointInPolygon([-1, 1], L)).toBe(false);
+  });
+});
+
+describe('doors on walls shared by two rooms', () => {
+  const plan = SAMPLES.find((x) => x.id === 'shared-doors')!.plan;
+  const geo = planGeometry(plan);
+  const wall = (id: string) => geo.walls.find((w) => w.surfaceId === id)!;
+  const doorGap = (id: string) => wall(id).stub.length === 2; // a stub split in two by one door
+
+  it('the door attached to the bedroom also cuts the living room side', () => {
+    expect(doorGap('bed.wall-4')).toBe(true);
+    expect(doorGap('living.wall-2')).toBe(true); // living wall-2 runs [5,0]->[5,4]: same line, opposite direction
+  });
+
+  it('the door attached to the kitchen also cuts the living room side', () => {
+    expect(doorGap('kitchen.wall-1')).toBe(true);
+    expect(doorGap('living.wall-3')).toBe(true);
+  });
+
+  it('projected doors land at the same plan position on both sides', () => {
+    const living = plan.surfaces.find((x) => x.id === 'living.wall-2')!;
+    const [o] = openingsForWall(living, plan).filter((x) => x.kind === 'door');
+    // bed wall-4 runs [5,4]->[5,0]; offset 2.1 -> y from 1.9 down to 1.0. Living wall-2 runs [5,0]->[5,4] -> offset 1.0.
+    expect(o!.offsetM).toBeCloseTo(1.0);
+    expect(o!.widthM).toBeCloseTo(0.9);
+  });
+
+  it('walls on other lines are not cut', () => {
+    expect(wall('living.wall-4').stub).toHaveLength(1);
+    expect(wall('bed.wall-2').stub).toHaveLength(1);
+  });
+
+  it('stubs are low, only door gaps go through them, windows only in the full wall', () => {
+    const south = wall('living.wall-1'); // 1 door + 1 window
+    expect(south.stub).toHaveLength(2);
+    for (const p of south.stub) expect(p.size[1]).toBeCloseTo(STUB_HEIGHT);
+    expect(south.pieces.length).toBeGreaterThan(south.stub.length);
   });
 });

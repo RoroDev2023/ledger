@@ -25,10 +25,6 @@ const WALL = '#f3efe7';
 const WALL_FLAGGED = '#fcd9d9';
 const FLOOR = '#e4dccd';
 const SELECTED = '#fde68a';
-/** Height of a cut-away wall, as a fraction of the ceiling. */
-const CUT_HEIGHT = 0.12;
-/** Wall height in the top-down view: low, like the thick lines of a paper plan. */
-const PLAN_HEIGHT = 0.2;
 
 export function UnitModel({ plan, items = [], selected = null, onSelect, view = '3d', style }: UnitModelProps) {
   const geo = useMemo(() => planGeometry(plan), [plan]);
@@ -94,29 +90,33 @@ function CameraRig({ geo, view }: { geo: PlanGeometry; view: '3d' | 'top' }) {
 }
 
 function Wall({ wall, color, mode, onClick }: { wall: WallGeometry; color: string; mode: 'cutaway' | 'plan'; onClick: () => void }) {
-  const group = useRef<THREE.Group>(null);
-  // Architect's cutaway: a wall between the camera and its room drops to a low stub, so you always look straight
-  // into the room. Scaling the group (its origin is on the floor) shrinks every piece toward the floor together.
+  const full = useRef<THREE.Group>(null);
+  const stub = useRef<THREE.Group>(null);
+  // Architect's cutaway: a wall between the camera and its room is swapped for a low stub (door gaps only), so
+  // you always look straight into the room. Top-down shows every wall as a stub, like the thick lines of a plan.
   useFrame(({ camera }) => {
-    const g = group.current;
-    if (!g) return;
-    const target = mode === 'plan' ? PLAN_HEIGHT : blocksView(wall, camera.position.toArray() as Vec3) ? CUT_HEIGHT : 1;
-    g.scale.y += (target - g.scale.y) * 0.18;
+    const low = mode === 'plan' || blocksView(wall, camera.position.toArray() as Vec3);
+    if (full.current) full.current.visible = !low;
+    if (stub.current) stub.current.visible = low;
   });
+  const click = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    onClick();
+  };
+  // Stubs cast no shadow: from a low wall it only draws a dark strip on the floor that reads like a line.
+  const boxes = (pieces: WallGeometry['pieces'], shadow: boolean) =>
+    pieces.map((p, i) => (
+      <mesh key={i} position={p.position} rotation={[0, p.rotationY, 0]} castShadow={shadow} receiveShadow userData={{ surfaceId: wall.surfaceId }}>
+        <boxGeometry args={p.size} />
+        <meshStandardMaterial color={color} roughness={0.95} />
+      </mesh>
+    ));
   return (
-    <group
-      ref={group}
-      onClick={(e: ThreeEvent<MouseEvent>) => {
-        e.stopPropagation();
-        onClick();
-      }}
-    >
-      {wall.pieces.map((p, i) => (
-        <mesh key={i} position={p.position} rotation={[0, p.rotationY, 0]} castShadow receiveShadow userData={{ surfaceId: wall.surfaceId }}>
-          <boxGeometry args={p.size} />
-          <meshStandardMaterial color={color} roughness={0.95} />
-        </mesh>
-      ))}
+    <group onClick={click}>
+      <group ref={full}>{boxes(wall.pieces, true)}</group>
+      <group ref={stub} visible={false}>
+        {boxes(wall.stub, false)}
+      </group>
     </group>
   );
 }

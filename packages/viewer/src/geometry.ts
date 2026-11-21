@@ -13,6 +13,8 @@ export const WALL_THICKNESS = 0.08;
 export const DOOR_HEIGHT = 2.05;
 export const WINDOW_SILL = 0.9;
 export const WINDOW_TOP = 2.1;
+/** Height of a lowered wall (cut-away and top-down views): a stub with door gaps only. */
+export const STUB_HEIGHT = 0.3;
 
 /** One solid box of a wall (walls are split around doors and windows). */
 export interface WallPiece {
@@ -30,6 +32,8 @@ export interface WallGeometry {
   roomId: string;
   label: string;
   pieces: WallPiece[];
+  /** The same wall lowered to STUB_HEIGHT, with only door gaps (windows sit above a stub). */
+  stub: WallPiece[];
   /** Wall length in meters. */
   length: number;
   /** 3D point on the room-facing side of the wall, mid-length and mid-height. */
@@ -119,8 +123,9 @@ export function wallGeometry(surface: Surface, room: Room, ceiling: number, open
     pieces.push({ surfaceId: surface.id, position: to3(p, (bottom + top) / 2), size: [to - from, top - bottom, WALL_THICKNESS], rotationY });
   };
 
+  const gaps = openingGaps(length, ceiling, openings);
   let cursor = 0;
-  for (const g of openingGaps(length, ceiling, openings)) {
+  for (const g of gaps) {
     box(cursor, Math.max(cursor, g.from), 0, ceiling); // solid wall before the gap
     const from = Math.max(cursor, g.from);
     box(from, g.to, 0, g.bottom); // below a window
@@ -129,8 +134,18 @@ export function wallGeometry(surface: Surface, room: Room, ceiling: number, open
   }
   box(cursor, length, 0, ceiling);
 
+  const full = pieces.splice(0, pieces.length);
+  cursor = 0;
+  for (const g of gaps.filter((x) => x.bottom === 0)) {
+    box(cursor, Math.max(cursor, g.from), 0, STUB_HEIGHT);
+    cursor = Math.max(cursor, g.to);
+  }
+  box(cursor, length, 0, STUB_HEIGHT);
+  const stub = pieces.splice(0, pieces.length);
+  pieces.push(...full);
+
   const face: Vec2 = [mid[0] + n[0] * WALL_THICKNESS, mid[1] + n[1] * WALL_THICKNESS];
-  return { surfaceId: surface.id, roomId: surface.roomId, label: surface.label, pieces, length, center: to3(face, ceiling / 2), inward: [n[0], -n[1]] };
+  return { surfaceId: surface.id, roomId: surface.roomId, label: surface.label, pieces, stub, length, center: to3(face, ceiling / 2), inward: [n[0], -n[1]] };
 }
 
 export interface PlanGeometry {
@@ -141,6 +156,44 @@ export interface PlanGeometry {
   ceiling: number;
 }
 
+/**
+ * Openings that cut a given wall, with offsets along THAT wall. A door between two rooms is attached to only
+ * one room's wall in the plan, but the wall between them is drawn as two slabs (one per room); the door has to
+ * cut both, or one side shows a solid wall. So every opening is placed in plan space once, then projected onto
+ * every wall that lies on the same line (within 20 cm) and covers it.
+ */
+export function openingsForWall(wall: Surface, plan: FloorPlan): Opening[] {
+  if (!wall.segment) return [];
+  const [a, b] = wall.segment;
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (len < 1e-6) return [];
+  const dir: Vec2 = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+  const hosts = new Map(plan.surfaces.map((x) => [x.id, x]));
+  const out: Opening[] = [];
+  for (const o of plan.openings) {
+    const host = hosts.get(o.wallId);
+    if (!host?.segment) continue;
+    if (o.wallId === wall.id) {
+      out.push(o);
+      continue;
+    }
+    const [ha, hb] = host.segment;
+    const hl = Math.hypot(hb[0] - ha[0], hb[1] - ha[1]);
+    if (hl < 1e-6) continue;
+    const hd: Vec2 = [(hb[0] - ha[0]) / hl, (hb[1] - ha[1]) / hl];
+    const ends: Vec2[] = [o.offsetM, o.offsetM + o.widthM].map((t) => [ha[0] + hd[0] * t, ha[1] + hd[1] * t]);
+    const proj = ends.map(([x, y]) => {
+      const along = (x - a[0]) * dir[0] + (y - a[1]) * dir[1];
+      const across = Math.abs((x - a[0]) * -dir[1] + (y - a[1]) * dir[0]);
+      return { along, across };
+    });
+    if (proj.some((p) => p.across > 0.2 || p.along < -0.05 || p.along > len + 0.05)) continue;
+    const from = Math.min(proj[0]!.along, proj[1]!.along);
+    out.push({ ...o, wallId: wall.id, offsetM: Math.max(0, from), widthM: Math.abs(proj[1]!.along - proj[0]!.along) });
+  }
+  return out;
+}
+
 export function planGeometry(plan: FloorPlan): PlanGeometry {
   const rooms = new Map(plan.rooms.map((r) => [r.id, r]));
   const walls: WallGeometry[] = [];
@@ -148,12 +201,7 @@ export function planGeometry(plan: FloorPlan): PlanGeometry {
     if (s.kind !== 'wall') continue;
     const room = rooms.get(s.roomId);
     if (!room) continue;
-    const g = wallGeometry(
-      s,
-      room,
-      plan.ceilingHeightM,
-      plan.openings.filter((o) => o.wallId === s.id),
-    );
+    const g = wallGeometry(s, room, plan.ceilingHeightM, openingsForWall(s, plan));
     if (g) walls.push(g);
   }
   const floors = plan.surfaces
