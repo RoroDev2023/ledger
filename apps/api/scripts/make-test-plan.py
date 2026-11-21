@@ -64,6 +64,27 @@ PLANS = [
     },
 ]
 # Messy input: the two-bed plan, printed, scanned crooked, low quality.
+# The conference room we filmed (video/IMG_0022.MOV move-in, IMG_0023.MOV move-out). Sizes are estimated from the
+# video (12-seat table plus chairs and walkway), not measured: the title and footer say so.
+PLANS.append({
+    'id': 'conference-room', 'title': 'CONFERENCE ROOM  ·  approx. 33 m²', 'label_at': (3.0, 1.35),
+    'rooms': [('Conference room', rect(0, 0, 4.6, 7.2))],
+    'openings': [('door', (1.2, 0), (2.2, 0)),                              # glass door to the hallway (south)
+                 ('window', (0.6, 7.2), (1.9, 7.2)), ('window', (2.7, 7.2), (4.0, 7.2))],  # two windows (north)
+    'dims': [((0, 0), (4.6, 0), 'below'), ((0, 0), (0, 7.2), 'left')],
+    'units': 'm',
+    # Furniture and landmarks, drawn thin (not walls): what the camera sees on each wall.
+    'extras': [
+        ('box', (0.5, 6.7), (4.1, 7.1), 'CABINET'),                     # wood credenza under the windows
+        ('table', (1.55, 1.9), (3.05, 5.7), 'TABLE'),                   # 12-seat conference table
+        ('column', (0.0, 0.7), (0.45, 1.25), ''),                       # concrete column, west wall by the door
+        ('art', (4.6, 3.1), (4.6, 4.3), 'PORTRAIT'),                    # framed portrait, east wall
+        ('note', (0.6, 1.0), 'column'),
+        ('note', (1.55, 6.4), 'two windows + dark curtains'),
+        ('note', (1.7, 0.45), 'glass door'),
+    ],
+    'footer': 'Drawn by LEDGER from the walkthrough video. Sizes are estimates.',
+})
 PLANS.append({**PLANS[2], 'id': 'scan-2b', 'title': 'APT 12  ·  2 bed / 1 bath  ·  73.5 m²  (scan)', 'scan': True})
 
 
@@ -80,10 +101,11 @@ def draw(plan):
     w_m, h_m = max(xs) - min(xs), max(ys) - min(ys)
     S = min(1100 / w_m, 850 / h_m)  # px per meter
     M = 170
-    W, H = int(w_m * S + 2 * M), int(h_m * S + 2 * M + 60)
+    W, H = max(int(w_m * S + 2 * M), 1300), int(h_m * S + 2 * M + 60)
+    MX = (W - w_m * S) / 2  # center narrow plans on the page
     x0, y0 = min(xs), min(ys)
     wall = int(0.14 * S)
-    px = lambda x, y: (M + (x - x0) * S, M + 60 + (h_m - (y - y0)) * S)
+    px = lambda x, y: (MX + (x - x0) * S, M + 60 + (h_m - (y - y0)) * S)
     grid = lambda x, y: [round(px(x, y)[0] / W * 1000, 1), round(px(x, y)[1] / H * 1000, 1)]
 
     img = Image.new('RGB', (W, H), 'white')
@@ -117,6 +139,8 @@ def draw(plan):
         cy = sum(p[1] for p in poly) / len(poly)
         if len(poly) > 4:  # the L-shaped room: put the label in its lower-left arm
             cx, cy = 1.75, 1.5
+        if plan.get('label_at'):  # furniture in the middle: put the label where the floor is free
+            cx, cy = plan['label_at']
         X, Y = px(cx, cy)
         a = area(poly)
         sub = f'{a / FT / FT:.0f} sq ft' if plan['units'] == 'ft' else f'{a:.1f} m²'
@@ -142,11 +166,44 @@ def draw(plan):
             img.paste(t, (int(mx - 20 + (18 if side == 'right' else -18)), int(my - 90)), t)
         else:
             d.text((mx, my + (22 if side == 'below' else -22)), text, font=FS, fill='#333333', anchor='mm')
+    for ex in plan.get('extras', []):
+        kind = ex[0]
+        if kind in ('box', 'table'):
+            (ex0, ey0), (ex1, ey1), lab = ex[1], ex[2], ex[3]
+            a, b = px(ex0, ey1), px(ex1, ey0)
+            if kind == 'table':
+                d.rounded_rectangle([a, b], radius=int(0.25 * S), outline='#555555', width=2)
+                for k in range(6):  # chairs along both long sides
+                    cy = ey0 + (ey1 - ey0) * (k + 0.5) / 6
+                    for cx in (ex0 - 0.35, ex1 + 0.35):
+                        c = px(cx, cy)
+                        r = 0.2 * S
+                        d.rounded_rectangle([c[0] - r, c[1] - r, c[0] + r, c[1] + r], radius=6, outline='#999999', width=1)
+            else:
+                d.rectangle([a, b], outline='#555555', width=2)
+            if lab:
+                d.text(((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), lab, font=FS, fill='#777777', anchor='mm')
+        elif kind == 'column':
+            (ex0, ey0), (ex1, ey1) = ex[1], ex[2]
+            a, b = px(ex0, ey1), px(ex1, ey0)
+            d.rectangle([a, b], fill='#3a3a3a')
+        elif kind == 'art':
+            (ex0, ey0), (ex1, ey1), lab = ex[1], ex[2], ex[3]
+            a, b = px(ex0, ey0), px(ex1, ey1)
+            d.line([(a[0] - wall, a[1]), (b[0] - wall, b[1])], fill='#a47b3f', width=8)  # inner face of the wall
+            t = Image.new('RGBA', (220, 40), (255, 255, 255, 0))
+            ImageDraw.Draw(t).text((110, 20), lab, font=FS, fill='#a47b3f', anchor='mm')
+            t = t.rotate(90, expand=True)
+            img.paste(t, (int(a[0] - wall - 50), int((a[1] + b[1]) / 2 - 110)), t)
+        elif kind == 'note':
+            (x, y), lab = ex[1], ex[2]
+            d.text(px(x, y), lab, font=font(20), fill='#999999', anchor='lm')
+
     nx, ny = W - 110, 120
     d.polygon([(nx, ny - 50), (nx - 18, ny + 10), (nx + 18, ny + 10)], fill='black')
     d.text((nx, ny + 38), 'N', font=F, fill='black', anchor='mm')
     d.text((M, 60), plan['title'], font=FT_, fill='black', anchor='lm')
-    d.text((M, H - 40), 'Test plan drawn by LEDGER for parser checks.', font=FS, fill='#777777', anchor='lm')
+    d.text((M, H - 40), plan.get('footer', 'Test plan drawn by LEDGER for parser checks.'), font=FS, fill='#777777', anchor='lm')
 
     if plan.get('scan'):
         # The truth grid stays valid for small rotations about the center only approximately, so we rotate the
@@ -197,5 +254,8 @@ def draw(plan):
     print(f"{plan['id']:14} {W}x{H}  {len(plan['rooms'])} rooms  {len(plan['openings'])} openings  {total:.1f} m²")
 
 
+import sys
+wanted = set(sys.argv[1:])
 for p in PLANS:
-    draw(p)
+    if not wanted or p['id'] in wanted:
+        draw(p)
