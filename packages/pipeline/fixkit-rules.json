@@ -63,6 +63,13 @@
       "fixedQuantity": 1,
       "usesHint": true
     },
+    "adhesive-remover": {
+      "label": "Adhesive and residue remover",
+      "defaultQuery": "adhesive residue remover for walls",
+      "maxPriceUsd": 20,
+      "fixedQuantity": 1,
+      "usesHint": false
+    },
     "replacement-fixture": {
       "label": "Replacement fixture",
       "defaultQuery": "replacement cabinet knob",
@@ -77,7 +84,7 @@
     "crack": ["crack-filler", "putty-knife", "touch-up-paint"],
     "stain": ["stain-cleaner"],
     "missing-fixture": ["replacement-fixture"],
-    "other": []
+    "other": ["adhesive-remover", "touch-up-paint", "sanding-sponge"]
   },
   "kindOverrides": {
     "floor": {
