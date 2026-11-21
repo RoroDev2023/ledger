@@ -1,0 +1,285 @@
+{
+  "unitId": "demo-table",
+  "ceilingHeightM": 2.5,
+  "metersPerPixel": 0.01,
+  "scaleSource": "assumed",
+  "rooms": [
+    {
+      "id": "living-room",
+      "name": "Living room",
+      "polygon": [
+        [
+          0,
+          0
+        ],
+        [
+          3,
+          0
+        ],
+        [
+          3,
+          2.5
+        ],
+        [
+          0,
+          2.5
+        ]
+      ]
+    },
+    {
+      "id": "bedroom",
+      "name": "Bedroom",
+      "polygon": [
+        [
+          3,
+          0
+        ],
+        [
+          5.5,
+          0
+        ],
+        [
+          5.5,
+          2.5
+        ],
+        [
+          3,
+          2.5
+        ]
+      ]
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "living-room.wall-s",
+      "roomId": "living-room",
+      "kind": "wall",
+      "label": "Living room south wall",
+      "segment": [
+        [
+          0,
+          0
+        ],
+        [
+          3,
+          0
+        ]
+      ],
+      "areaM2": 5.7,
+      "neighbors": [
+        "living-room.wall-w",
+        "living-room.wall-e"
+      ],
+      "landmarks": [
+        "door"
+      ]
+    },
+    {
+      "id": "living-room.wall-e",
+      "roomId": "living-room",
+      "kind": "wall",
+      "label": "Living room east wall",
+      "segment": [
+        [
+          3,
+          0
+        ],
+        [
+          3,
+          2.5
+        ]
+      ],
+      "areaM2": 4.65,
+      "neighbors": [
+        "living-room.wall-s",
+        "living-room.wall-n"
+      ],
+      "landmarks": [
+        "door"
+      ]
+    },
+    {
+      "id": "living-room.wall-n",
+      "roomId": "living-room",
+      "kind": "wall",
+      "label": "Living room north wall",
+      "segment": [
+        [
+          3,
+          2.5
+        ],
+        [
+          0,
+          2.5
+        ]
+      ],
+      "areaM2": 6.06,
+      "neighbors": [
+        "living-room.wall-e",
+        "living-room.wall-w"
+      ],
+      "landmarks": [
+        "window"
+      ]
+    },
+    {
+      "id": "living-room.wall-w",
+      "roomId": "living-room",
+      "kind": "wall",
+      "label": "Living room west wall",
+      "segment": [
+        [
+          0,
+          2.5
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "areaM2": 6.25,
+      "neighbors": [
+        "living-room.wall-n",
+        "living-room.wall-s"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "living-room.floor",
+      "roomId": "living-room",
+      "kind": "floor",
+      "label": "Living room floor",
+      "areaM2": 7.5
+    },
+    {
+      "id": "bedroom.wall-s",
+      "roomId": "bedroom",
+      "kind": "wall",
+      "label": "Bedroom south wall",
+      "segment": [
+        [
+          3,
+          0
+        ],
+        [
+          5.5,
+          0
+        ]
+      ],
+      "areaM2": 6.25,
+      "neighbors": [
+        "bedroom.wall-w",
+        "bedroom.wall-e"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "bedroom.wall-e",
+      "roomId": "bedroom",
+      "kind": "wall",
+      "label": "Bedroom east wall",
+      "segment": [
+        [
+          5.5,
+          0
+        ],
+        [
+          5.5,
+          2.5
+        ]
+      ],
+      "areaM2": 5.05,
+      "neighbors": [
+        "bedroom.wall-s",
+        "bedroom.wall-n"
+      ],
+      "landmarks": [
+        "window"
+      ]
+    },
+    {
+      "id": "bedroom.wall-n",
+      "roomId": "bedroom",
+      "kind": "wall",
+      "label": "Bedroom north wall",
+      "segment": [
+        [
+          5.5,
+          2.5
+        ],
+        [
+          3,
+          2.5
+        ]
+      ],
+      "areaM2": 6.25,
+      "neighbors": [
+        "bedroom.wall-e",
+        "bedroom.wall-w"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "bedroom.wall-w",
+      "roomId": "bedroom",
+      "kind": "wall",
+      "label": "Bedroom west wall",
+      "segment": [
+        [
+          3,
+          2.5
+        ],
+        [
+          3,
+          0
+        ]
+      ],
+      "areaM2": 6.25,
+      "neighbors": [
+        "bedroom.wall-n",
+        "bedroom.wall-s"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "bedroom.floor",
+      "roomId": "bedroom",
+      "kind": "floor",
+      "label": "Bedroom floor",
+      "areaM2": 6.25
+    }
+  ],
+  "openings": [
+    {
+      "id": "door-entry",
+      "kind": "door",
+      "wallId": "living-room.wall-s",
+      "offsetM": 0.55,
+      "widthM": 0.9
+    },
+    {
+      "id": "door-bedroom",
+      "kind": "door",
+      "wallId": "living-room.wall-e",
+      "offsetM": 0.4,
+      "widthM": 0.8
+    },
+    {
+      "id": "window-living",
+      "kind": "window",
+      "wallId": "living-room.wall-n",
+      "offsetM": 0.9,
+      "widthM": 1.2
+    },
+    {
+      "id": "window-bedroom",
+      "kind": "window",
+      "wallId": "bedroom.wall-e",
+      "offsetM": 0.75,
+      "widthM": 1
+    }
+  ],
+  "warnings": [
+    "hand-made fixture of the demo table; scale assumed (1 cm cardboard = 10 cm)"
+  ]
+}

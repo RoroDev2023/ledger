@@ -1,0 +1,349 @@
+{
+  "unitId": "studio-l",
+  "ceilingHeightM": 2.7,
+  "metersPerPixel": 0.01,
+  "scaleSource": "assumed",
+  "rooms": [
+    {
+      "id": "main-room",
+      "name": "Main room",
+      "polygon": [
+        [
+          0,
+          0
+        ],
+        [
+          5.2,
+          0
+        ],
+        [
+          5.2,
+          3
+        ],
+        [
+          3.4,
+          3
+        ],
+        [
+          3.4,
+          4.2
+        ],
+        [
+          0,
+          4.2
+        ]
+      ]
+    },
+    {
+      "id": "bathroom",
+      "name": "Bathroom",
+      "polygon": [
+        [
+          3.4,
+          3
+        ],
+        [
+          5.2,
+          3
+        ],
+        [
+          5.2,
+          4.2
+        ],
+        [
+          3.4,
+          4.2
+        ]
+      ]
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "main-room.wall-s",
+      "roomId": "main-room",
+      "kind": "wall",
+      "label": "Main room south wall",
+      "segment": [
+        [
+          0,
+          0
+        ],
+        [
+          5.2,
+          0
+        ]
+      ],
+      "areaM2": 12.24,
+      "neighbors": [
+        "main-room.wall-w",
+        "main-room.wall-e"
+      ],
+      "landmarks": [
+        "door"
+      ]
+    },
+    {
+      "id": "main-room.wall-e",
+      "roomId": "main-room",
+      "kind": "wall",
+      "label": "Main room east wall",
+      "segment": [
+        [
+          5.2,
+          0
+        ],
+        [
+          5.2,
+          3
+        ]
+      ],
+      "areaM2": 8.1,
+      "neighbors": [
+        "main-room.wall-s",
+        "main-room.wall-n"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "main-room.wall-n",
+      "roomId": "main-room",
+      "kind": "wall",
+      "label": "Main room north wall",
+      "segment": [
+        [
+          5.2,
+          3
+        ],
+        [
+          3.4,
+          3
+        ]
+      ],
+      "areaM2": 3.36,
+      "neighbors": [
+        "main-room.wall-e",
+        "main-room.wall-e-2"
+      ],
+      "landmarks": [
+        "door"
+      ]
+    },
+    {
+      "id": "main-room.wall-e-2",
+      "roomId": "main-room",
+      "kind": "wall",
+      "label": "Main room east wall 2",
+      "segment": [
+        [
+          3.4,
+          3
+        ],
+        [
+          3.4,
+          4.2
+        ]
+      ],
+      "areaM2": 3.24,
+      "neighbors": [
+        "main-room.wall-n",
+        "main-room.wall-n-2"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "main-room.wall-n-2",
+      "roomId": "main-room",
+      "kind": "wall",
+      "label": "Main room north wall 2",
+      "segment": [
+        [
+          3.4,
+          4.2
+        ],
+        [
+          0,
+          4.2
+        ]
+      ],
+      "areaM2": 7.74,
+      "neighbors": [
+        "main-room.wall-e-2",
+        "main-room.wall-w"
+      ],
+      "landmarks": [
+        "window"
+      ]
+    },
+    {
+      "id": "main-room.wall-w",
+      "roomId": "main-room",
+      "kind": "wall",
+      "label": "Main room west wall",
+      "segment": [
+        [
+          0,
+          4.2
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "areaM2": 9.9,
+      "neighbors": [
+        "main-room.wall-n-2",
+        "main-room.wall-s"
+      ],
+      "landmarks": [
+        "window"
+      ]
+    },
+    {
+      "id": "main-room.floor",
+      "roomId": "main-room",
+      "kind": "floor",
+      "label": "Main room floor",
+      "areaM2": 19.68
+    },
+    {
+      "id": "bathroom.wall-s",
+      "roomId": "bathroom",
+      "kind": "wall",
+      "label": "Bathroom south wall",
+      "segment": [
+        [
+          3.4,
+          3
+        ],
+        [
+          5.2,
+          3
+        ]
+      ],
+      "areaM2": 4.86,
+      "neighbors": [
+        "bathroom.wall-w",
+        "bathroom.wall-e"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "bathroom.wall-e",
+      "roomId": "bathroom",
+      "kind": "wall",
+      "label": "Bathroom east wall",
+      "segment": [
+        [
+          5.2,
+          3
+        ],
+        [
+          5.2,
+          4.2
+        ]
+      ],
+      "areaM2": 3.24,
+      "neighbors": [
+        "bathroom.wall-s",
+        "bathroom.wall-n"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "bathroom.wall-n",
+      "roomId": "bathroom",
+      "kind": "wall",
+      "label": "Bathroom north wall",
+      "segment": [
+        [
+          5.2,
+          4.2
+        ],
+        [
+          3.4,
+          4.2
+        ]
+      ],
+      "areaM2": 4.86,
+      "neighbors": [
+        "bathroom.wall-e",
+        "bathroom.wall-w"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "bathroom.wall-w",
+      "roomId": "bathroom",
+      "kind": "wall",
+      "label": "Bathroom west wall",
+      "segment": [
+        [
+          3.4,
+          4.2
+        ],
+        [
+          3.4,
+          3
+        ]
+      ],
+      "areaM2": 3.24,
+      "neighbors": [
+        "bathroom.wall-n",
+        "bathroom.wall-s"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "bathroom.floor",
+      "roomId": "bathroom",
+      "kind": "floor",
+      "label": "Bathroom floor",
+      "areaM2": 2.16
+    },
+    {
+      "id": "main-room.fixture-kitchen-counter",
+      "roomId": "main-room",
+      "kind": "fixture",
+      "label": "Main room kitchen counter"
+    },
+    {
+      "id": "bathroom.fixture-sink",
+      "roomId": "bathroom",
+      "kind": "fixture",
+      "label": "Bathroom sink"
+    }
+  ],
+  "openings": [
+    {
+      "id": "door-entry",
+      "kind": "door",
+      "wallId": "main-room.wall-s",
+      "offsetM": 4.05,
+      "widthM": 0.9
+    },
+    {
+      "id": "door-bath",
+      "kind": "door",
+      "wallId": "main-room.wall-n",
+      "offsetM": 0.83,
+      "widthM": 0.75
+    },
+    {
+      "id": "window-1",
+      "kind": "window",
+      "wallId": "main-room.wall-w",
+      "offsetM": 1.6,
+      "widthM": 1.2
+    },
+    {
+      "id": "window-2",
+      "kind": "window",
+      "wallId": "main-room.wall-n-2",
+      "offsetM": 1.1,
+      "widthM": 1.2
+    }
+  ],
+  "warnings": [
+    "hand-made fixture, not parsed from a listing"
+  ]
+}
