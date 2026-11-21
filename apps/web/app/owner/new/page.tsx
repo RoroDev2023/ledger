@@ -11,7 +11,7 @@ import { PlanReview } from '../../../components/PlanReview';
 import { PlanUpload } from '../../../components/PlanUpload';
 import { VideoUpload } from '../../../components/VideoUpload';
 
-const STEPS = ['Floor plan', 'Review', 'Move-in video'];
+const STEPS = ['Floor plan', 'Check it', 'Move-in video'];
 
 export default function OwnerNew() {
   const router = useRouter();
@@ -25,7 +25,7 @@ export default function OwnerNew() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE }}>
           <div className="eyebrow">New unit</div>
           <h1 className="display" style={{ fontSize: 56, marginTop: 10 }}>
-            Start with the <em>floor plan.</em>
+            Add an <em>apartment.</em>
           </h1>
         </motion.div>
 
@@ -70,10 +70,10 @@ export default function OwnerNew() {
                       Move-in video
                     </h2>
                     <p className="muted" style={{ marginTop: 10 }}>
-                      Walk through every room. Every wall of <b style={{ color: 'var(--ink)' }}>{plan.unitId}</b> and any damage already there goes on the record, so it can&apos;t be charged later.
+                      Walk slowly through every room. Anything already damaged is saved with today’s date, so the tenant can’t be charged for it later.
                     </p>
                     <p className="faint" style={{ fontSize: 14 }}>
-                      No video yet? <a href={`/units/${plan.unitId}`}>Skip for now</a>.
+                      Not ready to film? <a href={`/units/${plan.unitId}`}>Do it later</a>.
                     </p>
                   </div>
                 </div>

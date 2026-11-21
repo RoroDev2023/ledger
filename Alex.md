@@ -2,6 +2,13 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 15:25 ET · Front end in plain words, page animations, pins on the item
+
+- Rewrote every on-screen line in plain language (landing, new unit, plan check, uploads, progress, unit page, statement, statement reasons from the spot check).
+- Page transitions (`app/template.tsx`), loading skeletons instead of "Loading…", a "done" moment when a video finishes.
+- Pins land on the exact spot, for any surface: the spot check's `spot.where` asks what the damage is on (a plan fixture, a wall or the floor), what it's next to (fixtures, doors, windows) and how high (bands → probability-weighted meters). Stored in a new optional `DiffItem.spot { heightM, nearId }` (additive contract field; Elmir/Rahim please note). The viewer's `spotAnchor` puts the pin on that item or wall at that height beside that thing; pins draw on top so items never hide them. Checked on unit-460c3358: column mark on the column at 0.65 m, paper at 1.46 m beside the portrait.
+- Verified: all tests, typecheck, lint; every page loads with no browser errors.
+
 ## 2026-11-21 14:54 ET · Spot check finds the change on our videos, with the right proof frames
 
 - `apps/api/src/spotCheck.ts` is the move-out comparison by default (DIFF_MODE=pipeline for R4/R5): screen every move-out frame → events → confirm a second move-out view shows the same item → search every move-in frame in batches for the same spot (surroundings tell identical fixtures apart) → two independent "is this new?" pairs → merge repeated sightings of the same item.

@@ -16,19 +16,19 @@ const STEPS = [
   {
     n: '01',
     title: 'Upload the floor plan',
-    body: 'The listing plan becomes a 3D model. Every wall, floor and fixture gets its own record.',
+    body: 'Any plan from a listing works. We turn it into a 3D model of the apartment.',
     model: 'Gemini 4 Argon',
   },
   {
     n: '02',
-    title: 'Film both walkthroughs',
-    body: 'Move-in and move-out, any path, any angle. Every frame lands on a wall of the same plan.',
+    title: 'Film move-in and move-out',
+    body: 'Walk through with your phone. You don’t have to follow the same route twice.',
     model: 'Decisions API · Hydrogen',
   },
   {
     n: '03',
     title: 'Get the statement',
-    body: 'Itemized, priced, and due in 14 days. Wear, moved furniture and anything unseen cost $0.',
+    body: 'Each charge comes with before and after photos. Moved furniture and normal wear stay free.',
     model: 'Gemini 4 Carbon',
   },
 ];
@@ -36,7 +36,7 @@ const STEPS = [
 export default function Home() {
   const router = useRouter();
   const [id, setId] = useState('');
-  const words = ['The', 'deposit', 'statement', 'that'];
+  const words = ['Move-out,'];
 
   return (
     <>
@@ -46,7 +46,7 @@ export default function Home() {
         <section style={{ maxWidth: 1280, margin: '0 auto', padding: '56px 28px 40px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 1fr)', gap: 40, alignItems: 'center' }}>
           <div>
             <motion.div className="chip" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }}>
-              <span className="dot" style={{ color: 'var(--red)' }} /> Built for New York rentals
+              <span className="dot" style={{ color: 'var(--red)' }} /> For landlords and tenants in New York
             </motion.div>
             <h1 className="display" style={{ fontSize: 'clamp(48px, 6.4vw, 92px)', margin: '22px 0 0' }}>
               {words.map((w, i) => (
@@ -56,11 +56,11 @@ export default function Home() {
               ))}
               <br />
               <motion.em style={{ display: 'inline-block' }} initial={{ opacity: 0, y: 28, filter: 'blur(6px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ duration: 1, ease: EASE, delay: 0.5 }}>
-                proves every dollar.
+                without the argument.
               </motion.em>
             </h1>
             <motion.p className="lede" style={{ marginTop: 26 }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.8 }}>
-              Film the apartment at move-in and move-out. LEDGER finds what changed, wall by wall, and drafts the itemized statement. If it can&apos;t prove it, it doesn&apos;t charge.
+              Film the apartment when a tenant moves in and again when they leave. LEDGER compares the two videos and writes the deposit statement, with photos for every charge.
             </motion.p>
             <motion.div style={{ display: 'flex', gap: 12, marginTop: 30, flexWrap: 'wrap' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE, delay: 1 }}>
               <Link href="/owner/new" className="btn btn-lg">
@@ -86,10 +86,10 @@ export default function Home() {
               <UnitModel plan={HERO.plan} items={HERO.items} autoRotate />
             </div>
             <motion.div className="card" style={{ position: 'absolute', left: -28, top: 36, padding: '14px 18px', width: 250 }} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, ease: EASE, delay: 2.4 }}>
-              <div className="eyebrow">Draft statement</div>
+              <div className="eyebrow">Deposit statement</div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 8 }}>
                 <span className="muted" style={{ fontSize: 13 }}>
-                  4 findings · 1 charged
+                  1 charge · 3 items free
                 </span>
                 <b className="display" style={{ fontSize: 32, color: 'var(--red)' }}>
                   $<CountUp value={72.72} format={(n) => n.toFixed(2)} />
@@ -104,7 +104,7 @@ export default function Home() {
           <Reveal>
             <div className="eyebrow">How it works</div>
             <h2 className="h2" style={{ marginTop: 10, maxWidth: 640 }}>
-              Floor plan in. Itemized statement out.
+              Three steps, a few minutes.
             </h2>
           </Reveal>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18, marginTop: 34 }}>
@@ -137,16 +137,16 @@ export default function Home() {
                 <div className="eyebrow" style={{ color: '#b9ad99' }}>
                   The rule
                 </div>
-                <p className="display" style={{ fontSize: 64, marginTop: 14 }}>
-                  No proof, <em style={{ color: '#e0b878' }}>no charge.</em>
+                <p className="display" style={{ fontSize: 52, marginTop: 14 }}>
+                  If we can’t show it, <em style={{ color: '#e0b878' }}>you don’t pay for it.</em>
                 </p>
               </div>
               <div style={{ display: 'grid', gap: 12 }}>
                 {[
-                  ['New damage, confirmed twice', 'Charged', 'var(--red)'],
-                  ['There at move-in', '$0', '#7ea3d6'],
+                  ['New damage, seen in two views', 'Charged', 'var(--red)'],
+                  ['Already there at move-in', '$0', '#7ea3d6'],
                   ['Furniture moved', '$0', '#e0b04f'],
-                  ['Not enough evidence', '$0', '#a990dc'],
+                  ['Not clear enough to prove', '$0', '#a990dc'],
                 ].map(([k, v, c]) => (
                   <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 14, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
                     <span className="dot" style={{ color: c, width: 10, height: 10 }} />
@@ -160,7 +160,7 @@ export default function Home() {
             </div>
           </Reveal>
           <p className="faint" style={{ fontSize: 13, marginTop: 22, textAlign: 'center' }}>
-            Statements are drafts for review, not legal advice · Developer tools: <a href={API_URL}>API test page</a> · <Link href="/lab">3D viewer lab</Link>
+            Statements are drafts for you to review, not legal advice · Developer tools: <a href={API_URL}>API test page</a> · <Link href="/lab">3D viewer lab</Link>
           </p>
         </section>
       </main>

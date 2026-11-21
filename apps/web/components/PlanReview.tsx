@@ -12,7 +12,7 @@ import { CountUp, Icon, Stagger, StaggerItem } from './motion';
 /** Parser warnings, said the way a person would. Unknown ones pass through. */
 function friendly(w: string): string {
   const m = /^ceiling height assumed ([\d.]+) m/.exec(w);
-  if (m) return `Check the ceiling height. We assumed ${m[1]} m.`;
+  if (m) return `We guessed the ceiling height (${m[1]} m). Change it if it’s different.`;
   if (w.startsWith('unresolved:')) return `Some walls didn't line up: ${w.slice(11).trim()}`;
   return w.charAt(0).toUpperCase() + w.slice(1);
 }
@@ -75,7 +75,7 @@ export function PlanReview({ plan, onConfirmed }: { plan: FloorPlan; onConfirmed
       <div>
         <div className="eyebrow">Step 2</div>
         <h2 className="h2" style={{ marginTop: 8 }}>
-          Review the plan
+          Check the plan
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 16 }}>
           {[
@@ -94,7 +94,7 @@ export function PlanReview({ plan, onConfirmed }: { plan: FloorPlan; onConfirmed
           ))}
         </div>
         <div className="faint" style={{ fontSize: 12.5, marginTop: 8 }}>
-          {plan.scaleSource === 'labels' ? 'Scaled from the printed dimensions' : plan.scaleSource === 'known-measurement' ? 'Scaled from your measurement' : 'Scale estimated, check the sizes'}
+          {plan.scaleSource === 'labels' ? 'Sizes come from the measurements on the plan' : plan.scaleSource === 'known-measurement' ? 'Sizes come from your measurement' : 'Sizes are estimated, please check them'}
         </div>
         <label className="label">Rooms</label>
         <Stagger gap={0.05}>
@@ -107,9 +107,9 @@ export function PlanReview({ plan, onConfirmed }: { plan: FloorPlan; onConfirmed
             </StaggerItem>
           ))}
         </Stagger>
-        <label className="label">What&apos;s on each wall?</label>
+        <label className="label">What&apos;s on each wall</label>
         <p className="faint" style={{ fontSize: 12.5, margin: '-2px 0 8px' }}>
-          Art, lights, a column, a radiator. Helps match every video frame to the right wall.
+          Pictures, lights, a column. It helps us tell the walls apart in the video.
         </p>
         {walls.map((w) => {
           const fixed = (w.landmarks ?? []).filter((l) => l === 'door' || l === 'window');

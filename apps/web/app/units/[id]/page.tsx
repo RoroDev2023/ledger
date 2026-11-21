@@ -10,7 +10,7 @@ import { EvidencePanel } from '../../../components/EvidencePanel';
 import { Header } from '../../../components/Header';
 import { VideoUpload } from '../../../components/VideoUpload';
 import { api, type Unit } from '../../../lib/api';
-import { CountUp, EASE, Icon } from '../../../components/motion';
+import { CountUp, EASE, Icon, PageSkeleton } from '../../../components/motion';
 import { area } from '../../../lib/ui';
 
 // three.js needs the browser (WebGL), so the 3D view never renders on the server.
@@ -52,7 +52,7 @@ function UnitPage() {
           surfaceId: f.surfaceId,
           verdict: 'pre-existing' as const,
           issueType: f.type,
-          reason: `${f.type.charAt(0).toUpperCase() + f.type.slice(1)}, severity ${f.severity} of 5. On record since move-in.`,
+          reason: `${f.type.charAt(0).toUpperCase() + f.type.slice(1)} found at move-in. Not charged later.`,
           beforeFrameId: f.frameIds[0], // a move-in frame: shown under "Move-in" in the evidence panel
           confidence: f.confidence,
           costUsd: 0,
@@ -74,16 +74,22 @@ function UnitPage() {
   const surfaceLabel = useCallback((sid: string) => labels.get(sid) ?? sid, [labels]);
 
   if (error) return <Centered>Could not load unit “{id}”: {error}</Centered>;
-  if (!data) return <Centered>Loading…</Centered>;
+  if (!data)
+    return (
+      <>
+        <Header unitId={id} />
+        <PageSkeleton />
+      </>
+    );
   const { plan, statement, items } = data;
   const hasBaseline = data.unit.walkthroughs.some((w) => w.kind === 'baseline');
   const next = statement
-    ? { href: `/units/${plan.unitId}/statement`, label: 'Open statement →' }
+    ? { href: `/units/${plan.unitId}/statement`, label: 'See the statement →' }
     : hasBaseline
       ? { href: `/units/${plan.unitId}/moveout`, label: 'Upload move-out →' }
       : null;
   const total = plan.rooms.reduce((s, r) => s + area(r.polygon), 0);
-  const phase = statement ? 'Move-out complete' : hasBaseline ? 'Move-in on record' : 'Floor plan ready';
+  const phase = statement ? 'Moved out' : hasBaseline ? 'Moved in' : 'Floor plan only';
 
   return (
     <>
@@ -116,12 +122,12 @@ function UnitPage() {
             <div className="muted" style={{ fontSize: 14, textAlign: 'right' }}>
               {hasBaseline ? (
                 <>
-                  On record since move-in
+                  Found at move-in
                   <br />
                   <b style={{ color: 'var(--ink)', fontSize: 22 }}>{items.length}</b> existing issue{items.length === 1 ? '' : 's'}
                 </>
               ) : (
-                'No move-in video yet'
+                'No video yet'
               )}
             </div>
           )}
@@ -153,7 +159,7 @@ function UnitPage() {
               ))}
             </div>
             <div className="faint" style={{ position: 'absolute', left: 16, bottom: 14, fontSize: 12 }}>
-              Drag to orbit · Scroll to zoom · Click a wall
+              Drag to turn · Scroll to zoom · Click a wall
             </div>
           </motion.div>
           <EvidencePanel unitId={plan.unitId} items={items} findings={data.moveOutFindings} selected={selected} onSelect={setSelected} surfaceLabel={surfaceLabel} />
@@ -165,7 +171,7 @@ function UnitPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(21,18,13,.35)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center' }} onClick={() => setUploading(false)}>
             <motion.div initial={{ y: 30, opacity: 0, scale: 0.97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 20, opacity: 0 }} transition={{ duration: 0.45, ease: EASE }} className="card" style={{ width: 560, padding: 28 }} onClick={(e) => e.stopPropagation()}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
-                <h2 className="h2">Move-in video</h2>
+                <h2 className="h2">Upload the move-in video</h2>
                 <button className="btn btn-ghost btn-sm" onClick={() => setUploading(false)}>
                   Close
                 </button>
@@ -188,7 +194,7 @@ function UnitPage() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<Centered>Loading…</Centered>}>
+    <Suspense fallback={<PageSkeleton />}>
       <UnitPage />
     </Suspense>
   );

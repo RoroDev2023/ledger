@@ -26,9 +26,9 @@ export function StatementView({ statement, plan, findings, proofs = [] }: { stat
           </div>
         </div>
         {[
-          ['Send by', statement.dueBy, days >= 0 ? `${days} day${days === 1 ? '' : 's'} left` : `${-days} days overdue`],
+          ['Send by', statement.dueBy, days >= 0 ? `${days} day${days === 1 ? '' : 's'} left` : `${-days} days late`],
           ['Move-out', statement.moveOutDate, 'NY GOL § 7-108'],
-          ['Items', `${charged.length} charged`, `${free.length} at $0`],
+          ['Items', `${charged.length} charged`, `${free.length} free`],
         ].map(([k, v, sub], i) => (
           <motion.div key={k} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 + i * 0.1 }} style={{ padding: '26px 24px', borderLeft: i ? '1px solid var(--line)' : undefined }}>
             <div className="eyebrow">{k}</div>
@@ -83,7 +83,7 @@ export function StatementView({ statement, plan, findings, proofs = [] }: { stat
                       <div style={{ fontWeight: 600, fontSize: 17, marginTop: 4 }}>{label(d.surfaceId)}</div>
                       <div style={{ color: 'var(--ink-2)', marginTop: 6 }}>{displayReason(d)}</div>
                       <div className="faint mono" style={{ fontSize: 12, marginTop: 10 }}>
-                        confidence {Math.round(d.confidence * 100)}%{d.areaM2 ? ` · ${d.areaM2} m²` : ''} ·{' '}
+                        {Math.round(d.confidence * 100)}% sure{d.areaM2 ? ` · ${d.areaM2} m²` : ''} ·{' '}
                         <a href={`/units/${statement.unitId}?select=${encodeURIComponent(d.surfaceId)}`}>View in 3D →</a>
                       </div>
                     </div>

@@ -24,7 +24,7 @@ export function EvidencePanel({ unitId, items, findings, selected, onSelect, sur
   return (
     <aside style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto', minHeight: 0, paddingRight: 4 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <div className="eyebrow">{selected ? 'Selected' : `Findings · ${items.length}`}</div>
+        <div className="eyebrow">{selected ? 'This wall' : items.length ? `${items.length} item${items.length === 1 ? '' : 's'}` : 'Nothing yet'}</div>
         {selected && (
           <button className="btn btn-ghost btn-sm" onClick={() => onSelect(null)}>
             ← All
@@ -35,7 +35,7 @@ export function EvidencePanel({ unitId, items, findings, selected, onSelect, sur
       <AnimatePresence mode="popLayout">
         {shown.length === 0 && (
           <motion.p key="empty" className="muted" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {selected ? 'Nothing on this wall.' : 'No findings yet.'}
+            {selected ? 'Nothing found on this wall.' : 'Nothing found yet. Upload a video to start.'}
           </motion.p>
         )}
         {shown.map((item, i) => (

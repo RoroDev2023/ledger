@@ -26,16 +26,16 @@ export default function MoveOut() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE }}>
           <div className="eyebrow">Unit {id}</div>
           <h1 className="display" style={{ fontSize: 56, marginTop: 8 }}>
-            Move-out walkthrough
+            Upload the move-out video
           </h1>
           <p className="lede" style={{ marginTop: 14 }}>
-            Film it again. Any path, any angle. Only damage that shows up clearly in both walkthroughs gets charged.
+            Walk through the same rooms again. Any route is fine. We only charge for damage we can show in photos.
           </p>
         </motion.div>
         {error && <p style={{ color: 'var(--red)' }}>Could not load unit “{id}”: {error}</p>}
         {unit && !hasBaseline && (
           <div className="card card-pad" style={{ marginTop: 24 }}>
-            There&apos;s no move-in video to compare against yet. <a href={`/units/${id}`}>Upload it first</a>.
+            We need the move-in video first, to have something to compare with. <a href={`/units/${id}`}>Upload it</a>.
           </div>
         )}
         {unit && hasBaseline && (

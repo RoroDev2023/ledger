@@ -58,7 +58,7 @@ export function PlanUpload({ onParsed }: { onParsed: (r: { unit: Unit; plan: Flo
             </motion.div>
           ) : (
             <motion.div key="drop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <Dropzone accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" file={file} onFile={setFile} icon={Icon.plan} title="Drop a floor plan" hint="PDF, PNG or JPG" />
+              <Dropzone accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" file={file} onFile={setFile} icon={Icon.plan} title="Drop the floor plan here" hint="PDF or image, straight from the listing" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -66,15 +66,15 @@ export function PlanUpload({ onParsed }: { onParsed: (r: { unit: Unit; plan: Flo
       <div>
         <div className="eyebrow">Step 1</div>
         <h2 className="h2" style={{ marginTop: 8 }}>
-          Floor plan
+          Upload the floor plan
         </h2>
         <p className="muted" style={{ marginTop: 10 }}>
-          Use the plan from the listing. We build the 3D model from it.
+          We read the rooms, doors and windows and build a 3D model you can check.
         </p>
         <label className="label">Unit name</label>
         <input className="input" value={unitId} onChange={(e) => setUnitId(e.target.value.replace(/[^A-Za-z0-9_-]/g, '-'))} placeholder="e.g. apt-4b" />
         <button className="btn btn-block btn-lg" onClick={() => void start()} disabled={!file || busy} style={{ marginTop: 18 }}>
-          {busy ? `Reading… ${seconds}s` : 'Read plan'} {!busy && Icon.arrow}
+          {busy ? `Reading the plan… ${seconds}s` : 'Read plan'} {!busy && Icon.arrow}
         </button>
         <AnimatePresence>
           {busy && (

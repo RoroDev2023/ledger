@@ -53,7 +53,7 @@ const NOUN: Record<Issue, string> = {
   hole: 'hole',
   scuff: 'scuff or scratch',
   'missing-fixture': 'missing or broken fixture',
-  other: 'item stuck to the surface',
+  other: 'something stuck',
 };
 
 export interface SpotEvidence {
@@ -129,7 +129,7 @@ export async function spotCheck(args: {
 
   // Exact-ish call count per event: same-item checks + (batches + final) per move-out view (at most 2) + 2 pairs; +1 merge.
   const batches = Math.ceil(before.length / SPOT.BATCH) + 1;
-  diffTotal = ranked.reduce((n) => n + Math.min(after.length - 1, SPOT.SECOND_RADIUS * 2) + 2 * batches + 2, 0) + 1;
+  diffTotal = ranked.reduce((n) => n + Math.min(after.length - 1, SPOT.SECOND_RADIUS * 2) + 2 * batches + 3, 0) + 1;
   args.onProgress?.('diff', 0, diffTotal);
 
   const items: DiffItem[] = [];
@@ -234,7 +234,12 @@ export async function spotCheck(args: {
     const valid = pairs.filter((p) => p.sameSpot >= SPOT.SAME_SPOT);
     const supports = valid.filter((p) => p.changed >= SPOT.CHANGED);
     const unchanged = valid.filter((p) => p.changed <= SPOT.UNCHANGED);
-    const surfaceId = surfaceFor(plan, afters.map((a) => loc.get(a.id)).find((x) => x && x !== 'none'));
+    const wallId = surfaceFor(plan, afters.map((a) => loc.get(a.id)).find((x) => x && x !== 'none'));
+    // WHERE is it? One question set on the clearest move-out view: what it's on (a plan fixture, a wall or the
+    // floor), what it's next to, and how high. The line belongs to that item, and the 3D pin lands at that spot.
+    const where = await locateSpot({ plan, wallId, frame: ref, what, ask: (q) => ask({ ...q, tag: 'spot.where', env }), img });
+    tickDiff();
+    const surfaceId = where.surfaceId;
     const conf = Math.round(Math.max(...ev.frames.map((s) => s.p)) * 100) / 100;
     const label = plan.surfaces.find((s) => s.id === surfaceId)?.label ?? 'this spot';
     let item: DiffItem;
@@ -244,7 +249,7 @@ export async function spotCheck(args: {
         surfaceId,
         verdict: 'new-damage',
         issueType: kind,
-        reason: `New ${NOUN[kind]} on the ${label}: two before/after views of the same spot agree it wasn't there at move-in. ${price.flatUsd ? `Flat fee $${price.flatUsd.toFixed(2)}` : 'Repair'}${price.areaUsd ? ` + ${price.areaM2} m² at $${price.ratePerM2Usd}/m²` : ''}.`,
+        reason: `${cap(NOUN[kind])} on the ${label} that wasn't there at move-in. It shows up in two separate before and after views. ${price.flatUsd ? `Flat fee $${price.flatUsd.toFixed(2)}` : 'Repair'}${price.areaUsd ? ` plus ${price.areaM2} m² at $${price.ratePerM2Usd}/m²` : ''}.`,
         beforeFrameId: supports[0]!.beforeFrameId,
         afterFrameId: supports[0]!.afterFrameId,
         costUsd: price.costUsd,
@@ -256,7 +261,7 @@ export async function spotCheck(args: {
         surfaceId,
         verdict: 'pre-existing',
         issueType: kind,
-        reason: `The same ${NOUN[kind]} on the ${label} was already there at move-in.`,
+        reason: `${cap(NOUN[kind])} on the ${label}. It was already there at move-in.`,
         beforeFrameId: unchanged[0]!.beforeFrameId,
         afterFrameId: unchanged[0]!.afterFrameId,
         costUsd: 0,
@@ -267,12 +272,13 @@ export async function spotCheck(args: {
         surfaceId,
         verdict: 'not-visible',
         issueType: kind,
-        reason: `Not provable: ${supports.length === 1 ? 'only one before/after view of this spot shows a change' : valid.length ? 'the before/after views disagree' : 'no matching move-in view of this spot'}. Two agreeing views are needed.`,
+        reason: `Not provable: ${supports.length === 1 ? 'we saw a change, but only in one before and after view' : valid.length ? 'the before and after views don\'t agree' : 'we couldn\'t find this spot in the move-in video'}. We need two clear views to charge.`,
         ...(pairs[0] ? { beforeFrameId: pairs[0].beforeFrameId, afterFrameId: pairs[0].afterFrameId } : { afterFrameId: afters[0]!.id }),
         costUsd: 0,
         confidence: conf,
       };
     }
+    if (where.spot.heightM !== undefined || where.spot.nearId) item.spot = where.spot;
     items.push(item);
     evidence.push({
       surfaceId,
@@ -337,6 +343,8 @@ function surfaceFor(plan: FloorPlan, id: string | undefined): string {
   return plan.surfaces.find((s) => s.kind === 'wall')?.id ?? plan.surfaces[0]!.id;
 }
 
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 function mostCommon<T>(xs: T[]): T | undefined {
   const n = new Map<T, number>();
   for (const x of xs) n.set(x, (n.get(x) ?? 0) + 1);
@@ -351,4 +359,73 @@ function jpeg(f: Frame): Promise<Content> {
     cache.set(f.path, p);
   }
   return p;
+}
+
+/** Height bands a person can judge from a photo, with their height in meters (the ceiling one uses the plan). */
+const HEIGHTS: Record<string, [string, number]> = {
+  floor: ['on or just above the floor (skirting board level)', 0.15],
+  knee: ['around knee height', 0.5],
+  waist: ['around waist or table height', 0.95],
+  chest: ['around chest or eye height', 1.45],
+  above: ['above head height, like a wall light or the top of a picture', 1.95],
+  ceiling: ['near the ceiling', -0.25],
+};
+
+async function locateSpot(a: {
+  plan: FloorPlan;
+  wallId: string;
+  frame: Frame;
+  what: string;
+  ask: (q: { input: Content[]; questions: Record<string, DecisionQuestion> }) => Promise<{ answers: Record<string, unknown> }>;
+  img: (f: Frame) => Promise<Content>;
+}): Promise<{ surfaceId: string; spot: { heightM?: number; nearId?: string } }> {
+  const { plan, wallId } = a;
+  const roomId = plan.surfaces.find((x) => x.id === wallId)?.roomId;
+  const room = plan.rooms.find((r) => r.id === roomId)?.name ?? '';
+  const short = (label: string) => label.replace(new RegExp(`^${room}\\s*`, 'i'), '');
+  const fixtures = plan.surfaces.filter((x) => x.kind === 'fixture' && x.roomId === roomId);
+  const roomWalls = new Map(plan.surfaces.filter((x) => x.kind === 'wall' && x.roomId === roomId).map((w) => [w.id, w]));
+  const openings = plan.openings.filter((o) => roomWalls.has(o.wallId));
+  const on: Record<string, string> = Object.fromEntries(fixtures.map((x, i) => [`f${i}`, `the ${short(x.label)}`]));
+  on.wall = 'a bare part of a wall';
+  on.floor = 'the floor';
+  const near: Record<string, string> = Object.fromEntries(fixtures.map((x, i) => [`f${i}`, `the ${short(x.label)}`]));
+  openings.forEach((o, i) => (near[`o${i}`] = `the ${o.kind} in the ${short(roomWalls.get(o.wallId)!.label)}`));
+  near.none = 'none of these is close to it';
+  const ceiling = plan.ceilingHeightM;
+  const lead = `This photo shows ${a.what}.`;
+  const res = await a.ask({
+    input: [await a.img(a.frame)],
+    questions: {
+      on: { type: 'choice', instructions: `${lead} What is it on?`, criteria: on },
+      near: { type: 'choice', instructions: `${lead} Which of these is closest to it in the room?`, criteria: near },
+      height: { type: 'choice', instructions: `${lead} How high above the floor is it? Judge from doors, furniture and the ceiling.`, criteria: Object.fromEntries(Object.entries(HEIGHTS).map(([k, [d]]) => [k, d])) },
+    },
+  });
+  const answers = res.answers as Record<string, { probabilities?: Record<string, number> } | undefined>;
+  const top = (p?: Record<string, number>) => Object.entries(p ?? {}).sort((x, y) => y[1] - x[1])[0] ?? ['', 0];
+  const [onK, onP] = top(answers.on?.probabilities);
+  let surfaceId = wallId;
+  if (onK.startsWith('f') && onP >= 0.5) surfaceId = fixtures[Number(onK.slice(1))]!.id;
+  else if (onK === 'floor' && onP >= 0.5) surfaceId = plan.surfaces.find((x) => x.kind === 'floor' && x.roomId === roomId)?.id ?? wallId;
+  const spot: { heightM?: number; nearId?: string } = {};
+  // Height: probability-weighted over the bands, so an unsure "chest or above" lands in between.
+  const hp = answers.height?.probabilities;
+  if (hp && Object.keys(hp).length) {
+    let sum = 0;
+    let w = 0;
+    for (const [k, p] of Object.entries(hp)) {
+      const band = HEIGHTS[k];
+      if (!band) continue;
+      sum += p * (band[1] < 0 ? ceiling + band[1] : band[1]);
+      w += p;
+    }
+    if (w > 0) spot.heightM = Math.round(Math.min(ceiling - 0.05, Math.max(0.05, surfaceId.endsWith('.floor') ? 0.05 : sum / w)) * 100) / 100;
+  }
+  const [nearK, nearP] = top(answers.near?.probabilities);
+  if (nearP >= 0.4) {
+    if (nearK.startsWith('f')) spot.nearId = fixtures[Number(nearK.slice(1))]!.id;
+    else if (nearK.startsWith('o')) spot.nearId = openings[Number(nearK.slice(1))]!.id;
+  }
+  return { surfaceId, spot };
 }

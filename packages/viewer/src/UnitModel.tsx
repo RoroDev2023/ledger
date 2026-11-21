@@ -9,7 +9,7 @@ import type { DiffItem, FloorPlan } from '@ledger/shared';
 import { PIN_STYLE, pinKind, pinStyle, type PinKind } from './colors.js';
 import { Furniture } from './Furniture.js';
 import { placeFurniture, type FurniturePiece } from './placement.js';
-import { physicalBlocksView, pinAnchors, planGeometry, type PhysicalWall, type PlanGeometry, type Vec3 } from './geometry.js';
+import { physicalBlocksView, pinAnchors, planGeometry, spotAnchor, type PhysicalWall, type PlanGeometry, type Vec3 } from './geometry.js';
 
 export interface UnitModelProps {
   plan: FloorPlan;
@@ -39,7 +39,7 @@ export function UnitModel({ plan, items = [], selected = null, onSelect, view = 
   const select = (id: string | null) => onSelect?.(id);
   const colorOf = (id?: string) => (id && selected === id ? SELECTED : id && charged.has(id) ? WALL_FLAGGED : WALL);
   const [hovered, setHovered] = useState<number | null>(null);
-  const placed = useMemo(() => placePins(geo, items), [geo, items]);
+  const placed = useMemo(() => placePins(geo, plan, items, furniture), [geo, plan, items, furniture]);
   // Price tags wait until the pins have dropped in (see <Pins>): ~0.6 s camera + 0.14 s per pin + 0.7 s fall.
   const [tagsReady, setTagsReady] = useState(false);
   useEffect(() => {
@@ -235,13 +235,19 @@ function Floor({ floor, selected, onClick }: { floor: PlanGeometry['floors'][num
 type Placed = { item: DiffItem; at: Vec3 };
 
 /** Pin positions: items grouped by surface, spread out along their wall (see pinAnchors). */
-function placePins(geo: PlanGeometry, items: DiffItem[]): Placed[] {
+function placePins(geo: PlanGeometry, plan: FloorPlan, items: DiffItem[], targets: FurniturePiece[] = []): Placed[] {
+  // Lines that say where they are go to that exact spot; the rest spread over their surface.
+  const exact: Placed[] = [];
   const bySurface = new Map<string, DiffItem[]>();
-  for (const it of items) bySurface.set(it.surfaceId, [...(bySurface.get(it.surfaceId) ?? []), it]);
-  return [...bySurface.entries()].flatMap(([surfaceId, list]) => {
-    const anchors = pinAnchors(geo, surfaceId, list.length);
+  for (const it of items) {
+    const at = spotAnchor(geo, plan, it, targets);
+    if (at) exact.push({ item: it, at });
+    else bySurface.set(it.surfaceId, [...(bySurface.get(it.surfaceId) ?? []), it]);
+  }
+  return [...exact, ...[...bySurface.entries()].flatMap(([surfaceId, list]) => {
+    const anchors = pinAnchors(geo, surfaceId, list.length, targets);
     return list.map((item, i) => ({ item, at: anchors[i]! }));
-  });
+  })];
 }
 
 const easeOutBack = (t: number) => 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
@@ -285,6 +291,7 @@ function Pins({ placed, selected, hovered, onHover, onSelect }: { placed: Placed
             scale={0.001}
           >
             <mesh
+              renderOrder={20}
               onPointerOver={(e) => {
                 e.stopPropagation();
                 onHover(i);
@@ -300,7 +307,8 @@ function Pins({ placed, selected, hovered, onHover, onSelect }: { placed: Placed
               }}
             >
               <sphereGeometry args={[0.11, 32, 20]} />
-              <meshStandardMaterial color={s.color} emissive={s.color} emissiveIntensity={big ? 0.65 : 0.3} roughness={0.35} metalness={0.05} />
+              {/* Drawn on top, so a pin on the far side of a column or cabinet is never hidden. */}
+              <meshStandardMaterial color={s.color} emissive={s.color} emissiveIntensity={big ? 0.65 : 0.3} roughness={0.35} metalness={0.05} depthTest={false} />
             </mesh>
             {s.charged && (
               <mesh
@@ -309,7 +317,7 @@ function Pins({ placed, selected, hovered, onHover, onSelect }: { placed: Placed
                 }}
               >
                 <sphereGeometry args={[0.11, 24, 16]} />
-                <meshBasicMaterial color={s.color} transparent opacity={0.4} depthWrite={false} />
+                <meshBasicMaterial color={s.color} transparent opacity={0.4} depthWrite={false} depthTest={false} />
               </mesh>
             )}
           </group>

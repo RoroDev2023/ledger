@@ -374,7 +374,28 @@ export function planGeometry(plan: FloorPlan): PlanGeometry {
  * Where to draw the pins for one surface. Several items on the same surface are spread out along the wall
  * (or around the room center for floors) so they never sit on top of each other.
  */
-export function pinAnchors(geo: PlanGeometry, surfaceId: string, count: number): Vec3[] {
+/** Where a fixture sits in 3D (from placement.ts), so a pin can sit on the item instead of mid-wall. */
+export interface PinTarget {
+  surfaceId: string;
+  kind: string;
+  position: Vec3;
+  size: Vec3;
+  rotationY: number;
+}
+
+export function pinAnchors(geo: PlanGeometry, surfaceId: string, count: number, targets: PinTarget[] = []): Vec3[] {
+  const t = targets.find((x) => x.surfaceId === surfaceId);
+  if (t) {
+    // Wall items (art, lights): just in front of them.
+    const spread = (i: number) => (i - (count - 1) / 2) * 0.3;
+    if (t.kind === 'art' || t.kind === 'light') {
+      const f: Vec2 = [Math.sin(t.rotationY), Math.cos(t.rotationY)];
+      return Array.from({ length: count }, (_, i) => [t.position[0] + f[0] * 0.14 + f[1] * spread(i), t.position[1] + (t.kind === 'art' ? t.size[1] / 2 + 0.12 : 0.1), t.position[2] + f[1] * 0.14 - f[0] * spread(i)]);
+    }
+    // Floor items (column, cabinet, table): on the item at half its height (pins draw on top, so never hidden).
+    const y = (t.size[1] || 0.9) / 2;
+    return Array.from({ length: count }, (_, i) => [t.position[0] + spread(i), y, t.position[2]]);
+  }
   const wall = geo.walls.find((w) => w.surfaceId === surfaceId);
   if (wall) {
     const [cx, cy, cz] = wall.center;
@@ -394,6 +415,73 @@ export function pinAnchors(geo: PlanGeometry, surfaceId: string, count: number):
     const r = count > 1 ? 0.35 : 0;
     return [fx + Math.cos(ang) * r, 0.35, fz + Math.sin(ang) * r];
   });
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/**
+ * The exact spot of one line, when the comparison said where it is (item.spot: height above the floor, and the
+ * plan item or door/window it's next to). Works for any wall, fixture or floor. Null → fall back to pinAnchors.
+ */
+export function spotAnchor(geo: PlanGeometry, plan: FloorPlan, item: { surfaceId: string; spot?: { heightM?: number; nearId?: string } }, targets: PinTarget[] = []): Vec3 | null {
+  const spot = item.spot;
+  if (!spot || (spot.heightM === undefined && !spot.nearId)) return null;
+  const ceiling = plan.ceilingHeightM;
+  // (x, z) of the thing it's next to: a placed fixture, or the middle of a door/window.
+  let near: Vec2 | null = null;
+  if (spot.nearId) {
+    const t = targets.find((x) => x.surfaceId === spot.nearId);
+    const o = plan.openings.find((x) => x.id === spot.nearId);
+    const host = o && plan.surfaces.find((x) => x.id === o.wallId);
+    if (t) near = [t.position[0], t.position[2]];
+    else if (o && host?.segment) {
+      const [a, b] = host.segment;
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const k = (o.offsetM + o.widthM / 2) / len;
+      near = [a[0] + (b[0] - a[0]) * k, -(a[1] + (b[1] - a[1]) * k)];
+    }
+  }
+  const t = targets.find((x) => x.surfaceId === item.surfaceId);
+  if (t) {
+    if (t.kind === 'art' || t.kind === 'light') {
+      const half = t.kind === 'art' ? t.size[1] / 2 : 0.12;
+      const y = clamp(spot.heightM ?? t.position[1], t.position[1] - half, t.position[1] + half + 0.1);
+      const f: Vec2 = [Math.sin(t.rotationY), Math.cos(t.rotationY)];
+      return [t.position[0] + f[0] * 0.1, y, t.position[2] + f[1] * 0.1];
+    }
+    const h = t.size[1] || 0.9;
+    const y = clamp(spot.heightM ?? h / 2, 0.08, h);
+    // On the face toward what it's next to (else toward the middle of the unit).
+    const to: Vec2 = near ?? [geo.bounds.center[0], geo.bounds.center[2]];
+    let dx = to[0] - t.position[0];
+    let dz = to[1] - t.position[2];
+    const len = Math.hypot(dx, dz);
+    if (len < 1e-6) return [t.position[0], y, t.position[2]];
+    dx /= len;
+    dz /= len;
+    // Distance from the center to the box's edge in that direction (box rotated by rotationY).
+    const c = Math.cos(t.rotationY);
+    const s = Math.sin(t.rotationY);
+    const lx = dx * c - dz * s;
+    const lz = dx * s + dz * c;
+    const edge = Math.min(Math.abs(lx) > 1e-6 ? t.size[0] / 2 / Math.abs(lx) : Infinity, Math.abs(lz) > 1e-6 ? t.size[2] / 2 / Math.abs(lz) : Infinity);
+    const out = (Number.isFinite(edge) ? edge : 0) + 0.05;
+    return [t.position[0] + dx * out, y, t.position[2] + dz * out];
+  }
+  const wall = geo.walls.find((w) => w.surfaceId === item.surfaceId);
+  if (wall) {
+    const along: Vec2 = [-wall.inward[1], wall.inward[0]];
+    const half = Math.max(0, wall.length / 2 - 0.15);
+    const k = near ? clamp((near[0] - wall.center[0]) * along[0] + (near[1] - wall.center[2]) * along[1], -half, half) : 0;
+    const y = clamp(spot.heightM ?? wall.center[1], 0.1, ceiling - 0.1);
+    return [wall.center[0] + along[0] * k + wall.inward[0] * 0.1, y, wall.center[2] + along[1] * k + wall.inward[1] * 0.1];
+  }
+  const floor = geo.floors.find((f) => f.surfaceId === item.surfaceId);
+  if (floor) {
+    const [fx, , fz] = floor.center;
+    return near ? [near[0] + (fx - near[0]) * 0.15, 0.08, near[1] + (fz - near[1]) * 0.15] : [fx, 0.08, fz];
+  }
+  return null;
 }
 
 /** True when the camera is on the outside of a wall, so the wall would block the view into its room. */
