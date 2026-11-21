@@ -108,7 +108,7 @@ export function realPipeline(base: Pick<PipelineAdapter, 'parsePlan'>): Pipeline
       try {
         const [baseline, addendum, moveOut] = await Promise.all([load(dirs.baseline), load(dirs.addendum), load(dirs.moveOut)]);
         if (useSpotCheck() && baseline) {
-          const spot = await spotCheck({ plan, baseline, moveOut: moveOut!, onProgress: (d, t) => hooks.onProgress('diff', d, t) });
+          const spot = await spotCheck({ plan, baseline, moveOut: moveOut!, onProgress: (stage, d, t) => hooks.onProgress(stage, d, t) });
           await writeJson(join(dirs.moveOut, '..', '..', 'diff-evidence.json'), { evidence: spot.evidence, warnings: [], method: 'spot-check' });
           return spot.items;
         }
