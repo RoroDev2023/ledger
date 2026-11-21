@@ -6,6 +6,14 @@ Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluat
 
 - `import { uploadFile, gemini } from '@ledger/gemini'` (branch `rahim/r1-files-upload`, stacked on PR #14). `await uploadFile('data/pairs/<id>/baseline.mp4', 'video/mp4')` returns `{ uri, mime_type }` once the file is ACTIVE and usable. Your `runBaseline` takes `{ uri, mime }`, so pass `{ uri: f.uri, mime: f.mime_type }`, and pass `gemini` as the `BaselineModel`.
 - It handles videos over the 100 MB inline cap (Files API limit: 2 GB per file, 48 h lifetime). Re-running the eval within 47 h reuses the upload. `GEMINI_MODE=mock` returns a fake URI with no network. Uploads appear in `calls.jsonl` as `model: "files-api"`, `tag: "upload"` with 0 tokens, so `summarizeCalls` will show a `files-api` row. Filter it out if you only want model costs.
+## 2026-11-21 11:21 ET · E3 plan images + plan accuracy (branch `elmir/e3-plan-images`)
+
+- **PRs #7 and #9 are both in `main`** (Rahim merged #9 into the E2 branch, then #7 into main).
+- **Listing-style plan images** `packages/shared/fixtures/plan-images/<name>.{svg,png}` drawn from each fixture by `pnpm --filter @ledger/plan plan-images` (`renderListingSvg`): thick walls, door swings, double-line windows, room names with sizes in feet, overall dimension lines, north arrow, no surface IDs. We drew them, so the exact answer is known and there is no rights issue. `demo-table.png` ("Unit 4B") is the printable plan for the demo table.
+- **`scorePlan(parsed, truth)`** in `@ledger/eval`: rooms found, room names matched, doors/windows matched by relative position (scale-independent), median room-dimension error %.
+- **`pnpm --filter @ledger/eval plan-eval`** parses every image with Argon via `@ledger/gemini` and writes `eval/plan-results.md`. Today it prints "no generate() yet (R1)" and exits; it runs as soon as R1 lands and a key is in `.env`.
+- **Verified:** 33 tests, typecheck, lint; images checked by eye. **Not verified:** any live Argon call.
+- **Next:** run plan-eval live when R1 + key exist; film dev pairs per `docs/eval-protocol.md`.
 
 ## 2026-11-21 11:11 ET · E4 eval + protocol + README (branch `elmir/e4-eval`, stacked on PR #7)
 

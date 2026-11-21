@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1236 660" width="1236" height="660" font-family="Helvetica, Arial, sans-serif">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<polygon points="90.0,570.0 486.0,570.0 486.0,130.0 90.0,130.0" fill="#f7f7f2" stroke="none"/>
+<polygon points="486.0,570.0 794.0,570.0 794.0,130.0 486.0,130.0" fill="#f7f7f2" stroke="none"/>
+<polygon points="794.0,570.0 1146.0,570.0 1146.0,130.0 794.0,130.0" fill="#f7f7f2" stroke="none"/>
+<line x1="90.0" y1="570.0" x2="486.0" y2="570.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="486.0" y1="570.0" x2="486.0" y2="130.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="486.0" y1="130.0" x2="90.0" y2="130.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="90.0" y1="130.0" x2="90.0" y2="570.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="486.0" y1="570.0" x2="794.0" y2="570.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="794.0" y1="570.0" x2="794.0" y2="130.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="794.0" y1="130.0" x2="486.0" y2="130.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="486.0" y1="130.0" x2="486.0" y2="570.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="794.0" y1="570.0" x2="1146.0" y2="570.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="1146.0" y1="570.0" x2="1146.0" y2="130.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="1146.0" y1="130.0" x2="794.0" y2="130.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="794.0" y1="130.0" x2="794.0" y2="570.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="568.5" y1="570.0" x2="667.5" y2="570.0" stroke="#ffffff" stroke-width="11"/>
+<line x1="568.5" y1="570.0" x2="568.5" y2="471.0" stroke="#111" stroke-width="2"/>
+<path d="M 568.5 471.0 A 99.0 99.0 0 0 0 667.5 570.0" fill="none" stroke="#111" stroke-width="1.2"/>
+<line x1="486.0" y1="399.5" x2="486.0" y2="300.5" stroke="#ffffff" stroke-width="11"/>
+<line x1="486.0" y1="399.5" x2="387.0" y2="399.5" stroke="#111" stroke-width="2"/>
+<path d="M 387.0 399.5 A 99.0 99.0 0 0 0 486.0 300.5" fill="none" stroke="#111" stroke-width="1.2"/>
+<line x1="794.0" y1="394.0" x2="794.0" y2="306.0" stroke="#ffffff" stroke-width="11"/>
+<line x1="794.0" y1="394.0" x2="706.0" y2="394.0" stroke="#111" stroke-width="2"/>
+<path d="M 706.0 394.0 A 88.0 88.0 0 0 0 794.0 306.0" fill="none" stroke="#111" stroke-width="1.2"/>
+<line x1="90.0" y1="273.0" x2="90.0" y2="427.0" stroke="#ffffff" stroke-width="11"/>
+<line x1="94.4" y1="273.0" x2="94.4" y2="427.0" stroke="#111" stroke-width="2"/>
+<line x1="85.6" y1="273.0" x2="85.6" y2="427.0" stroke="#111" stroke-width="2"/>
+<line x1="1146.0" y1="416.0" x2="1146.0" y2="284.0" stroke="#ffffff" stroke-width="11"/>
+<line x1="1141.6" y1="416.0" x2="1141.6" y2="284.0" stroke="#111" stroke-width="2"/>
+<line x1="1150.4" y1="416.0" x2="1150.4" y2="284.0" stroke="#111" stroke-width="2"/>
+<text x="288.0" y="350.0" text-anchor="middle" font-size="15" font-weight="bold" fill="#111">LIVING ROOM</text>
+<text x="288.0" y="368.0" text-anchor="middle" font-size="13" fill="#333">11'10" x 13'1"</text>
+<text x="640.0" y="350.0" text-anchor="middle" font-size="15" font-weight="bold" fill="#111">KITCHEN</text>
+<text x="640.0" y="368.0" text-anchor="middle" font-size="13" fill="#333">9'2" x 13'1"</text>
+<text x="970.0" y="350.0" text-anchor="middle" font-size="15" font-weight="bold" fill="#111">BEDROOM</text>
+<text x="970.0" y="368.0" text-anchor="middle" font-size="13" fill="#333">10'6" x 13'1"</text>
+<text x="640.0" y="386.0" text-anchor="middle" font-size="11" font-style="italic" fill="#555">sink, stove</text>
+<line x1="90" y1="600" x2="1146" y2="600" stroke="#555" stroke-width="1"/>
+<line x1="90" y1="594" x2="90" y2="606" stroke="#555"/>
+<line x1="1146" y1="594" x2="1146" y2="606" stroke="#555"/>
+<text x="618" y="618" text-anchor="middle" font-size="13" fill="#333">31'6"</text>
+<line x1="60" y1="130" x2="60" y2="570" stroke="#555" stroke-width="1"/>
+<line x1="54" y1="130" x2="66" y2="130" stroke="#555"/>
+<line x1="54" y1="570" x2="66" y2="570" stroke="#555"/>
+<text x="50" y="350" text-anchor="middle" font-size="13" fill="#333" transform="rotate(-90 50 350)">13'1"</text>
+<g transform="translate(1186,70)"><path d="M0 -22 L8 6 L0 0 L-8 6 Z" fill="#111"/><text y="22" text-anchor="middle" font-size="13" font-weight="bold">N</text></g>
+</svg>
