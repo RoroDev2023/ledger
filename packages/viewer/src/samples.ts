@@ -106,7 +106,37 @@ export const HERO: Sample = {
   ],
 };
 
+/** The filmed conference room, furnished: portrait, wall lights, column, cabinet, long table with chairs. */
+function furnished(): FloorPlan {
+  const p = makePlan(
+    'furnished',
+    [{ id: 'conference', name: 'Conference room', polygon: rect(0, 0, 4.6, 7.2) }],
+    [
+      { room: 'conference', wall: 1, kind: 'door', offsetM: 1.2, widthM: 1.0 },
+      { room: 'conference', wall: 3, kind: 'window', offsetM: 0.6, widthM: 1.3 },
+      { room: 'conference', wall: 3, kind: 'window', offsetM: 2.7, widthM: 1.3 },
+    ],
+  );
+  const fx = (name: string, at: Vec2, footprint?: [Vec2, Vec2]) =>
+    p.surfaces.push({ id: `conference.fixture-${name.replace(/\s+/g, '-')}`, roomId: 'conference', kind: 'fixture', label: `Conference room ${name}`, at, ...(footprint ? { footprint } : {}) });
+  fx('portrait', [4.55, 3.7]);
+  fx('wall light', [4.55, 2.2]);
+  fx('wall light 2', [4.55, 5.2]);
+  fx('wall light 3', [2.9, 0.05]);
+  fx('column', [0.22, 1.0], [[0, 0.7], [0.45, 1.3]]);
+  fx('cabinet', [2.3, 6.9], [[0.5, 6.7], [4.1, 7.1]]);
+  fx('table', [2.3, 3.8], [[1.55, 1.9], [3.05, 5.7]]);
+  return p;
+}
+
 export const SAMPLES: Sample[] = [
+  {
+    id: 'furnished',
+    title: 'Furnished room',
+    checks: 'Portrait and wall lights hang on their walls, column/cabinet/table sit where drawn, chairs face the table.',
+    plan: furnished(),
+    items: [item('conference.wall-4', 'pre-existing', { reason: 'Yellow mark on the column.' }), item('conference.wall-1', 'not-visible', { reason: 'Not provable: one view only.' })],
+  },
   {
     id: 'every-verdict',
     title: 'Every verdict',

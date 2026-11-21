@@ -35,7 +35,7 @@ export const ArgonPlanSchema = z.object({
   ),
   /** [Alex] `at` = where the item is drawn (0-1000 grid). Code attaches it to the nearest wall as a landmark, so the
    *  pipeline can tell walls apart in the video without anyone typing them in. Null when not drawn at a spot. */
-  fixtures: z.array(z.object({ room: z.string(), name: z.string(), at: gridPt.nullable().optional() })),
+  fixtures: z.array(z.object({ room: z.string(), name: z.string(), at: gridPt.nullable().optional(), box: z.tuple([gridPt, gridPt]).nullable().optional() })),
   /** Total area printed on the plan, in square meters, if any. */
   printedTotalAreaM2: z.number().positive().nullable(),
   /** Degrees clockwise from image-up to the north arrow, if the plan has one. */
@@ -48,7 +48,7 @@ Return JSON only, matching the schema. Use a 0-1000 grid over the whole image: x
 - rooms: every enclosed room with its name as printed (or a short generic name like "Bathroom" if unnamed), and its polygon traced along the CENTER LINE of its walls (the middle of the wall thickness, the same lines the dimension labels measure), corners in order. Rooms that share a wall share those corner points.
 - openings: every door and window, as the two endpoints of the gap in the wall.
 - dimensionLabels: every printed measurement with its exact text, its value in meters (convert feet/inches; null if unreadable), and the two endpoints of the line or wall it measures.
-- fixtures: sinks, stoves, tubs, toilets, counters, closets, radiators, and anything drawn or labeled against a wall (art or paintings, wall lights, columns, cabinets, shelves, built-ins), with the room they are in and "at": the point where it is drawn (0-1000 grid), or null.
+- fixtures: sinks, stoves, tubs, toilets, counters, closets, radiators, furniture (tables, chairs, sofas, beds, desks) and anything drawn or labeled against a wall (art or paintings, wall lights, columns, cabinets, shelves, built-ins), with the room they are in, "at": the point where it is drawn (0-1000 grid), or null, and "box": two opposite corners of its drawn outline when it is drawn as a shape (tables, cabinets, beds, columns), else null.
 - printedTotalAreaM2: total area printed on the plan in square meters (convert sq ft), else null.
 - northArrowDeg: degrees clockwise from image-up to the north arrow, else null.
 Do not invent rooms or measurements that are not on the drawing.`;
@@ -307,7 +307,12 @@ export function planFromArgon(
         widthM: Math.max(0.3, round2(Math.hypot(b[0] - a[0], b[1] - a[1]))),
       };
     }),
-    fixtures: argon.fixtures.map((f) => ({ roomName: cleanName(f.room), name: cleanName(f.name) })),
+    fixtures: argon.fixtures.map((f) => ({
+      roomName: cleanName(f.room),
+      name: cleanName(f.name),
+      ...(f.at ? { at: toM(toPx(f.at)) } : f.box ? { at: toM(toPx([(f.box[0][0] + f.box[1][0]) / 2, (f.box[0][1] + f.box[1][1]) / 2])) } : {}),
+      ...(f.box ? { footprint: [toM(toPx(f.box[0])), toM(toPx(f.box[1]))] as [Pt, Pt] } : {}),
+    })),
     warnings: opts.ceilingHeightM ? warnings : [...warnings, 'ceiling height assumed 2.6 m; owner should confirm'],
   });
   attachWallLandmarks(plan, argon.fixtures.map((f) => ({ room: cleanName(f.room), name: cleanName(f.name), at: f.at ? toM(toPx(f.at)) : null })));

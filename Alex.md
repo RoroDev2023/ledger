@@ -2,6 +2,13 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 14:29 ET · Furniture in the 3D model
+
+- Contract (additive, optional): `Surface.at` and `Surface.footprint` for fixtures. Argon now returns fixture positions and drawn outlines (`at`, `box`); `buildPlan` stores them.
+- Viewer: `placement.ts` (pure, tested) turns fixtures into pieces: art and wall lights hang on the nearest wall facing into the room, columns are floor to ceiling, tables/cabinets use their drawn outline, a table brings chairs on both long sides (drawn chairs next to a table are skipped). `Furniture.tsx` draws them: painted portrait canvas in a dark frame with a picture light, walnut cabinet with brass pulls, white-topped table with a wood rim, terracotta chairs on chrome sleds, concrete column, brass sconces. Wall items hide with their cut-away wall. The camera starts on the side the art faces.
+- Live: conference-room.pdf → cabinet, table, portrait, column, chair with positions; rendered in 3D and plan view. Lab sample `furnished`.
+- Note: placement.ts (not furniture.ts) because macOS treats furniture.ts and Furniture.tsx as the same import.
+
 ## 2026-11-21 14:24 ET · Faster and hands-free: landmarks from the plan, Argon on move-in, timeouts
 
 - Freeze found: Gemini requests had no timeout; one hung Carbon call froze a whole job. `packages/gemini` now has a per-request timeout (GEMINI_TIMEOUT_MS, retried like a network error) and GEMINI_CONCURRENCY (default 4; my .env uses 12) so second opinions run in one round.

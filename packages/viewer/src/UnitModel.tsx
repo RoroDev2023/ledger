@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import * as THREE from 'three';
 import type { DiffItem, FloorPlan } from '@ledger/shared';
 import { PIN_STYLE, pinKind, pinStyle, type PinKind } from './colors.js';
+import { Furniture } from './Furniture.js';
+import { placeFurniture, type FurniturePiece } from './placement.js';
 import { physicalBlocksView, pinAnchors, planGeometry, type PhysicalWall, type PlanGeometry, type Vec3 } from './geometry.js';
 
 export interface UnitModelProps {
@@ -32,6 +34,7 @@ const SELECTED = '#fde68a';
 
 export function UnitModel({ plan, items = [], selected = null, onSelect, view = '3d', autoRotate = false, background, style }: UnitModelProps) {
   const geo = useMemo(() => planGeometry(plan), [plan]);
+  const furniture = useMemo(() => placeFurniture(plan, geo), [plan, geo]);
   const charged = useMemo(() => new Set(items.filter((i) => pinStyle(i).charged).map((i) => i.surfaceId)), [items]);
   const select = (id: string | null) => onSelect?.(id);
   const colorOf = (id?: string) => (id && selected === id ? SELECTED : id && charged.has(id) ? WALL_FLAGGED : WALL);
@@ -64,13 +67,14 @@ export function UnitModel({ plan, items = [], selected = null, onSelect, view = 
         <ambientLight intensity={1.1} />
         <directionalLight position={[geo.bounds.center[0] + 6, 12, geo.bounds.center[2] + 8]} intensity={1.15} />
         <hemisphereLight args={['#ffffff', '#d9d2c3', 0.5]} />
-        <CameraRig geo={geo} view={view} autoRotate={autoRotate} />
+        <CameraRig geo={geo} view={view} autoRotate={autoRotate} side={viewSide(furniture)} />
         {geo.floors.map((f) => (
           <Floor key={f.surfaceId} floor={f} selected={selected === f.surfaceId} onClick={() => select(f.surfaceId)} />
         ))}
         {geo.physical.map((w) => (
           <BuiltWall key={w.id} wall={w} leftColor={colorOf(w.left)} rightColor={colorOf(w.right)} mode={view === 'top' ? 'plan' : 'cutaway'} onSelect={select} />
         ))}
+        <Furniture pieces={furniture} geo={geo} mode={view === 'top' ? 'plan' : 'cutaway'} />
         <Pins key={plan.unitId + items.length} placed={placed} selected={selected} hovered={hovered} onHover={setHovered} onSelect={select} />
         <LabelProjector points={labels.map((l) => l.at)} els={labelEls} />
       </Canvas>
@@ -96,7 +100,19 @@ export function UnitModel({ plan, items = [], selected = null, onSelect, view = 
   );
 }
 
-function CameraRig({ geo, view, autoRotate }: { geo: PlanGeometry; view: '3d' | 'top'; autoRotate: boolean }) {
+/**
+ * Which side the camera starts on: the side the room's art faces, so the wall with the portrait is the one you see
+ * (the walls nearest the camera are cut away). Default: south-east.
+ */
+function viewSide(pieces: FurniturePiece[]): [number, number] {
+  const art = pieces.filter((p) => p.kind === 'art');
+  if (!art.length) return [1, 1];
+  const fx = art.reduce((s, p) => s + Math.sin(p.rotationY), 0);
+  const fz = art.reduce((s, p) => s + Math.cos(p.rotationY), 0);
+  return [Math.abs(fx) > 0.3 ? Math.sign(fx) : 1, Math.abs(fz) > 0.3 ? Math.sign(fz) : 1];
+}
+
+function CameraRig({ geo, view, autoRotate, side = [1, 1] }: { geo: PlanGeometry; view: '3d' | 'top'; autoRotate: boolean; side?: [number, number] }) {
   const camera = useThree((s) => s.camera);
   const controls = useRef<React.ComponentRef<typeof OrbitControls>>(null);
   const [cx, , cz] = geo.bounds.center;
@@ -114,7 +130,7 @@ function CameraRig({ geo, view, autoRotate }: { geo: PlanGeometry; view: '3d' | 
       to.set(cx, (d * 0.62) / Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)), cz + 0.001);
     } else {
       cam.fov = 40;
-      to.set(cx + d * 0.85, d * 1.25, cz + d * 1.35);
+      to.set(cx + side[0] * d * 0.85, d * 1.25, cz + side[1] * d * 1.35);
     }
     cam.far = 400;
     cam.updateProjectionMatrix();
@@ -124,7 +140,7 @@ function CameraRig({ geo, view, autoRotate }: { geo: PlanGeometry; view: '3d' | 
     fly.current = { to, active: true };
     controls.current?.target.set(cx, view === 'top' ? 0 : 0.8, cz);
     controls.current?.update();
-  }, [view, camera, cx, cz, d]);
+  }, [view, camera, cx, cz, d, side[0], side[1]]);
 
   useFrame((_, delta) => {
     const f = fly.current;
