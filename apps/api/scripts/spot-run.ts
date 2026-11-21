@@ -7,6 +7,7 @@ import type { WalkthroughEvidence } from '@ledger/pipeline';
 import { FloorPlanSchema } from '@ledger/shared';
 import { spotCheck } from '../src/spotCheck.js';
 import { defaultDataDir } from '../src/storage.js';
+import { buildStatement } from '../src/statement/build.js';
 
 const unitId = process.argv[2]!;
 const dir = join(defaultDataDir(), 'units', unitId);
@@ -23,3 +24,19 @@ for (const [i, d] of items.entries()) {
   void i;
 }
 for (const e of evidence) if (!items.some((d) => d.surfaceId === e.surfaceId && d.issueType === e.issueType)) console.log('  (merged)', e.verdict, e.afterFrameIds);
+
+// Write the proof frames side by side (move-in | move-out) for checking by eye: <unit>/spot-proof.json
+const all = new Map([...(await load('baseline')).frames, ...(await load('move-out')).frames].map((f) => [f.id, f.path]));
+const sheet = evidence.flatMap((e) => (e.proof ?? e.pairs).map((p) => ({ verdict: e.verdict, issue: e.issueType, before: all.get(p.beforeFrameId), after: all.get(p.afterFrameId), sameSpot: p.sameSpot, changed: p.changed })));
+const { writeFile } = await import('node:fs/promises');
+await writeFile(join(dir, 'spot-proof.json'), JSON.stringify(sheet, null, 2)); // proof-sheet
+
+// --write: replace the unit's diff, evidence and statement with this result (so the app shows it).
+if (process.argv.includes('--write')) {
+  const { writeFile: w } = await import('node:fs/promises');
+  const out = JSON.parse(await readFile(join(dir, 'walkthroughs', wts.find((x) => x.startsWith('move-out'))!, 'walkthrough.json'), 'utf8')) as { capturedAt: string };
+  await w(join(dir, 'diff.json'), JSON.stringify(items, null, 2));
+  await w(join(dir, 'diff-evidence.json'), JSON.stringify({ evidence, warnings: [], method: 'spot-check' }, null, 2));
+  await w(join(dir, 'statement.json'), JSON.stringify(buildStatement(unitId, out.capturedAt, items), null, 2));
+  console.log(`wrote diff.json, diff-evidence.json, statement.json for ${unitId}`);
+}

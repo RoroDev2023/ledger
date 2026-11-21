@@ -22,11 +22,13 @@ export const SPOT = {
   EVENT_GAP: 2,
   /** Events looked at, most confident first. */
   MAX_EVENTS: 6,
-  /** Move-in frames shown in the coarse "which one is the same spot?" pass. */
-  COARSE: 10,
-  /** Neighbours of the coarse winner shown in the fine pass. */
-  FINE_RADIUS: 3,
-  SAME_SPOT: 0.6,
+  /** Move-in frames per "which one shows this exact spot?" question. Every move-in frame is looked at. */
+  BATCH: 8,
+  SAME_SPOT: 0.7,
+  /** A second move-out frame must show the same item as the first. */
+  SAME_ITEM: 0.7,
+  /** How far (keyframes) to look for that second move-out frame. */
+  SECOND_RADIUS: 4,
   CHANGED: 0.7,
   UNCHANGED: 0.3,
 };
@@ -127,16 +129,43 @@ export async function spotCheck(args: {
   const loc = new Map((moveOut.localizations ?? []).map((l) => [l.frameId, l.surfaceId]));
 
   for (const ev of ranked) {
-    const afters = ev.frames.slice(0, 2).map((s) => s.f);
     const kind = mostCommon(ev.frames.map((s) => s.kind)) ?? 'other';
-    // 3. The move-in frame of the same spot, by picture: coarse over the whole move-in, then fine around the winner.
+    const what = ISSUES[kind];
+    const ref = ev.frames[0]!.f;
+    // The second move-out view must show the SAME item, not just a neighbouring moment (a frame where the camera
+    // had already moved on was being used as proof). Look around the reference frame and keep the best confirmed one.
+    const near = after.filter((f) => f.id !== ref.id && Math.abs(idx.get(f.id)! - idx.get(ref.id)!) <= SPOT.SECOND_RADIUS);
+    const confirmed = (
+      await Promise.all(
+        near.map(async (f) => {
+          const { answers } = await ask({
+            input: [{ type: 'text', text: 'REFERENCE (move-out photo):' }, await img(ref), { type: 'text', text: 'CANDIDATE (move-out photo, a moment earlier or later):' }, await img(f)],
+            questions: {
+              same_item: {
+                type: 'noul',
+                instructions: `REFERENCE shows ${what}. Does CANDIDATE clearly show that same item at the same spot, fully in view?`,
+                criteria: { true_description: 'The same item is clearly visible in CANDIDATE.', false_description: 'It is cut off, out of frame, too blurry, or CANDIDATE shows a different place.' },
+              },
+            },
+            tag: 'spot.same-item',
+            env,
+          });
+          return { f, p: answers.same_item.noul };
+        }),
+      )
+    )
+      .filter((x) => x.p >= SPOT.SAME_ITEM)
+      .sort((x, y) => y.p * y.f.sharpness - x.p * x.f.sharpness);
+    tick();
+    const afters = [ref, ...(confirmed[0] ? [confirmed[0].f] : [])];
+    // 3. The move-in frame of the same spot, by picture. Every move-in frame is shown, in batches (a sample of
+    //    every 4th frame skipped the one close-up of the wall light and picked a wrong spot); batch winners then
+    //    compete in a final round.
     const beforesFor = async (a: Frame): Promise<Frame[]> => {
-      const step = Math.max(1, Math.floor(before.length / SPOT.COARSE));
-      const coarse = before.filter((_, i) => i % step === 0).slice(0, SPOT.COARSE);
-      const c1 = await pick(a, coarse);
-      const at = before.findIndex((b) => b.id === c1[0]?.id);
-      const fine = before.slice(Math.max(0, at - SPOT.FINE_RADIUS), at + SPOT.FINE_RADIUS + 1);
-      return fine.length > 1 ? pick(a, fine) : c1;
+      const batches: Frame[][] = [];
+      for (let i = 0; i < before.length; i += SPOT.BATCH) batches.push(before.slice(i, i + SPOT.BATCH));
+      const winners = (await Promise.all(batches.map((b) => pick(a, b)))).flatMap((r) => r.slice(0, 2));
+      return winners.length > 1 ? pick(a, winners.slice(0, SPOT.BATCH)) : winners;
     };
     const pick = async (a: Frame, cands: Frame[]): Promise<Frame[]> => {
       const input: Content[] = [{ type: 'text', text: 'AFTER (move-out photo):' }, await img(a)];
@@ -146,7 +175,11 @@ export async function spotCheck(args: {
       const { answers } = await ask({
         input,
         questions: {
-          same: { type: 'choice', instructions: 'Which BEFORE photo shows the same spot of the apartment as AFTER (the same wall area, door, fixture or object), even from a different angle or distance?', criteria },
+          same: {
+            type: 'choice',
+            instructions: `AFTER shows ${what}. Which BEFORE photo shows that exact spot: the same fixture or the same part of the wall, even from farther away or another angle? Rooms often have several identical fixtures (wall lights, outlets, handles): use the surroundings in AFTER (a door frame, a window, art, a column, a corner) to pick the right one. A photo of the same wall that does not include that spot does not count.`,
+            criteria,
+          },
         },
         tag: 'spot.match',
         env,
@@ -173,10 +206,13 @@ export async function spotCheck(args: {
         const { answers } = await ask({
           input: [{ type: 'text', text: 'BEFORE (move-in):' }, await img(b), { type: 'text', text: 'AFTER (move-out):' }, await img(a)],
           questions: {
-            same_spot: { type: 'noul', instructions: `${lead} Do they show the same spot of the apartment (same wall area, door or fixture), even from a different angle?` },
+            same_spot: {
+              type: 'noul',
+              instructions: `${lead} Do they show the same spot of the apartment (the same fixture or wall area, judged by its surroundings), even from a different angle or distance?`,
+            },
             changed: {
               type: 'noul',
-              instructions: `${lead} At that spot, does AFTER show ${ISSUES[kind]} that is NOT in BEFORE?`,
+              instructions: `${lead} At the spot where AFTER shows ${what}, is it missing in BEFORE?`,
               criteria: { true_description: 'AFTER shows it and BEFORE does not, at the same spot.', false_description: 'It is in both photos, in neither, or the difference is only angle, lighting, blur or moved furniture.' },
             },
           },
@@ -241,8 +277,39 @@ export async function spotCheck(args: {
       flagged: ev.frames.length,
     });
   }
+  // The same item is often seen several times in one walkthrough (from afar, then close up). Merge events whose
+  // reference frames show the same item: keep the strongest line (charged > pre-existing > not provable).
+  const rank = (d: DiffItem) => (d.verdict === 'new-damage' ? 3 : d.verdict === 'pre-existing' ? 2 : 1);
+  const order = items.map((_, i) => i).sort((a, b) => rank(items[b]!) - rank(items[a]!) || items[b]!.confidence - items[a]!.confidence);
+  const kept: number[] = [];
+  for (const i of order) {
+    let dup = false;
+    for (const k of kept) {
+      if (items[k]!.issueType !== items[i]!.issueType) continue;
+      const fa = after.find((f) => f.id === evidence[i]!.afterFrameIds[0]);
+      const fb = after.find((f) => f.id === evidence[k]!.afterFrameIds[0]);
+      if (!fa || !fb) continue;
+      const { answers } = await ask({
+        input: [{ type: 'text', text: 'PHOTO A:' }, await img(fb), { type: 'text', text: 'PHOTO B:' }, await img(fa)],
+        questions: {
+          same_item: {
+            type: 'noul',
+            instructions: `Both photos are from the same move-out walkthrough and each shows ${ISSUES[items[i]!.issueType ?? 'other']}. Is it the same item at the same spot (seen from a different distance or angle), not two different ones?`,
+          },
+        },
+        tag: 'spot.merge',
+        env,
+      });
+      if (answers.same_item.noul >= SPOT.SAME_ITEM) {
+        dup = true;
+        break;
+      }
+    }
+    if (!dup) kept.push(i);
+  }
   args.onProgress?.(steps, steps);
-  return { items: dedupe(items), evidence };
+  const keep = new Set(kept);
+  return { items: dedupe(items.filter((_, i) => keep.has(i))), evidence: evidence.filter((_, i) => keep.has(i)) };
 }
 
 /** One line per (surface, issue): keep the strongest (charged > pre-existing > not provable). */

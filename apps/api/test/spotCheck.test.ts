@@ -24,6 +24,15 @@ function fakeDecide(opts: { wrong: number[]; changed: boolean }) {
       const choice = Object.entries(probs).sort((x, y) => y[1] - x[1])[0]![0];
       return { answers: { same: { type: 'choice', choice, probabilities: probs, confidence: 0.9 } }, usage: {} };
     }
+    if (tag === 'spot.merge') {
+      // events of the scripted kind are "the same item" when they are within 5 frames of each other
+      return { answers: { same_item: { type: 'noul', noul: Math.abs(num(ids[0]!) - num(ids[1]!)) <= 5 ? 0.9 : 0.1, confidence: 0.9 } }, usage: {} };
+    }
+    if (tag === 'spot.same-item') {
+      // the neighbouring frame shows the same item only if it is flagged too
+      const hit = opts.wrong.includes(num(ids[1]!));
+      return { answers: { same_item: { type: 'noul', noul: hit ? 0.9 : 0.1, confidence: 0.9 } }, usage: {} };
+    }
     void questions;
     return { answers: { same_spot: { type: 'noul', noul: 0.9, confidence: 0.9 }, changed: { type: 'noul', noul: opts.changed ? 0.9 : 0.1, confidence: 0.9 } }, usage: {} };
   }) as never;
@@ -71,9 +80,10 @@ describe('spot check', () => {
     expect((await run([], true)).items).toHaveLength(0);
   });
 
-  it('two separate events -> two lines', async () => {
-    const { items } = await run([3, 4, 15, 16], true);
-    expect(items.length).toBeGreaterThanOrEqual(1);
+  it('two separate events far apart -> two lines; the same item seen twice -> one line', async () => {
+    expect((await run([3, 4, 15, 16], true)).items.length).toBeGreaterThanOrEqual(1);
+    const { items } = await run([3, 4, 7, 8], true); // two events within 5 frames: same item
+    expect(items).toHaveLength(1);
     expect(items.every((d) => d.verdict === 'new-damage')).toBe(true);
   });
 });
