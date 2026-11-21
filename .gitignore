@@ -8,3 +8,5 @@ coverage/
 .hack/
 .next*/
 eval/*.sample.*
+.data-*/
+video/

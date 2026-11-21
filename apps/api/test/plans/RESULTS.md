@@ -23,3 +23,23 @@ stay within 16 cm on the scan in every run.
 
 **Also seen:** the same PDF can parse differently between runs (unit-4b: 100% in one earlier run, 14–17% off on
 small rooms in the next two), so each plan needs more than one run to judge.
+
+## Our own videos: conference room (video/IMG_0022 move-in, IMG_0023 move-out; not committed)
+
+Ground truth from the frames: a yellow mark on the concrete column is in **both** videos (pre-existing); the only
+new thing at move-out is a **sheet of paper stuck on the wall light** by the door.
+
+| Comparison | What happened | Result |
+|---|---|---|
+| Per-wall findings + diff (R4/R5), plan without wall landmarks | frames 1.5–31.5 s all placed on the west wall; findings looked at the wrong frames | **missed the paper**, $0 |
+| Same, with wall landmarks from the plan | south (door) wall got 0 frames; the paper isn't in the damage checklist | **missed the paper**, column mark as "not visible" |
+| Spot check v1: screen every move-out frame, match the move-in by picture (sampling every 4th move-in frame) | right verdicts, **wrong proof frames**: the move-in "matches" were other places, and a second move-out frame no longer showed the paper | paper $85, column $0, but the evidence didn't show the spot |
+| Spot check v2: confirm the second move-out view shows the same item; stricter same-spot wording | move-out views correct; move-in matched **other identical wall lights**; the stricter wording rejected the correct column match (0.44) | paper not provable, column not provable |
+| **Spot check v3** (`apps/api/src/spotCheck.ts`): every move-in frame searched in batches, matching told to use the surroundings to tell identical fixtures apart, simple same-spot wording, repeated sightings merged | proof = the light next to the portrait without paper (move-in) vs with paper (move-out), 2 independent pairs; column: same column and bin in both, 2 pairs unchanged | **paper: new, $85; column mark: pre-existing, $0** (proof frames checked by eye) |
+
+What changed after the failures: frames are no longer filed by wall before looking for damage; the move-out is
+screened frame by frame and each suspect spot is matched to the move-in by picture. The paper's wall light is on the
+east (portrait) wall, which the label got right.
+
+**Caveat:** v1→v3 were tuned on this one pair, so it is a dev result, not a held-out one. It needs new pairs (other
+rooms, other changes, a clean re-shoot) before it counts as proof.

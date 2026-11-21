@@ -2,6 +2,12 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 14:54 ET · Spot check finds the change on our videos, with the right proof frames
+
+- `apps/api/src/spotCheck.ts` is the move-out comparison by default (DIFF_MODE=pipeline for R4/R5): screen every move-out frame → events → confirm a second move-out view shows the same item → search every move-in frame in batches for the same spot (surroundings tell identical fixtures apart) → two independent "is this new?" pairs → merge repeated sightings of the same item.
+- Live on unit-3b3c637b (conference room): paper on the wall light next to the portrait → **new, $85**; yellow column mark → **pre-existing, $0**. Proof frames checked by eye. Full history in `apps/api/test/plans/RESULTS.md` (v1 wrong proof frames, v2 identical lights confused). Tuned on this one pair: needs held-out pairs.
+- `pnpm --filter @ledger/api exec tsx scripts/spot-run.ts <unit> [--write]` re-runs just the comparison on processed walkthroughs.
+
 ## 2026-11-21 14:31 ET · Damage checked on both walkthroughs (default)
 
 - Move-in checks damage again (the record of what was already there), with Argon second opinions (max 3); move-out checks damage and runs the diff with Carbon. `MOVEIN_DAMAGE=off` skips the move-in damage check for a faster wall-only record (the diff can still call a mark pre-existing from two unchanged before/after pairs). Briefly made move-out-only in `18cffe5`, reverted here at Alex's request.
