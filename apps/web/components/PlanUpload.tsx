@@ -8,7 +8,7 @@ import { Dropzone, EASE, Icon } from './motion';
 
 const READING = ['Rooms', 'Walls', 'Doors and windows', 'Dimensions', '3D model'];
 
-export function PlanUpload({ onParsed }: { onParsed: (r: { unit: Unit; plan: FloorPlan }) => void }) {
+export function PlanUpload({ onParsed, onNameChange }: { onParsed: (r: { unit: Unit; plan: FloorPlan }) => void; onNameChange?: (name: string) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [unitId, setUnitId] = useState('');
@@ -72,7 +72,7 @@ export function PlanUpload({ onParsed }: { onParsed: (r: { unit: Unit; plan: Flo
           We read the rooms, doors and windows and build a 3D model you can check.
         </p>
         <label className="label">Unit name</label>
-        <input className="input" value={unitId} onChange={(e) => setUnitId(e.target.value.replace(/[^A-Za-z0-9_-]/g, '-'))} placeholder="e.g. apt-4b" />
+        <input className="input" value={unitId} onChange={(e) => { const v = e.target.value.replace(/[^A-Za-z0-9_-]/g, '-'); setUnitId(v); onNameChange?.(v); }} placeholder="e.g. apt-4b" />
         <button className="btn btn-block btn-lg" onClick={() => void start()} disabled={!file || busy} style={{ marginTop: 18 }}>
           {busy ? `Reading the plan… ${seconds}s` : 'Read plan'} {!busy && Icon.arrow}
         </button>

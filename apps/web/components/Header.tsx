@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-export function Header({ unitId }: { unitId?: string }) {
+export function Header({ unitId, draftName }: { unitId?: string; draftName?: string }) {
   const path = usePathname();
   const nav = (href: string, label: string) => (
     <Link href={href} className={`navlink${path === href ? ' on' : ''}`}>
@@ -26,6 +26,14 @@ export function Header({ unitId }: { unitId?: string }) {
             {nav(`/units/${unitId}`, 'Apartment')}
             {nav(`/units/${unitId}/moveout`, 'Move-out')}
             {nav(`/units/${unitId}/statement`, 'Statement')}
+          </>
+        )}
+        {!unitId && draftName && (
+          <>
+            <span className="faint">/</span>
+            <span className="mono" style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+              {draftName}
+            </span>
           </>
         )}
       </nav>

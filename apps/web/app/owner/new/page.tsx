@@ -17,13 +17,14 @@ export default function OwnerNew() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [plan, setPlan] = useState<FloorPlan | null>(null);
+  const [draftName, setDraftName] = useState('');
 
   return (
     <>
-      <Header unitId={plan?.unitId} />
+      <Header unitId={plan?.unitId} draftName={draftName.trim()} />
       <main className="page">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE }}>
-          <div className="eyebrow">New unit</div>
+          <div className="eyebrow">New unit{(plan?.unitId ?? draftName.trim()) ? <span className="mono" style={{ color: 'var(--ink-2)' }}>· {plan?.unitId ?? draftName.trim()}</span> : null}</div>
           <h1 className="display" style={{ fontSize: 56, marginTop: 10 }}>
             Add an <em>apartment.</em>
           </h1>
@@ -46,6 +47,7 @@ export default function OwnerNew() {
             <motion.div key={step} initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -28 }} transition={{ duration: 0.45, ease: EASE }}>
               {step === 0 && (
                 <PlanUpload
+                  onNameChange={setDraftName}
                   onParsed={({ plan: p }) => {
                     setPlan(p);
                     setStep(1);
