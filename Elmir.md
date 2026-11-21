@@ -2,6 +2,14 @@
 
 Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluation (`packages/shared`, `packages/plan`, and `packages/eval`, E1–E5).
 
+## 2026-11-21 11:01 ET · E2 plan parsing (branch `elmir/e2-plan-parse`, stacked on E1)
+
+- **`parsePlan(path, model, {unitId, ceilingHeightM?, knownMetersPerPixel?})`** in `@ledger/plan`: PDF -> PNG (pdftoppm, 200 dpi), Argon reads rooms / openings / dimension labels / fixtures on a **0-1000 grid** (Gemini's native pointing convention), code converts to pixels with the real image size, merges shared corners (5 px), snaps walls within ±3° to the axis, sets scale from the median label (drops >15% outliers; falls back to a known measurement, then an assumption with a warning), flips y so north is up, builds walls/IDs/areas, validates. On failure: up to 2 Carbon repair rounds with the errors; anything unresolved goes into `warnings`.
+- **Needs from Rahim:** a `PlanModel` with `generate({model, parts, schema, tag})` returning a zod-validated object (exactly R1's `generate<T>`). `parts` are `{type:'text'}` / `{type:'image', data(base64), mime_type}`. Model IDs come from `MODEL_PLAN` / `MODEL_DEEP`.
+- **`renderPlanSvg(plan)`**: top-down, north up, every wall labelled with `data-surface-id`, doors orange, windows blue. Fixture SVGs committed next to each JSON in `packages/shared/fixtures/plans/` (Alex: use for the minimap).
+- **Verified:** 24 tests pass (incl. mocked Argon, the 2-round repair loop, outlier labels, header-based image size), typecheck and lint clean. **Not verified:** a live Argon call (no event key yet).
+- **Next:** live Argon test on a real listing plan as soon as the key works; E4 labelling page (Codex is building `packages/eval/label.html`).
+
 ## 2026-11-21 10:58 ET · E1 scaffold + contract (branch `elmir/e1-scaffold-contract`)
 
 - **Ready to use:** pnpm workspace (`packages/*`, `apps/*`), `tsconfig.base.json` (strict, NodeNext), vitest, eslint, GitHub Actions CI (typecheck + test + lint), `.env.example` with every `MODEL_*` var.
