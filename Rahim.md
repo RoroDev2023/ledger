@@ -2,6 +2,10 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 10:50 ET · Merge check
+
+Fetched the project branches and checked the open PRs. [PR #2](https://github.com/RoroDev2023/ledger/pull/2) held the only outstanding changes. The ideation PDF was already on `main`. After the merge, agents can read all three handoffs from `main`. Rahim's next planned task is R1.
+
 ## 2026-11-21 10:47 ET · Agent handoffs
 
 - The planning docs and Gemini references are on `main`. The [ideation PDF](docs/ideas/ideating.pdf) landed in [PR #1](https://github.com/RoroDev2023/ledger/pull/1). This run added the three handoffs and their read/update instructions on `rorodev/agent-handoffs`.
