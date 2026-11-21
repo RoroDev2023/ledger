@@ -2,6 +2,14 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 12:51 ET · Merge train: R1–R5 on main (branch `rahim/handoff-merge-train`)
+
+- **Merged (squash, in order):** #13 R2 frames, #14 R1 Gemini client, #17 Files API upload, #16 Hydrogen captions, #19 R3 localization, #21 R4 findings, #22 R5 diff + pricing + statement. Each was rebased onto the latest main, then typecheck and `GEMINI_MODE=mock pnpm -r test` ran locally on Node 22, and it merged only after green CI. No smoke, live or `run:pair` runs.
+- **Integration fixes in #22:** R3 `localize.ts` and R5 `diff.ts` both declared an identical `SurfaceCoverage`, so `index.ts` failed with TS2308 once both were on main. `diff.ts` now re-exports R3's type. `run:pair` imports `localizeWalkthrough` and `detectFindings` statically, so tsc checks their signatures. The "R3/R4 not merged" exit is gone.
+- **Conflicts:** only `Rahim.md`, `docs/decisions.md` (both sides kept) and `packages/pipeline/package.json` scripts (both `localize` and `findings` kept). `pnpm-lock.yaml` never conflicted.
+- **Gotchas:** the t3 worktrees for `rahim/r1-files-upload`, `r2-captions`, `r3-localize`, `r4-findings` and `r5-diff` are behind their rebased remotes. All are merged, so remove them, or run `git reset --hard origin/<branch>` before reuse. Remote `rahim/r1-gemini-client` can be deleted (no PR targets it).
+- **Next:** first real `run:pair` on a dev pair in `record` mode (15:00 checkpoint), then tune R3/R4 thresholds on dev only.
+
 ## 2026-11-21 12:21 ET · R5 diff + pricing + statement (branch `rahim/r5-diff`)
 
 - **Ready:** `diffWalkthroughs({ plan, baseline?, addendum?, moveOut, deps?, pricing?, depreciation?, onProgress? }) → { items: DiffItem[], evidence, warnings }` in `@ledger/pipeline`. Each walkthrough is `WalkthroughEvidence { walkthroughId, findings, frames, coverage?, localizations?, captions? }`; `coverage` is R3's `{ surfaceId: { frames, frameIds, notVisible } }`. If coverage is undefined, that walkthrough failed. Every plan surface gets exactly one verdict.
