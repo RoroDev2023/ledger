@@ -1,7 +1,8 @@
 // [Alex] Pick a walkthrough video, upload it (with upload progress), then follow the pipeline job live.
 'use client';
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import type { WalkthroughKind } from '@ledger/shared';
 import { api, type Stage } from '../lib/api';
 import { JobProgress } from './JobProgress';
@@ -36,9 +37,14 @@ export function VideoUpload({ unitId, kind, onDone }: { unitId: string; kind: Wa
   return (
     <AnimatePresence mode="wait">
       {jobId ? (
-        <motion.div key="job" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>
-          <LiveModel unitId={unitId} kind={kind} stage={live.stage} state={live.state} />
-          <JobProgress jobId={jobId} withDiff={moveOut} onDone={onDone} onChange={onChange} hold />
+        <motion.div key="job">
+          <Processing
+            unitId={unitId}
+            kind={kind}
+            title={moveOut ? 'Checking the move-out video' : 'Reading the move-in video'}
+            model={<LiveModel unitId={unitId} kind={kind} stage={live.stage} state={live.state} height="100%" />}
+            progress={<JobProgress jobId={jobId} withDiff={moveOut} onDone={onDone} onChange={onChange} hold />}
+          />
         </motion.div>
       ) : (
         <motion.div key="pick" exit={{ opacity: 0, y: -10 }}>
@@ -68,5 +74,37 @@ export function VideoUpload({ unitId, kind, onDone }: { unitId: string; kind: Wa
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/** Full-screen processing view: the 3D big on the left, the progress on the right. Rendered on top of the page
+ * (portal), so it looks the same from the move-in popup, the new-apartment flow and the move-out page. */
+function Processing({ unitId, kind, title, model, progress }: { unitId: string; kind: WalkthroughKind; title: string; model: ReactNode; progress: ReactNode }) {
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setEl(document.body);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+  if (!el) return null;
+  return createPortal(
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'var(--paper)', display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(420px, 1fr)', gap: 24, padding: 24 }}>
+      <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, ease: EASE }} style={{ minHeight: 0 }}>
+        {model}
+      </motion.div>
+      <motion.div initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, ease: EASE, delay: 0.1 }} style={{ overflowY: 'auto', minHeight: 0, padding: '8px 4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, font: '800 19px var(--display)', letterSpacing: '-0.04em' }}>
+          <i style={{ width: 14, height: 14, borderRadius: 3, background: 'var(--red)', transform: 'rotate(45deg) scale(.8)', display: 'inline-block' }} /> LEDGER
+          <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 400, letterSpacing: 0 }}>{unitId}</span>
+        </div>
+        <h1 className="display" style={{ fontSize: 44, margin: '28px 0 6px' }}>{title}</h1>
+        <p className="muted" style={{ margin: '0 0 22px' }}>{kind === 'move-out' ? 'Turn the apartment around while we compare it with move-in.' : 'Turn the apartment around while we go through the video.'}</p>
+        {progress}
+      </motion.div>
+    </motion.div>,
+    el,
   );
 }

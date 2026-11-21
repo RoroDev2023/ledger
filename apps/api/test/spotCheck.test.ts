@@ -9,7 +9,8 @@ const frames = (wid: string, n: number): Frame[] =>
 
 /** Fake decide: reads frame ids out of the (text) image blocks. `wrong` = move-out frames with something wrong;
  *  `changed` = whether those things are new. The BEFORE with the same index as AFTER is "the same spot". */
-function fakeDecide(opts: { wrong: number[]; changed: boolean }) {
+function fakeDecide(opts: { wrong: number[]; changed: boolean; firstPairMisses?: boolean }) {
+  let changeCalls = 0;
   return (async ({ input, questions, tag }: { input: { type: string; text?: string }[]; questions: Record<string, unknown>; tag: string }) => {
     const ids = input.filter((c) => c.type === 'text' && c.text?.startsWith('img:')).map((c) => c.text!.slice(4));
     const num = (id: string) => Number(id.split('.f')[1]);
@@ -45,19 +46,21 @@ function fakeDecide(opts: { wrong: number[]; changed: boolean }) {
       return { answers: { same_item: { type: 'noul', noul: hit ? 0.9 : 0.1, confidence: 0.9 } }, usage: {} };
     }
     void questions;
-    return { answers: { same_spot: { type: 'noul', noul: 0.9, confidence: 0.9 }, changed: { type: 'noul', noul: opts.changed ? 0.9 : 0.1, confidence: 0.9 } }, usage: {} };
+    // firstPairMisses: the first before/after pair misses the same-spot bar by a hair (0.67 < 0.7), like our short videos.
+    const sameSpot = opts.firstPairMisses && changeCalls++ === 0 ? 0.67 : 0.9;
+    return { answers: { same_spot: { type: 'noul', noul: sameSpot, confidence: 0.9 }, changed: { type: 'noul', noul: opts.changed ? 0.9 : 0.1, confidence: 0.9 } }, usage: {} };
   }) as never;
 }
 
 const plan = loadPlanFixture('demo-table');
 const progress: [string, number, number][] = [];
-const run = (wrong: number[], changed: boolean) =>
+const run = (wrong: number[], changed: boolean, firstPairMisses = false) =>
   spotCheck({
     onProgress: (stage, d, t) => progress.push([stage, d, t]),
     plan,
     baseline: { walkthroughId: 'in', findings: [], frames: frames('in', 20) },
     moveOut: { walkthroughId: 'out', findings: [], frames: frames('out', 20), localizations: frames('out', 20).map((f) => ({ frameId: f.id, roomId: 'living-room', surfaceId: 'living-room.wall-s', confidence: 0.9, visible: {} })) },
-    decideFn: fakeDecide({ wrong, changed }),
+    decideFn: fakeDecide({ wrong, changed, firstPairMisses }),
     imageOf: async (f) => ({ type: 'text', text: `img:${f.id}` }) as never,
   });
 
@@ -116,5 +119,17 @@ describe('spot check location', () => {
   it('records how high the change is (probability-weighted)', async () => {
     const { items } = await run([3, 4], true);
     expect(items[0]!.spot?.heightM).toBeCloseTo(1.7);
+  });
+});
+
+describe('spot check: more pairs when one misses', () => {
+  it('a first pair just under the same-spot bar is replaced by other views, and the proof stays independent', async () => {
+    const { items, evidence } = await run([3, 4, 5], true, true);
+    expect(items[0]!.verdict).toBe('new-damage');
+    const proof = evidence[0]!.proof!;
+    expect(proof).toHaveLength(2);
+    expect(proof[0]!.beforeFrameId).not.toBe(proof[1]!.beforeFrameId);
+    expect(proof[0]!.afterFrameId).not.toBe(proof[1]!.afterFrameId);
+    for (const p of proof) expect(p.sameSpot).toBeGreaterThanOrEqual(0.7);
   });
 });

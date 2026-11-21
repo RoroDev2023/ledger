@@ -93,7 +93,7 @@ export function JobProgress({ jobId, withDiff, onDone, onError, onChange, hold =
             </motion.span>
             <div>
               <b style={{ display: 'block', color: 'var(--ink)' }}>{withDiff ? 'Comparison finished' : 'Move-in saved'}</b>
-              <span style={{ fontSize: 13 }}>{hold ? 'Have a look in 3D above.' : withDiff ? 'Opening the statement…' : 'Opening the apartment…'}</span>
+              <span style={{ fontSize: 13 }}>{hold ? 'Have a look at the 3D on the left.' : withDiff ? 'Opening the statement…' : 'Opening the apartment…'}</span>
             </div>
             {hold && (
               <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => onDone?.()}>
