@@ -2,6 +2,32 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 11:59 ET · R3 localization (branch `rahim/r3-localize`)
+
+- **Ready:** `localizeWalkthrough(plan, frames, { captions?, planSvg? | planSvgPath?, outPath?, onProgress?, config?, deps? })` in `@ledger/pipeline` returns `{ localizations: Localization[], coverage, notVisible, carbon, trace }`.
+  - **Rooms:** each keyframe gets one `decide` call (`localize.room`) with a `choice` over the plan's rooms plus `other`. A room only changes when at least 3 consecutive frames agree on the new room.
+  - **Surfaces:** each keyframe gets one `decide` call (`localize.surface`) with one `choice` (which surface fills the frame, or `other` → `'none'`) plus one `noul` per candidate surface (visible?). Keys come from `QuestionKeys`, and option keys are the surface IDs.
+  - **Smoothing:** Viterbi plus forward–backward per room segment. Transitions are self 0.8, neighbor 0.15, other 0.05.
+  - **Carbon** (`localize.carbon`): runs when a frame's posterior is below 0.6, at most 12 calls per walkthrough, lowest posterior first. The input is the frame, the top-3 candidates and the plan SVG rendered to PNG by sharp, or room text if there is no SVG. Carbon's confidence is the HMM posterior of its pick. Reasons are in `result.carbon`.
+  - **Coverage:** frames with P(visible) > 0.7 per surface. Fewer than 2 → `notVisible`.
+  - All tunables are in `src/localizeConfig.ts`. Option text is generated from the plan in `src/describe.ts`: width, openings at left/center/right as seen from the room center, doors found on the other side of shared walls, fixtures and neighbors.
+- **CLI:** `pnpm --filter @ledger/pipeline localize <plan.json> <video> [--unit id] [--wid id] [--seconds n]`. It picks up the plan's sibling `.svg` automatically, prints a per-frame table and a coverage table, and writes `.data/units/<unit>/walkthroughs/<wid>/localization.json`.
+- **Verified:** 19 new tests, run in mock mode against the demo-table plan:
+  - room smoothing
+  - the HMM fixing a one-frame flip to the opposite wall
+  - Carbon triggering, its 12-call cap, the text fallback, and rejecting picks that aren't candidates
+  - coverage marking surfaces `not-visible`
+  - landmark hints boosting a match
+  - default askers running through gemini mock, with calls.jsonl question counts of 1 per room request and candidates+1 per surface request
+
+  Repo-wide: typecheck, 143 tests and lint all pass on Node 22.
+
+  **Live:** I ran the CLI on a synthetic 10 s clip. Decisions answered `other` for all 14 frames with P 0.80–0.93, at about 1.7 s per request. I also sent one surface request on a frame directly: it was accepted (dotted option keys work) and answered in 555 ms. One Carbon call with the plan PNG answered `none` with a sensible reason.
+
+  **Not verified:** real walkthrough footage. `data/pairs/pair-01` did not exist yet.
+- **For Alex:** `onProgress('rooms' | 'surfaces', done, total)` matches your SSE stages. `progress.ts` now exports `Stage` and `OnProgress`.
+- **Next:** run the CLI live on pair-01 once it is filmed, and tune `CARBON_BELOW` and `LANDMARK_BOOST` on dev pairs only. Then build R4 findings on top of `coverage` and `localizations`.
+
 ## 2026-11-21 11:50 ET · Files API upload (branch `rahim/r1-files-upload`, stacked on PR #14)
 
 - **Ready:** `uploadFile(path, mimeType, { displayName?, env? })` in `@ledger/gemini` returns `{ uri, mime_type }`, so `{ type: 'video', ...file }` drops into both Interactions and Decisions input. It follows the resumable protocol in the new `docs/vendor/files-api.md`, the official page fetched as Markdown. The upload is streamed, not buffered, with 3 tries on 429/5xx. It polls `GET /v1beta/<name>` until the file is `ACTIVE`; a live probe showed videos arrive `PROCESSING` and turn `ACTIVE` about 1.5 s later. Identical bytes plus MIME type reuse the upload for 47 h (files expire at 48 h). Mock returns a fake `.../files/mock-<sha>` URI, and replay serves recorded uploads only. Every upload is logged to `calls.jsonl` with `tag: "upload"`, `model: "files-api"` and `endpoint: "files"`.
