@@ -2,6 +2,12 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 16:22 ET · More pairs when one misses; processing view 3D left / progress right; Shopify cart fixed locally
+
+- Spot check: on the new short videos (video/1.mp4, 2.mp4, unit-80c87d70) one pair scored same-spot 0.67 (< 0.7) and the paper came out "not provable". Now, when the first two pairs don't give an independent proof, it tries up to 2 more confirmed move-out views × their top move-in frames (≤ 6 extra pairs) and charges only on two agreeing pairs that share no frame (`independentPair`). Result: $85, proof frames checked by eye (move-in 6/5 without the paper, move-out 7/5 with it). New test for the near miss.
+- Processing view: full screen, 3D big on the left, progress on the right (move-in and move-out).
+- Shopify "Find fixes" failed at the cart step on this laptop: Playwright's Chromium was never installed. Ran `pnpm --filter @ledger/cart-agent exec playwright install chromium` (local machine setup, nothing in git). Then via the API all 3 carts filled (Wynn USA $9.42, TouchUp.com $19.99, All Marine World $4.59), no checkout. Note for Rahim: `.env` has no SHOP_MODE, so it runs in mock (closest recorded search), which is why "adhesive remover" picked a floor cleaner.
+
 ## 2026-11-21 16:04 ET · Live 3D while a video is processed
 
 - `apps/web/components/LiveModel.tsx`: on the move-in and move-out upload screens the apartment's 3D sits above the progress (drag/zoom), a label follows the running step and a highlight walks the walls; when the job is done the real results drop in as pins (move-out also shows the total) and a button continues (no auto-redirect). `JobProgress` gained `onChange` and `hold`; other users (fix kit) keep the old behaviour.

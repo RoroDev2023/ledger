@@ -21,7 +21,7 @@ const DOING: Partial<Record<Stage, string>> = {
   diff: 'Comparing with move-in',
 };
 
-export function LiveModel({ unitId, kind, stage, state }: { unitId: string; kind: WalkthroughKind; stage: Stage | null; state: 'running' | 'done' | 'error' }) {
+export function LiveModel({ unitId, kind, stage, state, height = 380 }: { unitId: string; kind: WalkthroughKind; stage: Stage | null; state: 'running' | 'done' | 'error'; height?: number | string }) {
   const [plan, setPlan] = useState<FloorPlan | null>(null);
   const [items, setItems] = useState<DiffItem[]>([]);
   const [tick, setTick] = useState(0);
@@ -68,7 +68,7 @@ export function LiveModel({ unitId, kind, stage, state }: { unitId: string; kind
   const charged = items.filter((i) => (i.costUsd ?? 0) > 0).reduce((s, i) => s + (i.costUsd ?? 0), 0);
 
   return (
-    <div className="card" style={{ position: 'relative', height: 380, padding: 0, overflow: 'hidden', marginBottom: 18, background: 'linear-gradient(180deg, #fff, #f1efe9)' }}>
+    <div className="card" style={{ position: 'relative', height, padding: 0, overflow: 'hidden', background: 'linear-gradient(180deg, #fff, #f1efe9)' }}>
       {plan && <UnitModel plan={plan} items={items} selected={selected} onSelect={(id) => setPicked((p) => (p === id ? null : id))} style={{ borderRadius: 0 }} />}
       <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', gap: 8, alignItems: 'center', padding: '7px 12px', borderRadius: 10, background: 'rgba(255,255,255,.9)', backdropFilter: 'blur(8px)', border: '1px solid var(--line)', fontSize: 13, fontWeight: 600 }}>
         <span style={{ position: 'relative', width: 8, height: 8 }}>

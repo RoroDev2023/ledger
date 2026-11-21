@@ -16,6 +16,9 @@ import { priceDamage, type WalkthroughEvidence } from '@ledger/pipeline';
 import type { DiffItem, FloorPlan, Frame, IssueType } from '@ledger/shared';
 
 export const SPOT = {
+  /** When the first two pairs don't give an independent proof: more move-out views to try, and pairs to judge. */
+  EXTRA_AFTERS: 2,
+  EXTRA_PAIRS: 6,
   /** P(something wrong) to flag a move-out frame. */
   FLAG: 0.6,
   /** Flagged frames this close (keyframe index) are one event. */
@@ -208,8 +211,7 @@ export async function spotCheck(args: {
     if (b1[0]) candidates.push([b1[0], afters[0]!]);
     const second = afters[1] ? (b2.find((b) => b.id !== b1[0]?.id) ?? b2[0]) : undefined;
     if (second && afters[1] && second.id !== b1[0]?.id) candidates.push([second, afters[1]]);
-    const pairs = await Promise.all(
-      candidates.map(async ([b, a]) => {
+    const judge = async ([b, a]: [Frame, Frame]) => {
         const lead = 'Compare the BEFORE (move-in) photo with the AFTER (move-out) photo.';
         const { answers } = await ask({
           input: [{ type: 'text', text: 'BEFORE (move-in):' }, await img(b), { type: 'text', text: 'AFTER (move-out):' }, await img(a)],
@@ -229,10 +231,27 @@ export async function spotCheck(args: {
         });
         tickDiff();
         return { beforeFrameId: b.id, afterFrameId: a.id, sameSpot: answers.same_spot.noul, changed: answers.changed.noul };
-      }),
-    );
+    };
+    let pairs = await Promise.all(candidates.map(judge));
+    // 4b. A pair can miss the "same spot" bar by a hair (short videos have few views to choose from). Before giving
+    //     up, try other combinations: more confirmed move-out views of the item, each with its best move-in frames.
+    //     Charging still needs two pairs that agree AND share no frame.
+    if (!independentPair(pairs) && pairs.some(agrees)) {
+      const moreAfters = confirmed.slice(1, 1 + SPOT.EXTRA_AFTERS).map((x) => x.f);
+      const lists = new Map<string, Frame[]>([[afters[0]!.id, b1]]);
+      if (afters[1]) lists.set(afters[1].id, b2);
+      for (const a of moreAfters) if (!lists.has(a.id)) lists.set(a.id, await beforesFor(a));
+      const tried = new Set(pairs.map((p) => `${p.beforeFrameId}|${p.afterFrameId}`));
+      const more: [Frame, Frame][] = [];
+      for (const a of [...afters, ...moreAfters]) {
+        for (const b of (lists.get(a.id) ?? []).slice(0, 3)) if (!tried.has(`${b.id}|${a.id}`)) more.push([b, a]);
+      }
+      pairs = [...pairs, ...(await Promise.all(more.slice(0, SPOT.EXTRA_PAIRS).map(judge)))];
+    }
     const valid = pairs.filter((p) => p.sameSpot >= SPOT.SAME_SPOT);
-    const supports = valid.filter((p) => p.changed >= SPOT.CHANGED);
+    const proof = independentPair(pairs);
+    // Two supports only count when they are independent (different BEFORE and different AFTER frames).
+    const supports = proof ?? valid.filter((p) => p.changed >= SPOT.CHANGED).slice(0, 1);
     const unchanged = valid.filter((p) => p.changed <= SPOT.UNCHANGED);
     const wallId = surfaceFor(plan, afters.map((a) => loc.get(a.id)).find((x) => x && x !== 'none'));
     // WHERE is it? One question set on the clearest move-out view: what it's on (a plan fixture, a wall or the
@@ -442,4 +461,15 @@ async function locateSpot(a: {
     if (sideP >= 0.5 && (sideK === 'left' || sideK === 'right' || sideK === 'on')) spot.side = sideK;
   }
   return { surfaceId, spot };
+}
+
+type Pair = { beforeFrameId: string; afterFrameId: string; sameSpot: number; changed: number };
+const agrees = (p: Pair) => p.sameSpot >= SPOT.SAME_SPOT && p.changed >= SPOT.CHANGED;
+/** Two agreeing pairs that share no frame (the proof rule), strongest first; null if there is none. */
+function independentPair(pairs: Pair[]): [Pair, Pair] | null {
+  const ok = pairs.filter(agrees).sort((a, b) => b.sameSpot * b.changed - a.sameSpot * a.changed);
+  for (let i = 0; i < ok.length; i++)
+    for (let j = i + 1; j < ok.length; j++)
+      if (ok[i]!.beforeFrameId !== ok[j]!.beforeFrameId && ok[i]!.afterFrameId !== ok[j]!.afterFrameId) return [ok[i]!, ok[j]!];
+  return null;
 }
