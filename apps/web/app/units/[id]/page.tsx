@@ -114,9 +114,15 @@ function UnitPage() {
             </div>
           ) : (
             <div className="muted" style={{ fontSize: 14, textAlign: 'right' }}>
-              On record
-              <br />
-              <b style={{ color: 'var(--ink)', fontSize: 22 }}>{items.length}</b> existing issue{items.length === 1 ? '' : 's'}
+              {hasBaseline ? (
+                <>
+                  Move-in recorded
+                  <br />
+                  <span style={{ color: 'var(--ink)' }}>Damage is checked at move-out</span>
+                </>
+              ) : (
+                'No move-in video yet'
+              )}
             </div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>

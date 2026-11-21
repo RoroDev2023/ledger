@@ -70,7 +70,7 @@ export default function OwnerNew() {
                       Move-in video
                     </h2>
                     <p className="muted" style={{ marginTop: 10 }}>
-                      Walk through every room. Anything already damaged goes on the record for <b style={{ color: 'var(--ink)' }}>{plan.unitId}</b>, so it can&apos;t be charged later.
+                      Walk through every room. Every wall of <b style={{ color: 'var(--ink)' }}>{plan.unitId}</b> goes on the record, so at move-out each change is compared with how that wall looked today.
                     </p>
                     <p className="faint" style={{ fontSize: 14 }}>
                       No video yet? <a href={`/units/${plan.unitId}`}>Skip for now</a>.

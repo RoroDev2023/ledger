@@ -78,7 +78,14 @@ export function realPipeline(base: Pick<PipelineAdapter, 'parsePlan'>): Pipeline
           env,
           onProgress: (stage, d, t) => hooks.onProgress(stage, d, t),
         });
-        const found = await detectFindings(plan, frames, loc, { walkthroughId: wid, config: speedConfig().findings, env, onProgress: (_s, d, t) => hooks.onProgress('findings', d, t) });
+        // The move-in is only a record of which frames show which wall. Damage is looked for once, at move-out; the
+        // diff then compares each suspected spot with the move-in frames of that same wall, and two "unchanged"
+        // pairs make it pre-existing. Skips the move-in damage check and its slow second opinions.
+        // MOVEIN_DAMAGE=on brings the move-in damage check back (a move-in damage list for the tenant to review).
+        const checkDamage = walkthrough.kind === 'move-out' || process.env.MOVEIN_DAMAGE === 'on';
+        const found = checkDamage
+          ? await detectFindings(plan, frames, loc, { walkthroughId: wid, config: speedConfig().findings, env, onProgress: (_s, d, t) => hooks.onProgress('findings', d, t) })
+          : { findings: [], notVisible: [] as string[] };
         // R4 also drops surfaces whose frames all failed its visibility gate: those count as not covered.
         const coverage: Record<string, SurfaceCoverage> = {};
         for (const [id, c] of Object.entries(loc.coverage)) coverage[id] = { ...c, notVisible: c.notVisible || found.notVisible.includes(id) };

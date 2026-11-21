@@ -14,6 +14,7 @@ const STAGES: { id: Stage; label: string; who: string }[] = [
 ];
 
 export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: string; withDiff: boolean; onDone?: () => void; onError?: (msg: string) => void }) {
+  // Move-in = record only (frames on walls); damage and before/after run on the move-out.
   const [progress, setProgress] = useState<Partial<Record<Stage, { done: number; total: number }>>>({});
   const [stats, setStats] = useState<DecisionsStat | null>(null);
   const [state, setState] = useState<'running' | 'done' | 'error'>('running');
@@ -87,7 +88,7 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
         </motion.p>
       )}
       <div style={{ marginTop: 14 }}>
-        {STAGES.filter((s) => withDiff || s.id !== 'diff').map((s, i) => {
+        {STAGES.filter((s) => withDiff || (s.id !== 'diff' && s.id !== 'findings')).map((s, i) => {
           const p = progress[s.id];
           const frac = p ? p.done / p.total : 0;
           const done = frac >= 1;

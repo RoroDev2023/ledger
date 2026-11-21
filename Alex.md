@@ -2,6 +2,12 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 14:30 ET · Damage only at move-out (move-in = wall record)
+
+- Alex's idea: the move-in only records which frames show which wall (keyframes, Hydrogen, localization with Argon second opinions). Damage is looked for once, on the move-out; R5 then compares each suspected spot with the move-in frames of that same wall (coverage). Two independent "unchanged" pairs already make it `pre-existing` in diff.ts, so a mark that was there at move-in still comes out $0. `MOVEIN_DAMAGE=on` brings the move-in damage check back.
+- UI: move-in progress hides the Damage row; unit page says "Move-in recorded · damage is checked at move-out".
+- Trade-off: no move-in damage list for the tenant to review before move-out. Not yet run live.
+
 ## 2026-11-21 14:29 ET · Furniture in the 3D model
 
 - Contract (additive, optional): `Surface.at` and `Surface.footprint` for fixtures. Argon now returns fixture positions and drawn outlines (`at`, `box`); `buildPlan` stores them.
