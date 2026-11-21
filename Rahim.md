@@ -2,6 +2,10 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 11:09 ET · Two-pair proof and demo plan
+
+On `rorodev/proof-plan`, reconciled the proposal and implementation notes with Alex's merged plan at `59f6dfe`. Two crops of one comparison count as one pair. Keep both supporting frame pairs for Alex’s evidence panel and log each Decisions request after chunking. The two-room demo fixture is on main. These are planning changes; Rahim’s next implementation step is the R1 mock client and call log. Elmir owns the held-out eval.
+
 ## 2026-11-21 10:50 ET · Merge check
 
 Fetched the project branches and checked the open PRs. [PR #2](https://github.com/RoroDev2023/ledger/pull/2) held the only outstanding changes. The ideation PDF was already on `main`. After the merge, agents can read all three handoffs from `main`. Rahim's next planned task is R1.
