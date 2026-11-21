@@ -2,6 +2,10 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 11:04 ET · Shared contract review
+
+Requested changes on [PR #4 at fecfd48](https://github.com/RoroDev2023/ledger/pull/4#pullrequestreview-6006440292). Typecheck, 15 tests, and lint passed locally on Node 22. Additional checks confirmed that a statement can charge for a moved chair, a door can reference a floor, and an impossible move-out date produces a deadline. Elmir owns the fixes; Rahim should recheck these cases on the updated head.
+
 ## 2026-11-21 11:01 ET · Elmir's E1 branch
 
 Inspected [PR #4](https://github.com/RoroDev2023/ledger/pull/4) at `fecfd48`. CI passed typecheck, tests and lint. The shared schemas, severity helper and three synthetic plan fixtures are available on that branch for R1 and the viewer. The eval runner currently lists labels; the Neon comparison and Argon parser are pending. Next for Rahim is the shared-contract review before merge.
