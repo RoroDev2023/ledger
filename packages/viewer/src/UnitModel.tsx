@@ -42,6 +42,10 @@ export function UnitModel({ plan, items = [], selected = null, onSelect, view = 
         <directionalLight position={[geo.bounds.center[0] + 6, 12, geo.bounds.center[2] + 8]} intensity={1.15} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0005} />
         <hemisphereLight args={['#ffffff', '#d9d2c3', 0.5]} />
         <CameraRig geo={geo} view={view} />
+        {/* drei <Html> loses the FIRST overlay it creates on startup (its React root is unmounted mid-render under
+            React 19; see "synchronously unmount a root" in the console). This empty one takes that hit so the room
+            labels and pin tags that follow all appear. Verified by screenshot: without it the first room label is missing. */}
+        <Html>{null}</Html>
         {geo.floors.map((f) => (
           <Floor key={f.surfaceId} floor={f} selected={selected === f.surfaceId} onClick={() => select(f.surfaceId)} />
         ))}
@@ -84,7 +88,9 @@ function CameraRig({ geo, view }: { geo: PlanGeometry; view: '3d' | 'top' }) {
     controls.current?.update();
   }, [view, camera, cx, cz, d]);
 
-  return <OrbitControls ref={controls} makeDefault enableRotate={view === '3d'} maxPolarAngle={Math.PI / 2.05} minDistance={1.5} maxDistance={d * 12} />;
+  // target is passed at creation too: if the effect above runs before the controls exist, they would otherwise
+  // keep aiming at (0, 0, 0), which is beside the unit whenever the plan doesn't start at the origin.
+  return <OrbitControls ref={controls} target={[cx, view === 'top' ? 0 : 0.8, cz]} makeDefault enableRotate={view === '3d'} maxPolarAngle={Math.PI / 2.05} minDistance={1.5} maxDistance={d * 12} />;
 }
 
 function Wall({ wall, color, mode, onClick }: { wall: WallGeometry; color: string; mode: 'cutaway' | 'plan'; onClick: () => void }) {

@@ -2,6 +2,15 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 12:45 ET · Real plan parsing wired in, checked on a drawn PDF
+
+- Branch `alex/plan-pdf-check` (viewer branch + main). `apps/api/test/plans/unit-4b.{pdf,png,truth.json}`: a listing-style 4-room L-shaped plan (46.5 m², 4 doors, 4 windows, dimension labels, north arrow) drawn by `apps/api/scripts/make-test-plan.py`, with the true geometry and a perfect Argon reading on the 0-1000 grid.
+- `apps/api/src/planParser.ts`: PDF -> PNG (pdftoppm, or macOS `sips` when poppler is missing) -> Elmir's `parsePlan` with Rahim's `gemini` client. `PLAN_PARSER=argon` makes `POST /units` use it. API server and scripts now load `<repo>/.env`.
+- `pnpm --filter @ledger/api check-plan <pdf> [--truth]` parses and grades against `*.truth.json`, then saves the unit so `/units/<id>` shows it in 3D. With `--truth` (no key): 4/4 rooms within 0.3%, 4/4 doors, 4/4 windows, scale from labels. **Live Argon not run yet: no GEMINI_API_KEY on this machine.**
+- Viewer bugs found on this real plan and fixed: (1) camera aimed at (0,0,0) when OrbitControls mounted after the effect, so plans not starting at the origin were off-center and top-down was blank; target now passed at creation, 3/3 fresh runs correct. (2) drei `<Html>` drops the first overlay it creates (first room label always missing); an empty first `<Html>` takes the hit, verified by screenshot.
+- For Elmir: `loadPlanImage` uses pdftoppm only (absent on our Macs) and maps `.webp` to `image/jpeg`.
+- Next step: live Argon run on unit-4b.pdf once we have a key, then `/demo`.
+
 ## 2026-11-21 12:20 ET · Viewer tested on tricky plans
 
 - Branch `alex/a2-viewer`. Added `packages/viewer/src/samples.ts`: 11 synthetic plans (every verdict, 6 pins on one wall, L shape, angled bay, building rotated 30°, coordinates at 120/80 m, 1 × 1.2 m closet, 18 × 11 m loft with 6 windows, doors at wall ends and overlapping openings, clean unit, unknown surface ids). 77 viewer tests now. `/lab?case=<id>&view=top&select=<surfaceId>` renders any of them. The unit page also takes `?view=top&select=<surfaceId>`.

@@ -450,3 +450,22 @@ describe('statement charging rules (the pitch: never charge what we cannot prove
     expect((await app.request('/units/bad/statement')).status).toBe(404);
   });
 });
+
+describe('real plan parsing (Elmir parsePlan) on the drawn test PDF', () => {
+  it('unit-4b.pdf with a perfect Argon reading rebuilds every room within 1% and every opening', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { argonPlanParser } = await import('../src/planParser.js');
+    const { fileURLToPath } = await import('node:url');
+    const dir = fileURLToPath(new URL('./plans/', import.meta.url)); // decodes spaces ("Gemini Hackathon")
+    const truth = JSON.parse(readFileSync(`${dir}unit-4b.truth.json`, 'utf8')) as { argon: unknown; rooms: { name: string; areaM2: number }[] };
+    const parse = argonPlanParser({ generate: async ({ schema }) => schema.parse(truth.argon) });
+    // PNG path: the PDF route needs pdftoppm or macOS sips, which CI (Linux, no poppler) does not have.
+    const plan = await parse({ unitId: 'u4b', filePath: `${dir}unit-4b.png` });
+    const area = (p: [number, number][]) => Math.abs(p.reduce((s, [x, y], i) => s + x * p[(i + 1) % p.length]![1] - p[(i + 1) % p.length]![0] * y, 0)) / 2;
+    expect(plan.rooms.map((r) => r.name).sort()).toEqual(truth.rooms.map((r) => r.name).sort());
+    for (const t of truth.rooms) expect(Math.abs(area(plan.rooms.find((r) => r.name === t.name)!.polygon) - t.areaM2) / t.areaM2).toBeLessThan(0.01);
+    expect(plan.openings.filter((o) => o.kind === 'door')).toHaveLength(4);
+    expect(plan.openings.filter((o) => o.kind === 'window')).toHaveLength(4);
+    expect(plan.scaleSource).toBe('labels');
+  });
+});
