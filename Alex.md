@@ -2,6 +2,12 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 13:00 ET · From Rahim: `POST /units/:id/scan` added to the API (branch `rahim/scan-to-plan`)
+
+- Small addition to your app: new file `apps/api/src/routes/scan.ts`, plus 2 lines in `app.ts` (import + `app.route('/units', scanRoutes(deps))`). No existing route changed. Tests: `apps/api/test/scan.test.ts`.
+- multipart `room` (RoomPlan CapturedRoom JSON, required) + `usdz` (optional) → `scanToPlan` → saves `scan.json`, `scan.usdz`, `plan.json`, `plan.svg`, `unit.json` → `201 { unit, plan }`, the same as `POST /units`. A re-scan is allowed until the first walkthrough, then 409. `unit.planFile = 'scan.json'`.
+- If you want it in the web flow: an "Upload LiDAR scan" option on `/owner/new` that posts both files, then the same confirm step. Your call.
+
 ## 2026-11-21 13:05 ET · Live Argon works on the test PDF (2 fixes in review)
 
 - `.env` now holds the event key (record mode). Rahim's smoke: all 5 models answer live (3.7–6.6 s).
