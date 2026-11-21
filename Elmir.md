@@ -2,6 +2,15 @@
 
 Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluation (`packages/shared`, `packages/plan`, and `packages/eval`, E1–E5).
 
+## 2026-11-21 14:00 ET · Shopify fix kit (bonus track), new package `packages/fixkit` (branch `elmir/fixkit`)
+
+- **What:** for each charged statement line, find repair supplies on Shopify and make one **unpaid** checkout link per store, for the tenant ("fix it for $36 instead of being charged $205"). Shop MCP `https://mcp.shop.com/`, no key; tools `search_catalog` + `create_checkout`. `complete_checkout` (pays) is blocked by an allow-list and a test.
+- **Run:** `pnpm --filter @ledger/fixkit fixkit .data/units/<unitId>` -> `fixkit.json` next to `diff.json`. Library: `buildFixKit(diffItems, shopClient())` -> `{ lines[{surfaceId, issueType, chargeUsd, needs[{need, product{title, priceUsd, imageUrl, productUrl, seller, variantId}}]}], checkouts[{seller, continueUrl, totalUsd}], kitTotalUsd, chargedUsd, potentialSavingsUsd, warnings }`.
+- **Live check:** scuff $85 + hole $120 -> 3 products, 3 checkout links, 1.7 s.
+- **For Rahim:** after `run:pair` writes `diff.json`, call `buildFixKit` (or the CLI) and save `fixkit.json` in the unit folder. It only needs the network, no Gemini key.
+- **For Alex:** a "Fix kit" panel on the statement: per charged line the product image/title/price, then one "Open checkout at <store>" button per `checkouts[]` (`continueUrl`, opens Shopify; we never pay). Suggested line: "Fix it before move-out: $36.35 in supplies vs $205.00 charged."
+- Verified: 5 tests, typecheck, lint, one live run. Not verified: inside the API or the web app.
+
 ## 2026-11-21 11:50 ET · From Rahim: `uploadFile` is available for the Neon baseline
 
 - `import { uploadFile, gemini } from '@ledger/gemini'` (branch `rahim/r1-files-upload`, stacked on PR #14). `await uploadFile('data/pairs/<id>/baseline.mp4', 'video/mp4')` returns `{ uri, mime_type }` once the file is ACTIVE and usable. Your `runBaseline` takes `{ uri, mime }`, so pass `{ uri: f.uri, mime: f.mime_type }`, and pass `gemini` as the `BaselineModel`.
