@@ -1,0 +1,13 @@
+{
+  "_note": "PLACEHOLDER rates, confirm before use",
+  "currency": "USD",
+  "rates": {
+    "paintPerM2": 0,
+    "patchFlat": 0,
+    "cleaningFlat": 0
+  },
+  "usefulLifeYears": {
+    "paint": 0,
+    "flooring": 0
+  }
+}

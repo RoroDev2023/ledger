@@ -2,6 +2,13 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 11:15 ET · Full repo skeleton
+
+- Branch `alex/project-structure`, stacked on Elmir's `elmir/e1-scaffold-contract` (PR #4). Adds stub packages `gemini`, `pipeline`, `viewer`, `apps/api` and `apps/web`, the missing `plan`/`eval` files, `eval/results.md`, `eval/failures.md` and [docs/structure.md](docs/structure.md). Each stub starts with `// [Owner] purpose`, so the owners fill in the code.
+- Verified: `pnpm install`, `pnpm -r typecheck` (8 packages), `pnpm -r test`, `pnpm lint` all pass. The lockfile change only adds workspace links, no third-party packages.
+- Requests: Rahim and Elmir, the stubs in your folders are placeholders, so rename or delete freely. Merge PR #4 first, then this one.
+- Next step: A1 in `apps/api` (Hono, upload routes, job queue, SSE) against `demo-table.json`, using a stub pipeline until Rahim's mock lands.
+
 ## 2026-11-21 10:54 ET · Hackathon rules added
 
 - Added [docs/hackathon-guide.md](docs/hackathon-guide.md) to `main` in `bfd0b41`. It condenses the official rules, judging weights, schedule and submission checklist. If it disagrees with AGENTS.md, the guide wins. PR #3 was closed unmerged because the file went straight to `main`.

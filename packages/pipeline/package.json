@@ -1,0 +1,18 @@
+{
+  "name": "@ledger/pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "run:pair": "tsx src/runPair.ts"
+  },
+  "dependencies": {
+    "@ledger/shared": "workspace:*",
+    "@ledger/gemini": "workspace:*"
+  }
+}

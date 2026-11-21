@@ -1,0 +1,423 @@
+{
+  "unitId": "one-bed-railroad",
+  "ceilingHeightM": 2.6,
+  "metersPerPixel": 0.01,
+  "scaleSource": "assumed",
+  "rooms": [
+    {
+      "id": "living-room",
+      "name": "Living room",
+      "polygon": [
+        [
+          0,
+          0
+        ],
+        [
+          3.6,
+          0
+        ],
+        [
+          3.6,
+          4
+        ],
+        [
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "id": "kitchen",
+      "name": "Kitchen",
+      "polygon": [
+        [
+          3.6,
+          0
+        ],
+        [
+          6.4,
+          0
+        ],
+        [
+          6.4,
+          4
+        ],
+        [
+          3.6,
+          4
+        ]
+      ]
+    },
+    {
+      "id": "bedroom",
+      "name": "Bedroom",
+      "polygon": [
+        [
+          6.4,
+          0
+        ],
+        [
+          9.6,
+          0
+        ],
+        [
+          9.6,
+          4
+        ],
+        [
+          6.4,
+          4
+        ]
+      ]
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "living-room.wall-s",
+      "roomId": "living-room",
+      "kind": "wall",
+      "label": "Living room south wall",
+      "segment": [
+        [
+          0,
+          0
+        ],
+        [
+          3.6,
+          0
+        ]
+      ],
+      "areaM2": 9.36,
+      "neighbors": [
+        "living-room.wall-w",
+        "living-room.wall-e"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "living-room.wall-e",
+      "roomId": "living-room",
+      "kind": "wall",
+      "label": "Living room east wall",
+      "segment": [
+        [
+          3.6,
+          0
+        ],
+        [
+          3.6,
+          4
+        ]
+      ],
+      "areaM2": 8.6,
+      "neighbors": [
+        "living-room.wall-s",
+        "living-room.wall-n"
+      ],
+      "landmarks": [
+        "door"
+      ]
+    },
+    {
+      "id": "living-room.wall-n",
+      "roomId": "living-room",
+      "kind": "wall",
+      "label": "Living room north wall",
+      "segment": [
+        [
+          3.6,
+          4
+        ],
+        [
+          0,
+          4
+        ]
+      ],
+      "areaM2": 9.36,
+      "neighbors": [
+        "living-room.wall-e",
+        "living-room.wall-w"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "living-room.wall-w",
+      "roomId": "living-room",
+      "kind": "wall",
+      "label": "Living room west wall",
+      "segment": [
+        [
+          0,
+          4
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "areaM2": 8.72,
+      "neighbors": [
+        "living-room.wall-n",
+        "living-room.wall-s"
+      ],
+      "landmarks": [
+        "window"
+      ]
+    },
+    {
+      "id": "living-room.floor",
+      "roomId": "living-room",
+      "kind": "floor",
+      "label": "Living room floor",
+      "areaM2": 14.4
+    },
+    {
+      "id": "kitchen.wall-s",
+      "roomId": "kitchen",
+      "kind": "wall",
+      "label": "Kitchen south wall",
+      "segment": [
+        [
+          3.6,
+          0
+        ],
+        [
+          6.4,
+          0
+        ]
+      ],
+      "areaM2": 5.48,
+      "neighbors": [
+        "kitchen.wall-w",
+        "kitchen.wall-e"
+      ],
+      "landmarks": [
+        "door"
+      ]
+    },
+    {
+      "id": "kitchen.wall-e",
+      "roomId": "kitchen",
+      "kind": "wall",
+      "label": "Kitchen east wall",
+      "segment": [
+        [
+          6.4,
+          0
+        ],
+        [
+          6.4,
+          4
+        ]
+      ],
+      "areaM2": 8.8,
+      "neighbors": [
+        "kitchen.wall-s",
+        "kitchen.wall-n"
+      ],
+      "landmarks": [
+        "door"
+      ]
+    },
+    {
+      "id": "kitchen.wall-n",
+      "roomId": "kitchen",
+      "kind": "wall",
+      "label": "Kitchen north wall",
+      "segment": [
+        [
+          6.4,
+          4
+        ],
+        [
+          3.6,
+          4
+        ]
+      ],
+      "areaM2": 7.28,
+      "neighbors": [
+        "kitchen.wall-e",
+        "kitchen.wall-w"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "kitchen.wall-w",
+      "roomId": "kitchen",
+      "kind": "wall",
+      "label": "Kitchen west wall",
+      "segment": [
+        [
+          3.6,
+          4
+        ],
+        [
+          3.6,
+          0
+        ]
+      ],
+      "areaM2": 10.4,
+      "neighbors": [
+        "kitchen.wall-n",
+        "kitchen.wall-s"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "kitchen.floor",
+      "roomId": "kitchen",
+      "kind": "floor",
+      "label": "Kitchen floor",
+      "areaM2": 11.2
+    },
+    {
+      "id": "bedroom.wall-s",
+      "roomId": "bedroom",
+      "kind": "wall",
+      "label": "Bedroom south wall",
+      "segment": [
+        [
+          6.4,
+          0
+        ],
+        [
+          9.6,
+          0
+        ]
+      ],
+      "areaM2": 8.32,
+      "neighbors": [
+        "bedroom.wall-w",
+        "bedroom.wall-e"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "bedroom.wall-e",
+      "roomId": "bedroom",
+      "kind": "wall",
+      "label": "Bedroom east wall",
+      "segment": [
+        [
+          9.6,
+          0
+        ],
+        [
+          9.6,
+          4
+        ]
+      ],
+      "areaM2": 8.96,
+      "neighbors": [
+        "bedroom.wall-s",
+        "bedroom.wall-n"
+      ],
+      "landmarks": [
+        "window"
+      ]
+    },
+    {
+      "id": "bedroom.wall-n",
+      "roomId": "bedroom",
+      "kind": "wall",
+      "label": "Bedroom north wall",
+      "segment": [
+        [
+          9.6,
+          4
+        ],
+        [
+          6.4,
+          4
+        ]
+      ],
+      "areaM2": 8.32,
+      "neighbors": [
+        "bedroom.wall-e",
+        "bedroom.wall-w"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "bedroom.wall-w",
+      "roomId": "bedroom",
+      "kind": "wall",
+      "label": "Bedroom west wall",
+      "segment": [
+        [
+          6.4,
+          4
+        ],
+        [
+          6.4,
+          0
+        ]
+      ],
+      "areaM2": 10.4,
+      "neighbors": [
+        "bedroom.wall-n",
+        "bedroom.wall-s"
+      ],
+      "landmarks": []
+    },
+    {
+      "id": "bedroom.floor",
+      "roomId": "bedroom",
+      "kind": "floor",
+      "label": "Bedroom floor",
+      "areaM2": 12.8
+    },
+    {
+      "id": "kitchen.fixture-sink",
+      "roomId": "kitchen",
+      "kind": "fixture",
+      "label": "Kitchen sink"
+    },
+    {
+      "id": "kitchen.fixture-stove",
+      "roomId": "kitchen",
+      "kind": "fixture",
+      "label": "Kitchen stove"
+    }
+  ],
+  "openings": [
+    {
+      "id": "door-entry",
+      "kind": "door",
+      "wallId": "kitchen.wall-s",
+      "offsetM": 0.75,
+      "widthM": 0.9
+    },
+    {
+      "id": "door-kitchen",
+      "kind": "door",
+      "wallId": "living-room.wall-e",
+      "offsetM": 1.55,
+      "widthM": 0.9
+    },
+    {
+      "id": "door-bedroom",
+      "kind": "door",
+      "wallId": "kitchen.wall-e",
+      "offsetM": 1.6,
+      "widthM": 0.8
+    },
+    {
+      "id": "window-living",
+      "kind": "window",
+      "wallId": "living-room.wall-w",
+      "offsetM": 1.3,
+      "widthM": 1.4
+    },
+    {
+      "id": "window-bedroom",
+      "kind": "window",
+      "wallId": "bedroom.wall-e",
+      "offsetM": 1.4,
+      "widthM": 1.2
+    }
+  ],
+  "warnings": [
+    "hand-made fixture, not parsed from a listing"
+  ]
+}
