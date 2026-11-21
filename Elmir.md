@@ -47,6 +47,11 @@ Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluat
 - **`pnpm --filter @ledger/eval plan-eval`** parses every image with Argon via `@ledger/gemini` and writes `eval/plan-results.md`. Today it prints "no generate() yet (R1)" and exits; it runs as soon as R1 lands and a key is in `.env`.
 - **Verified:** 33 tests, typecheck, lint; images checked by eye. **Not verified:** any live Argon call.
 - **Next:** run plan-eval live when R1 + key exist; film dev pairs per `docs/eval-protocol.md`.
+## 2026-11-21 11:39 ET · Decisions API before/after spike (synthetic) -> `docs/ideas/decisions-before-after-spike.md`
+
+- Concrete new-damage wording separates scratch from clean re-shoot 6/6 at 0.5 (clean 0.13-0.18, scratch 0.56-0.87); the generic wording missed every scratch. "Same region?" confused two plain walls (0.83): every wall needs a distinct landmark, named in the question.
+- **Rahim:** suggested wording for R4/R5 is in the doc. **Everyone:** set design must give each wall one landmark.
+- Not verified on real footage yet (needs dev-01).
 
 ## 2026-11-21 11:11 ET · E4 eval + protocol + README (branch `elmir/e4-eval`, stacked on PR #7)
 
