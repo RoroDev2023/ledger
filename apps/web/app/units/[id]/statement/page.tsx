@@ -44,16 +44,8 @@ export default function StatementPage() {
           {data?.statement && (
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {hasNewDamage && (
-                <button type="button" className="btn" onClick={() => setRunToken((t) => t + 1)} disabled={fixRunning} aria-label="Find fixes on Shopify">
-                  {fixRunning ? (
-                    'Finding fixes…'
-                  ) : (
-                    <>
-                      Find fixes on
-                      {/* Official Shopify inverted primary logo, unmodified (shopify.com/brand-assets); >= 80 px wide per their minimum size. */}
-                      <img src="/brand/shopify-logo-inverted-primary.svg" alt="Shopify" width={88} height={25} style={{ display: 'block', width: 88, height: 'auto', margin: '0 2px' }} />
-                    </>
-                  )}
+                <button type="button" className="btn" onClick={() => setRunToken((t) => t + 1)} disabled={fixRunning}>
+                  {fixRunning ? 'Finding fixes…' : 'Find fixes on Shopify'}
                 </button>
               )}
               <a href={api.statementHtmlUrl(id)} target="_blank" rel="noreferrer" className="btn btn-ghost">

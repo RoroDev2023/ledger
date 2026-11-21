@@ -2,13 +2,17 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 16:15 ET · Shopify button is plain text (branch `rahim/shopify-text-button`)
+
+- Dropped the Shopify logo (file removed, decisions line removed). The header button is now plain text "Find fixes on Shopify" ("Finding fixes…" while running), still next to "Printable version".
+- **Verified:** typecheck, lint, mock tests green. **Next:** click it once on the demo laptop.
+
 ## 2026-11-21 16:00 ET · Fix kit: "other" rule, deduction = statement total, Shopify button in the header (branch `rahim/fixkit-other`)
 
 - **Live bug:** statement had 1 charged new-damage "other" item ($85); the kit said "0 repair needs… no DIY rule for 'other'" and "$0.00 DIY vs $0.00 deduction".
 - **Cause:** `fixkit-rules.json` had `"other": []`, and `kitTotals` only summed deductions of diff items that got a product, so no items meant a $0 deduction.
 - **Fix (pipeline):** new need `adhesive-remover`; `other` → adhesive remover + touch-up paint + sanding sponge. Any issue type with an empty rule now uses the `other` needs and adds the warning `no DIY repair rule for "<type>", used the generic "other" kit`. `deductionTotal` = `chargedDeductionCents(diffItems)` (same `isCharged` + cent rounding as `buildStatement`); `applyChoices` keeps it.
 - **Fix (web, Alex's app):** the "Find fixes on Shopify" button moved to the statement header next to "Printable version". It scrolls to the panel (`#fix-it-yourself`) and starts the run (`runToken` / `onRunningChange` props on `FixKitPanel`). An empty kit shows "No DIY kit for these repairs" instead of "$0.00 vs $0.00".
-- **Logo:** Shopify's official inverted primary logo SVG, unmodified, from shopify.com/brand-assets, 88 px wide. Source and rules are in `docs/decisions.md`. Their trademark terms want written authorization, so confirm with the Shopify bonus organizers.
 - **Verified:** new regression test (1 "other" at $85 → deduction 8500 cents = statement total, kit non-empty, scripted + full mock) and a fallback test. `pnpm -r typecheck`, `pnpm lint`, `pnpm -r test` green in mock mode. **Not verified:** the header button in a browser.
 - **Next:** click it once on the demo laptop.
 
