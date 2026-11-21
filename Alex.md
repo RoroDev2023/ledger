@@ -2,6 +2,16 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 12:00 ET · A2 3D viewer (WIP on `alex/a2-viewer`)
+
+- `packages/viewer`: `geometry.ts` (plan -> wall boxes split around doors/windows, floors, pin anchors, cutaway test) with 21 tests across all fixtures; `colors.ts` (verdict -> pin color/label, "Not provable" overrides the verdict); `<UnitModel plan items selected onSelect view />` in React Three Fiber with an architect's cutaway (walls between camera and room drop to stubs), pins with cost tags, click to select, and a 3D / top-down toggle.
+- `apps/web` is now a real Next.js 16 app (`pnpm --filter @ledger/web dev`, port 3000, webpack mode because the workspace packages use `.js` import paths). `/units/<id>` shows the 3D map next to the evidence panel (verdict, reason, cost, before/after frames with the damage box). Before move-out it shows the move-in record.
+- API: `GET /units/:id/frames/:frameId` serves real frames from `walkthroughs/<wid>/frames/` or a labeled placeholder SVG.
+- Repo: `.next/` gitignored and excluded from eslint; `agentRules: false` stops `next dev` from writing an AGENTS.md into apps/web.
+- Verified: viewer 21 + API 49 tests, repo typecheck and lint; headless-Chrome screenshot of `/units/demo-3d` shows walls, door/window gaps, cutaway and all 4 pins.
+- For Rahim: write keyframes to `walkthroughs/<wid>/frames/<frameId>.jpg` with frame ids starting `<wid>-` and the panel shows them with no other change.
+- Next step: `/demo` page (A4) using `<UnitModel>`, SSE progress and the Decisions panel.
+
 ## 2026-11-21 11:55 ET · A1 merged (PR #10)
 
 - Merged `alex/a1-api` into `main` after CI passed. Includes the API, 48 API tests, the hand-test script and the browser test page at `http://localhost:3001/` (`pnpm --filter @ledger/api dev`).

@@ -93,6 +93,20 @@ describe('different floor plans', () => {
   }
 });
 
+describe('frames', () => {
+  it('serves a placeholder image for a frame the pipeline has not written', async () => {
+    const { app } = await makeApp();
+    await newUnit(app, 'fr');
+    const { walkthroughId } = await runUpload(app, 'fr', 'baseline');
+    const res = await app.request(`/units/fr/frames/${walkthroughId}-f00010`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/svg+xml');
+    expect(await res.text()).toContain('MOVE-IN');
+    expect((await app.request('/units/fr/frames/bad..id')).status).toBe(400);
+    expect((await app.request('/units/nope/frames/x')).status).toBe(404);
+  });
+});
+
 describe('test page', () => {
   it('GET / serves the browser test page', async () => {
     const { app } = await makeApp();
