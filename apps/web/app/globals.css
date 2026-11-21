@@ -1,135 +1,148 @@
-/* [Alex] LEDGER design system. Warm paper, deep ink, one signal red reserved for money that is charged. */
+/* [Alex] LEDGER design system v2. Crisp paper white, near-black ink, one receipt orange for money that is charged.
+   Bold grotesk headlines, tight tracking, square-ish corners. */
 :root {
-  --paper: #f4efe6;
-  --paper-2: #ebe4d6;
-  --card: #fffdf9;
-  --ink: #15120d;
-  --ink-2: #3b352c;
-  --muted: #7b7265;
-  --faint: #a49a8a;
-  --line: rgba(21, 18, 13, 0.1);
-  --line-2: rgba(21, 18, 13, 0.16);
-  --red: #c4351f;
-  --red-soft: #f6dcd5;
-  --brass: #a47b3f;
-  --green: #3c7a4b;
-  --blue: #2f5c99;
-  --violet: #6d4bb8;
-  --amber: #c27a12;
-  --shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 1px 2px rgba(21, 18, 13, 0.05), 0 12px 32px -12px rgba(21, 18, 13, 0.18);
-  --shadow-lg: 0 30px 80px -30px rgba(21, 18, 13, 0.35);
+  --paper: #f5f4f0;
+  --paper-2: #e9e7e0;
+  --card: #ffffff;
+  --ink: #0e0e0c;
+  --ink-2: #33322e;
+  --muted: #6f6d66;
+  --faint: #a3a199;
+  --line: rgba(14, 14, 12, 0.09);
+  --line-2: rgba(14, 14, 12, 0.18);
+  --red: #ff4f1f;
+  --red-soft: #ffe3d9;
+  --brass: #ff4f1f;
+  --green: #17a35a;
+  --blue: #2c5cff;
+  --violet: #7b4dff;
+  --amber: #f2a20c;
+  --shadow: 0 1px 2px rgba(14, 14, 12, 0.04), 0 10px 30px -18px rgba(14, 14, 12, 0.25);
+  --shadow-lg: 0 40px 90px -40px rgba(14, 14, 12, 0.45);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  --serif: var(--font-serif), 'Iowan Old Style', Georgia, serif;
+  --serif: var(--font-display), var(--font-sans), sans-serif;
+  --display: var(--font-display), var(--font-sans), sans-serif;
   --mono: var(--font-mono), ui-monospace, monospace;
 }
 
 * { box-sizing: border-box }
 html, body { margin: 0; min-height: 100% }
 body {
-  font: 15px/1.5 var(--sans);
+  font: 16px/1.5 var(--sans);
   color: var(--ink);
   background: var(--paper);
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: 'ss01', 'cv11';
 }
-/* Paper grain: a faint noise layer over everything (pointer-events off). */
+/* A very faint grid, like ledger paper. */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 100;
-  opacity: 0.35;
-  mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.4 0 0 0 0 0.33 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index: -1;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 70%);
+  opacity: 0.55;
 }
-::selection { background: var(--ink); color: var(--paper) }
+::selection { background: var(--red); color: #fff }
 a { color: inherit; text-underline-offset: 3px; text-decoration-color: var(--line-2) }
 a:hover { text-decoration-color: currentColor }
 button { font: inherit; cursor: pointer }
-:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px }
 
 /* Type */
-.display { font-family: var(--serif); font-weight: 400; letter-spacing: -0.015em; line-height: 0.98; margin: 0 }
-.display em { font-style: italic; color: var(--brass) }
-.h2 { font-family: var(--serif); font-weight: 400; font-size: 34px; letter-spacing: -0.01em; line-height: 1.05; margin: 0 }
-.eyebrow { font: 600 11px/1 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted) }
+.display { font-family: var(--display); font-weight: 700; letter-spacing: -0.045em; line-height: 0.92; margin: 0; font-variation-settings: 'opsz' 96 }
+.display em { font-style: normal; color: var(--red) }
+.h2 { font-family: var(--display); font-weight: 700; font-size: 30px; letter-spacing: -0.035em; line-height: 1.02; margin: 0 }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; font: 500 13px/1 var(--sans); letter-spacing: 0; color: var(--muted) }
+.eyebrow::before { content: ''; width: 6px; height: 6px; background: currentColor; border-radius: 1px; opacity: 0.8 }
 .mono { font-family: var(--mono); font-feature-settings: 'tnum' }
 .num { font-variant-numeric: tabular-nums }
 .muted { color: var(--muted) }
 .faint { color: var(--faint) }
-.lede { font-size: 18px; line-height: 1.55; color: var(--ink-2); max-width: 34em }
+.lede { font-size: 19px; line-height: 1.5; color: var(--ink-2); max-width: 32em }
 
 /* Surfaces */
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow) }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow) }
 .card-pad { padding: 24px }
 .hairline { border: 0; border-top: 1px solid var(--line); margin: 20px 0 }
-.chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 253, 249, 0.7); font-size: 12.5px; color: var(--ink-2); white-space: nowrap }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); font-size: 13px; color: var(--ink-2); white-space: nowrap }
 .dot { width: 7px; height: 7px; border-radius: 99px; display: inline-block; background: currentColor }
 
 /* Controls */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 11px 20px; border-radius: 999px; border: 1px solid var(--ink);
-  background: var(--ink); color: var(--paper); font-weight: 500; text-decoration: none; white-space: nowrap;
-  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease), background 0.2s, opacity 0.2s;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 8px 20px -10px rgba(21, 18, 13, 0.6);
+  padding: 12px 20px; border-radius: 10px; border: 1px solid var(--ink);
+  background: linear-gradient(var(--red), var(--red)) no-repeat 50% 100% / 100% 0%, var(--ink);
+  color: #fff; font-weight: 600; text-decoration: none; white-space: nowrap;
+  transition: background-size 0.35s var(--ease), border-color 0.2s, transform 0.25s var(--ease), opacity 0.2s;
 }
-.btn:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 14px 28px -12px rgba(21, 18, 13, 0.6); text-decoration: none }
-.btn:active { transform: translateY(0) scale(0.98) }
-.btn:disabled { opacity: 0.4; cursor: default; transform: none }
+.btn:hover { background-size: 100% 100%, auto; border-color: var(--red); text-decoration: none }
+.btn:active { transform: scale(0.98) }
+.btn:disabled { opacity: 0.35; cursor: default; transform: none; background-size: 100% 0%, auto; border-color: var(--ink) }
 .btn .arrow { transition: transform 0.25s var(--ease) }
 .btn:hover .arrow { transform: translateX(3px) }
-.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line-2); box-shadow: none }
-.btn-ghost:hover { background: rgba(21, 18, 13, 0.04); box-shadow: none }
-.btn-lg { padding: 15px 26px; font-size: 16px }
-.btn-sm { padding: 7px 13px; font-size: 13px }
+.btn-ghost { background: linear-gradient(var(--paper-2), var(--paper-2)) no-repeat 50% 100% / 100% 0%, var(--card); color: var(--ink); border-color: var(--line-2) }
+.btn-ghost:hover { border-color: var(--ink) }
+.btn-lg { padding: 16px 26px; font-size: 16px; border-radius: 12px }
+.btn-sm { padding: 7px 12px; font-size: 13px; border-radius: 8px }
 .btn-block { width: 100% }
 
 .input {
-  width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line-2);
+  width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line-2);
   background: var(--card); font: inherit; color: var(--ink);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.input:focus { outline: none; border-color: var(--brass); box-shadow: 0 0 0 4px rgba(164, 123, 63, 0.15) }
-.label { display: block; font: 600 11px/1 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px }
+.input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 4px rgba(14, 14, 12, 0.08) }
+.label { display: block; font: 600 13px/1 var(--sans); color: var(--ink-2); margin: 18px 0 8px }
 
 /* Drop zone */
 .drop {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  min-height: 180px; padding: 28px; border-radius: 18px; text-align: center; cursor: pointer;
-  border: 1.5px dashed var(--line-2); background: linear-gradient(180deg, rgba(255, 253, 249, 0.9), rgba(235, 228, 214, 0.5));
+  min-height: 180px; padding: 28px; border-radius: 14px; text-align: center; cursor: pointer;
+  border: 1.5px dashed var(--line-2); background: var(--card);
   transition: border-color 0.25s, background 0.25s, transform 0.25s var(--ease);
 }
-.drop:hover, .drop.over { border-color: var(--brass); background: linear-gradient(180deg, #fffdf9, rgba(164, 123, 63, 0.08)) }
+.drop:hover, .drop.over { border-color: var(--red); background: #fff8f5 }
 .drop.over { transform: scale(1.01) }
 .drop input[type='file'] { position: absolute; inset: 0; opacity: 0; cursor: pointer }
 
 /* Progress */
 .track { height: 6px; border-radius: 99px; background: var(--paper-2); overflow: hidden }
 .fill { height: 100%; border-radius: 99px; background: var(--ink); transition: width 0.35s var(--ease) }
-.fill.live { background: linear-gradient(90deg, var(--ink) 0%, #5c5244 40%, var(--ink) 80%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite }
+.fill.live { background: linear-gradient(90deg, var(--ink) 0%, var(--red) 45%, var(--ink) 90%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite }
 .fill.done { background: var(--green) }
 @keyframes shimmer { to { background-position: -200% 0 } }
 
 /* Header */
 .topbar {
   position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 22px;
-  padding: 14px 28px; background: rgba(244, 239, 230, 0.78); backdrop-filter: saturate(1.4) blur(14px);
+  padding: 14px 28px; background: rgba(245, 244, 240, 0.8); backdrop-filter: saturate(1.4) blur(14px);
   border-bottom: 1px solid var(--line);
 }
-.brand { display: inline-flex; align-items: center; gap: 8px; font: 700 15px var(--sans); letter-spacing: 0.22em; color: var(--ink); text-decoration: none }
-.brand i { width: 8px; height: 8px; border-radius: 99px; background: var(--red); box-shadow: 0 0 0 4px rgba(196, 53, 31, 0.15) }
-.navlink { font-size: 14px; color: var(--muted); text-decoration: none; padding: 6px 2px; position: relative }
+.brand { display: inline-flex; align-items: center; gap: 9px; font: 800 19px var(--display); letter-spacing: -0.04em; color: var(--ink); text-decoration: none }
+.brand i { width: 14px; height: 14px; border-radius: 3px; background: var(--red); transform: rotate(45deg) scale(.8) }
+.navlink { font-size: 14px; font-weight: 500; color: var(--muted); text-decoration: none; padding: 6px 2px; position: relative }
 .navlink:hover, .navlink.on { color: var(--ink) }
 .navlink.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -15px; height: 2px; background: var(--ink); border-radius: 2px }
 
 .page { max-width: 1180px; margin: 0 auto; padding: 40px 28px 80px }
 
 /* Loading placeholders */
-.skeleton { background: linear-gradient(90deg, var(--paper-2) 0%, #f6f1e8 45%, var(--paper-2) 90%); background-size: 200% 100%; animation: shimmer 1.3s linear infinite }
+.skeleton { background: linear-gradient(90deg, var(--paper-2) 0%, #f7f6f2 45%, var(--paper-2) 90%); background-size: 200% 100%; animation: shimmer 1.3s linear infinite }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important }
 }
+
+/* Marquee strip */
+.marquee { overflow: hidden; white-space: nowrap; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent) }
+.marquee > div { display: inline-flex; gap: 48px; padding-right: 48px; animation: marquee 28s linear infinite }
+@keyframes marquee { to { transform: translateX(-50%) } }
+
+/* Receipt */
+.receipt { background: #fff; border-radius: 6px 6px 0 0; box-shadow: var(--shadow-lg); font-family: var(--mono); font-size: 12.5px; color: var(--ink); position: relative }
+.receipt::after { content: ''; position: absolute; left: 0; right: 0; bottom: -10px; height: 10px; background: linear-gradient(-45deg, transparent 6px, #fff 0) 0 0 / 12px 12px, linear-gradient(45deg, transparent 6px, #fff 0) 0 0 / 12px 12px; filter: drop-shadow(0 4px 3px rgba(14,14,12,.08)) }
+.stamp { display: inline-block; padding: 3px 8px; border: 2px solid currentColor; border-radius: 4px; font: 800 12px var(--display); letter-spacing: 0.02em; transform: rotate(-6deg) }

@@ -16,21 +16,21 @@ export function Header({ unitId }: { unitId?: string }) {
         <i /> LEDGER
       </Link>
       <nav style={{ display: 'flex', gap: 20, alignItems: 'center', flex: 1 }}>
-        {nav('/owner/new', 'New unit')}
+        {nav('/owner/new', 'Add an apartment')}
         {unitId && (
           <>
             <span className="faint">/</span>
             <span className="mono" style={{ fontSize: 13, color: 'var(--ink-2)' }}>
               {unitId}
             </span>
-            {nav(`/units/${unitId}`, 'Model')}
+            {nav(`/units/${unitId}`, 'Apartment')}
             {nav(`/units/${unitId}/moveout`, 'Move-out')}
             {nav(`/units/${unitId}/statement`, 'Statement')}
           </>
         )}
       </nav>
       <span className="chip">
-        <span className="dot" style={{ color: 'var(--green)' }} /> Gemini 4
+        <span className="dot" style={{ color: 'var(--green)', boxShadow: '0 0 0 3px rgba(23,163,90,.18)' }} /> Running on Gemini
       </span>
     </header>
   );

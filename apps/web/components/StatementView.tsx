@@ -72,7 +72,7 @@ export function StatementView({ statement, plan, findings, proofs = [] }: { stat
                     <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: s.color }} />
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <span style={{ font: '600 11px var(--sans)', color: s.color, textTransform: 'uppercase', letterSpacing: '.1em' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: '600 12px var(--sans)', color: s.color, background: `color-mix(in srgb, ${s.color} 12%, transparent)`, padding: '4px 9px', borderRadius: 6 }}>
                           {s.label}
                           {d.issueType ? ` · ${d.issueType}` : ''}
                         </span>

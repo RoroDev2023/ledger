@@ -2,6 +2,12 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 15:40 ET · New visual design for the web app
+
+- New type and colour system (`apps/web/app/globals.css`, `layout.tsx`): Bricolage Grotesque headlines, Hanken Grotesk body, JetBrains Mono for money; off-white, near-black, one receipt orange for charged money. Dropped the italic serif and spaced-caps labels.
+- Landing rebuilt: masked headline reveal, a statement receipt that prints line by line and gets stamped, parallax 3D, a marquee strip, hover rows for the steps, the proof rule in a dark block.
+- Verdict labels are coloured tags. Checked every page in Chrome after scrolling: no browser errors.
+
 ## 2026-11-21 15:25 ET · Front end in plain words, page animations, pins on the item
 
 - Rewrote every on-screen line in plain language (landing, new unit, plan check, uploads, progress, unit page, statement, statement reasons from the spot check).

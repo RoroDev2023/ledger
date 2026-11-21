@@ -60,7 +60,7 @@ function Line({ unitId, item, findings, expanded, onClick, surfaceLabel }: { uni
     >
       <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: s.color }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-        <span style={{ font: '600 11px var(--sans)', color: s.color, textTransform: 'uppercase', letterSpacing: '.1em' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: '600 12px var(--sans)', color: s.color, background: `color-mix(in srgb, ${s.color} 12%, transparent)`, padding: '4px 9px', borderRadius: 6 }}>
           {s.label}
           {item.issueType ? ` · ${item.issueType}` : ''}
         </span>
@@ -139,7 +139,7 @@ export function Frame({ title, src, bbox, color = 'var(--red)' }: { title: strin
             style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(21,18,13,.82)', display: 'grid', placeItems: 'center', cursor: 'zoom-out' }}
           >
             <motion.img initial={{ scale: 0.96 }} animate={{ scale: 1 }} src={src} alt={title} style={{ maxWidth: '92vw', maxHeight: '92vh', borderRadius: 12, boxShadow: 'var(--shadow-lg)' }} />
-            <div style={{ position: 'absolute', top: 18, left: 24, color: '#f4efe6', font: '600 12px var(--sans)', letterSpacing: '.12em', textTransform: 'uppercase' }}>{title}</div>
+            <div style={{ position: 'absolute', top: 18, left: 24, color: '#f4efe6', font: '600 14px var(--sans)' }}>{title}</div>
           </motion.div>
         )}
       </AnimatePresence>
