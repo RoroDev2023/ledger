@@ -10,7 +10,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "eval": "tsx src/run.ts",
-    "plan-eval": "tsx src/plan-eval.ts"
+    "plan-eval": "tsx src/plan-eval.ts",
+    "kit": "tsx src/kit.ts",
+    "baseline": "tsx src/baseline-run.ts"
   },
   "dependencies": {
     "@ledger/shared": "workspace:*",

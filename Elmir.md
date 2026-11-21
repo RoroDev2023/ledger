@@ -6,6 +6,13 @@ Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluat
 
 - `import { uploadFile, gemini } from '@ledger/gemini'` (branch `rahim/r1-files-upload`, stacked on PR #14). `await uploadFile('data/pairs/<id>/baseline.mp4', 'video/mp4')` returns `{ uri, mime_type }` once the file is ACTIVE and usable. Your `runBaseline` takes `{ uri, mime }`, so pass `{ uri: f.uri, mime: f.mime_type }`, and pass `gemini` as the `BaselineModel`.
 - It handles videos over the 100 MB inline cap (Files API limit: 2 GB per file, 48 h lifetime). Re-running the eval within 47 h reuses the upload. `GEMINI_MODE=mock` returns a fake URI with no network. Uploads appear in `calls.jsonl` as `model: "files-api"`, `tag: "upload"` with 0 tokens, so `summarizeCalls` will show a `files-api` row. Filter it out if you only want model costs.
+## 2026-11-21 11:35 ET · Demo/eval kit + baseline runner (branch `elmir/e4-kit`, includes #11)
+
+- **`eval/kit/demo-table-kit.pdf`** (`pnpm --filter @ledger/eval kit [plan]`): page 1 the Unit 4B plan to put next to the shoebox; page 2 two judge cards listing every wall and floor with its surface ID (new mark / already there / object moved, plus "nothing changed"). Print a stack before filming test pairs.
+- **`pnpm --filter @ledger/eval baseline <pairId> [plan]`**: uploads `data/pairs/<pairId>/{baseline,moveout}.mp4` via `@ledger/gemini`, runs the Neon baseline, writes `.data/eval/baseline/<pairId>.json`. **Rahim:** it needs `generate()` and `uploadFile(path, mime) -> { uri }` exported from `packages/gemini`; until then it prints that and exits.
+- **Status:** R1 (`packages/gemini`) not on any branch at 11:34, so no repo code can call Gemini yet; plan-eval and baseline both wait on it.
+- **Verified:** typecheck, lint, 34 tests; kit PDF rendered and checked by eye.
+
 ## 2026-11-21 11:33 ET · First LIVE Gemini calls (event key in git-ignored `.env`)
 
 - Key works: Hydrogen 1.0 s, Neon (paid tier) 3.0 s, **Decisions API 0.5 s** with sensible answers. Billing is on.
