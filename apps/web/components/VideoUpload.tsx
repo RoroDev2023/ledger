@@ -1,10 +1,11 @@
 // [Alex] Pick a walkthrough video, upload it (with upload progress), then follow the pipeline job live.
 'use client';
 import { AnimatePresence, motion } from 'motion/react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { WalkthroughKind } from '@ledger/shared';
-import { api } from '../lib/api';
+import { api, type Stage } from '../lib/api';
 import { JobProgress } from './JobProgress';
+import { LiveModel } from './LiveModel';
 import { Dropzone, EASE, Icon } from './motion';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -16,6 +17,8 @@ export function VideoUpload({ unitId, kind, onDone }: { unitId: string; kind: Wa
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const moveOut = kind === 'move-out';
+  const [live, setLive] = useState<{ stage: Stage | null; state: 'running' | 'done' | 'error' }>({ stage: null, state: 'running' });
+  const onChange = useCallback((stage: Stage | null, state: 'running' | 'done' | 'error') => setLive({ stage, state }), []);
 
   const start = async () => {
     if (!file) return;
@@ -34,7 +37,8 @@ export function VideoUpload({ unitId, kind, onDone }: { unitId: string; kind: Wa
     <AnimatePresence mode="wait">
       {jobId ? (
         <motion.div key="job" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>
-          <JobProgress jobId={jobId} withDiff={moveOut} onDone={onDone} />
+          <LiveModel unitId={unitId} kind={kind} stage={live.stage} state={live.state} />
+          <JobProgress jobId={jobId} withDiff={moveOut} onDone={onDone} onChange={onChange} hold />
         </motion.div>
       ) : (
         <motion.div key="pick" exit={{ opacity: 0, y: -10 }}>

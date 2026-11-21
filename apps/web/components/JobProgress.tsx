@@ -13,7 +13,7 @@ const STAGES: { id: Stage; label: string; who: string }[] = [
   { id: 'diff', label: 'Comparing before and after', who: 'Gemini' },
 ];
 
-export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: string; withDiff: boolean; onDone?: () => void; onError?: (msg: string) => void }) {
+export function JobProgress({ jobId, withDiff, onDone, onError, onChange, hold = false }: { jobId: string; withDiff: boolean; onDone?: () => void; onError?: (msg: string) => void; onChange?: (stage: Stage | null, state: 'running' | 'done' | 'error') => void; hold?: boolean }) {
   const [progress, setProgress] = useState<Partial<Record<Stage, { done: number; total: number }>>>({});
   const [stats, setStats] = useState<DecisionsStat | null>(null);
   const [state, setState] = useState<'running' | 'done' | 'error'>('running');
@@ -58,7 +58,8 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
         else if (e.type === 'decisions') setStats(e.stats);
         else if (e.type === 'done') {
           setState('done');
-          setTimeout(() => onDone?.(), 1600);
+          // hold: stay on this screen (the 3D shows the results) until the button is pressed.
+          if (!hold) setTimeout(() => onDone?.(), 1600);
         } else if (e.type === 'error') {
           setState('error');
           setError(e.message);
@@ -67,6 +68,10 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
       }),
     [jobId],
   );
+
+  // Tell the parent which step is running (the live 3D follows it).
+  const current = (['diff', 'findings', 'surfaces', 'rooms', 'frames'] as Stage[]).find((k) => progress[k] && progress[k]!.done < progress[k]!.total) ?? (['diff', 'findings', 'surfaces', 'rooms', 'frames'] as Stage[]).find((k) => progress[k]) ?? null;
+  useEffect(() => onChange?.(current, state), [current, state, onChange]);
 
   return (
     <div>
@@ -88,8 +93,13 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
             </motion.span>
             <div>
               <b style={{ display: 'block', color: 'var(--ink)' }}>{withDiff ? 'Comparison finished' : 'Move-in saved'}</b>
-              <span style={{ fontSize: 13 }}>{withDiff ? 'Opening the statement…' : 'Opening the apartment…'}</span>
+              <span style={{ fontSize: 13 }}>{hold ? 'Have a look in 3D above.' : withDiff ? 'Opening the statement…' : 'Opening the apartment…'}</span>
             </div>
+            {hold && (
+              <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => onDone?.()}>
+                {withDiff ? 'See the statement' : 'Open the apartment'} {Icon.arrow}
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

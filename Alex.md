@@ -2,6 +2,11 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 16:04 ET · Live 3D while a video is processed
+
+- `apps/web/components/LiveModel.tsx`: on the move-in and move-out upload screens the apartment's 3D sits above the progress (drag/zoom), a label follows the running step and a highlight walks the walls; when the job is done the real results drop in as pins (move-out also shows the total) and a button continues (no auto-redirect). `JobProgress` gained `onChange` and `hold`; other users (fix kit) keep the old behaviour.
+- Verified: a real move-out upload of IMG_0023.MOV in Chrome on a copy unit (`unit-livetest`, local only) finished in 41 s, pins and $85 shown, no browser errors. The highlight shows the step, not the exact wall being read (that would need per-frame events from the pipeline).
+
 ## 2026-11-21 15:40 ET · New visual design for the web app
 
 - New type and colour system (`apps/web/app/globals.css`, `layout.tsx`): Bricolage Grotesque headlines, Hanken Grotesk body, JetBrains Mono for money; off-white, near-black, one receipt orange for charged money. Dropped the italic serif and spaced-caps labels.
