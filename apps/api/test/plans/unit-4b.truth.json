@@ -445,28 +445,7 @@
     ]
    }
   ],
-  "fixtures": [
-   {
-    "room": "Kitchen",
-    "name": "stove"
-   },
-   {
-    "room": "Kitchen",
-    "name": "sink"
-   },
-   {
-    "room": "Bathroom",
-    "name": "toilet"
-   },
-   {
-    "room": "Bathroom",
-    "name": "tub"
-   },
-   {
-    "room": "Bedroom",
-    "name": "closet"
-   }
-  ],
+  "fixtures": [],
   "printedTotalAreaM2": 46.5,
   "northArrowDeg": 0
  }

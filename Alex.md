@@ -2,6 +2,14 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 13:05 ET · Live Argon works on the test PDF (2 fixes in review)
+
+- `.env` now holds the event key (record mode). Rahim's smoke: all 5 models answer live (3.7–6.6 s).
+- **PR #23 (Rahim's package):** live plan parsing always failed with `HTTP 400 Invalid JSON payload` because `z.tuple` became draft-07 `items: [a, b]`. `toResponseSchema` now rewrites it. With it, Argon parsed `unit-4b.pdf` in 11.6 s: 4 rooms within 0.3–0.8%, 4/4 doors, 4/4 windows within 1 cm, scale from labels.
+- **PR #24 (Elmir's package, stacked on #23):** Argon returned "KITCHEΝ" with a Greek capital Nu, so the room id became `kitche`. `cleanName()` maps Greek/Cyrillic look-alikes to Latin and sentence-cases ALL-CAPS labels before ids are built. The live answer is recorded in `.data/recordings`, so the re-run used the same reading. Also fixed my truth file (no fixtures are drawn; Argon correctly found none).
+- Result: `pnpm --filter @ledger/api check-plan apps/api/test/plans/unit-4b.pdf` → all checks pass, unit `unit-4b-argon` viewable in 3D.
+- Next step: `/demo` page (A4).
+
 ## 2026-11-21 12:45 ET · Real plan parsing wired in, checked on a drawn PDF
 
 - Branch `alex/plan-pdf-check` (viewer branch + main). `apps/api/test/plans/unit-4b.{pdf,png,truth.json}`: a listing-style 4-room L-shaped plan (46.5 m², 4 doors, 4 windows, dimension labels, north arrow) drawn by `apps/api/scripts/make-test-plan.py`, with the true geometry and a perfect Argon reading on the 0-1000 grid.

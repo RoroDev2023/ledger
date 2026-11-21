@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
 import { z } from 'zod';
 import { FloorPlanSchema, type FloorPlan } from '@ledger/shared';
-import { buildPlan, polygonArea, round2 } from './surfaces.js';
+import { buildPlan, cleanName, polygonArea, round2 } from './surfaces.js';
 
 type Pt = [number, number];
 
@@ -215,7 +215,7 @@ export function planFromArgon(
     ceilingHeightM: opts.ceilingHeightM ?? 2.6,
     metersPerPixel: mpp,
     scaleSource: scale.scaleSource,
-    rooms: argon.rooms.map((r, i) => ({ name: r.name, polygon: roomsPx[i]!.map(toM) })),
+    rooms: argon.rooms.map((r, i) => ({ name: cleanName(r.name), polygon: roomsPx[i]!.map(toM) })),
     openings: argon.openings.map((o, i) => {
       const a = toM(toPx(o.a));
       const b = toM(toPx(o.b));
@@ -226,7 +226,7 @@ export function planFromArgon(
         widthM: Math.max(0.3, round2(Math.hypot(b[0] - a[0], b[1] - a[1]))),
       };
     }),
-    fixtures: argon.fixtures.map((f) => ({ roomName: f.room, name: f.name })),
+    fixtures: argon.fixtures.map((f) => ({ roomName: cleanName(f.room), name: cleanName(f.name) })),
     warnings: opts.ceilingHeightM ? warnings : [...warnings, 'ceiling height assumed 2.6 m; owner should confirm'],
   });
   return { plan, errors: validatePlanGeometry(plan, argon.printedTotalAreaM2) };

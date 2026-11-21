@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlan, compassOf, wallsFromRooms } from '../src/index.js';
+import { buildPlan, cleanName, compassOf, slug, wallsFromRooms } from '../src/index.js';
 
 describe('wallsFromRooms', () => {
   it('names a square room n/e/s/w with area = length x height', () => {
@@ -45,5 +45,19 @@ describe('buildPlan', () => {
     expect(p.openings[0]!.offsetM).toBe(1.5);
     expect(p.surfaces.find((s) => s.id === 'room.wall-s')!.areaM2).toBe(8);
     expect(p.surfaces.find((s) => s.id === 'room.wall-s')!.landmarks).toContain('door');
+  });
+});
+
+describe('cleanName / slug with model-returned labels', () => {
+  it('replaces look-alike Greek and Cyrillic letters (seen live: KITCHEN with a Greek Nu)', () => {
+    expect(cleanName('KITCHE\u039D')).toBe('Kitchen');
+    expect(slug('KITCHE\u039D')).toBe('kitchen');
+    expect(slug('B\u0410THR\u041EOM')).toBe('bathroom'); // Cyrillic A and O
+  });
+  it('sentence-cases ALL-CAPS labels, leaves mixed case alone, collapses spaces', () => {
+    expect(cleanName('LIVING  ROOM ')).toBe('Living room');
+    expect(cleanName('Bedroom 2')).toBe('Bedroom 2');
+    expect(cleanName('WC')).toBe('WC'); // short abbreviations stay
+    expect(cleanName('2')).toBe('2');
   });
 });

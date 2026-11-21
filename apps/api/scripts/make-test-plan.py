@@ -118,7 +118,7 @@ truth = {
         'rooms': [{'name': n, 'polygon': [grid(*p) for p in poly]} for n, poly in ROOMS],
         'openings': [{'kind': k, 'a': grid(*a), 'b': grid(*b)} for k, a, b in OPENINGS],
         'dimensionLabels': [{'text': t, 'meters': float(t.split()[0]), 'a': grid(*a), 'b': grid(*b)} for t, a, b, _ in DIMS],
-        'fixtures': [{'room': r, 'name': f} for r, f in FIXTURES],
+        'fixtures': [],  # none are drawn on the plan, so a correct reading has none (Argon agreed, live)
         'printedTotalAreaM2': 46.5,
         'northArrowDeg': 0,
     },

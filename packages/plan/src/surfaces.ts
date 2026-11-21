@@ -5,8 +5,29 @@ import type { FloorPlan, Opening, Room, Surface } from '@ledger/shared';
 type Pt = [number, number];
 const EPS = 1e-6;
 
+// Greek and Cyrillic letters that look like Latin ones. Models sometimes return them inside plan labels
+// (seen live: Argon read "KITCHEN" with a Greek capital Nu), which slug() would silently drop ("kitche").
+const CONFUSABLES: Record<string, string> = Object.fromEntries(
+  [
+    ['ΑΒΕΖΗΙΚΜΝΟΡΤΥΧ', 'ABEZHIKMNOPTYX'],
+    ['αοιρυνχ', 'aoipuvx'],
+    ['АВЕКМНОРСТУХ', 'ABEKMHOPCTYX'],
+    ['аеорсухі', 'aeopcyxi'],
+  ].flatMap(([from, to]) => [...from!].map((c, i) => [c, to![i]!])),
+);
+
+/**
+ * Clean a room or fixture name read off a plan: Unicode-normalize, replace look-alike Greek/Cyrillic letters
+ * with Latin ones, collapse whitespace, and turn ALL-CAPS labels into sentence case ("LIVING ROOM" -> "Living room").
+ */
+export function cleanName(name: string): string {
+  const latin = [...name.normalize('NFKC')].map((c) => CONFUSABLES[c] ?? c).join('').replace(/\s+/g, ' ').trim();
+  if (/[a-z]/.test(latin) || !/[A-Z]/.test(latin) || latin.length <= 3) return latin;
+  return latin.charAt(0) + latin.slice(1).toLowerCase();
+}
+
 export function slug(name: string): string {
-  return name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'room';
+  return cleanName(name).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'room';
 }
 
 /** Signed area (shoelace). Positive = counter-clockwise. */
