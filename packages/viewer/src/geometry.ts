@@ -148,8 +148,40 @@ export function wallGeometry(surface: Surface, room: Room, ceiling: number, open
   return { surfaceId: surface.id, roomId: surface.roomId, label: surface.label, pieces, stub, length, center: to3(face, ceiling / 2), inward: [n[0], -n[1]] };
 }
 
+/**
+ * One wall as built: a single box centered on the wall line, shared by the rooms on both sides. A plan describes
+ * walls per room (a wall between two rooms appears twice), which drawn as-is gives doubled walls, overlaps and
+ * slivers at corners. Each side of a physical wall still belongs to its room's surface (for clicks and colors).
+ */
+export interface PhysicalWall {
+  id: string;
+  /** Surface on the left / right of the wall line (plan left = counter-clockwise from the direction). */
+  left?: string;
+  right?: string;
+  /** Full-height boxes, split around doors and windows. Local +z faces the right side, -z the left. */
+  pieces: WallPiece[];
+  /** The same wall lowered to STUB_HEIGHT with door gaps only. */
+  stub: WallPiece[];
+  /** Mid-height point on the line, and the unit normal (x, z) toward the LEFT side. */
+  center: Vec3;
+  leftNormal: Vec2;
+  /** Exterior walls (a room on one side only) are the ones lowered in the cut-away view. */
+  exterior: boolean;
+}
+
+/**
+ * Two room edges this close (and parallel) are the same wall. Real walls are never closer than this, and
+ * parsed plans (especially scans) put the two sides of one wall up to ~30 cm apart.
+ */
+export const SAME_WALL_M = 0.35;
+
+/** Wall thickness of the built walls (one box per wall line). */
+export const BUILT_WALL_THICKNESS = 0.12;
+
 export interface PlanGeometry {
   walls: WallGeometry[];
+  /** What is drawn: one box per wall line, see PhysicalWall. `walls` stays per room for pins and selection. */
+  physical: PhysicalWall[];
   floors: { surfaceId: string; roomId: string; label: string; polygon: Vec2[]; center: Vec3 }[];
   /** Axis-aligned bounds in plan meters, for framing the camera. */
   bounds: { min: Vec2; max: Vec2; center: Vec3; size: number };
@@ -194,6 +226,119 @@ export function openingsForWall(wall: Surface, plan: FloorPlan): Opening[] {
   return out;
 }
 
+interface Line {
+  a: Vec2;
+  dir: Vec2;
+  members: { surface: Surface; t0: number; t1: number; offset: number; side: 1 | -1 }[];
+}
+
+/**
+ * Groups the plan's per-room walls into built walls. Walls within 3° and SAME_WALL_M of the same line are one line;
+ * the line is split at every member's end, and each stretch becomes one box centered between its members.
+ */
+export function physicalWalls(plan: FloorPlan): PhysicalWall[] {
+  const rooms = new Map(plan.rooms.map((r) => [r.id, r]));
+  const lines: Line[] = [];
+  for (const s of plan.surfaces) {
+    if (s.kind !== 'wall' || !s.segment) continue;
+    const room = rooms.get(s.roomId);
+    const [a, b] = s.segment;
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (!room || len < 1e-3) continue;
+    let d: Vec2 = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+    let line = lines.find((l) => Math.abs(l.dir[0] * d[1] - l.dir[1] * d[0]) < 0.05 && Math.abs((a[0] - l.a[0]) * -l.dir[1] + (a[1] - l.a[1]) * l.dir[0]) < SAME_WALL_M);
+    if (!line) {
+      line = { a, dir: d, members: [] };
+      lines.push(line);
+    }
+    if (d[0] * line.dir[0] + d[1] * line.dir[1] < 0) d = [-d[0], -d[1]];
+    const along = (p: Vec2) => (p[0] - line!.a[0]) * line!.dir[0] + (p[1] - line!.a[1]) * line!.dir[1];
+    const across = (p: Vec2) => (p[0] - line!.a[0]) * -line!.dir[1] + (p[1] - line!.a[1]) * line!.dir[0];
+    // Which side of the line is this surface's room? Same probe as wallGeometry.
+    const g = wallGeometry(s, room, plan.ceilingHeightM, []);
+    const inward: Vec2 = g ? [g.inward[0], -g.inward[1]] : [0, 0];
+    const side = inward[0] * -line.dir[1] + inward[1] * line.dir[0] >= 0 ? 1 : -1;
+    const [t0, t1] = [along(a), along(b)].sort((x, y) => x - y) as [number, number];
+    line.members.push({ surface: s, t0, t1, offset: (across(a) + across(b)) / 2, side });
+  }
+
+  const out: PhysicalWall[] = [];
+  const T = BUILT_WALL_THICKNESS;
+  const ceiling = plan.ceilingHeightM;
+  for (const [li, line] of lines.entries()) {
+    const cuts = [...new Set(line.members.flatMap((m) => [m.t0, m.t1]).map((t) => Math.round(t * 20) / 20))].sort((x, y) => x - y);
+    const n: Vec2 = [-line.dir[1], line.dir[0]];
+    for (let k = 0; k + 1 < cuts.length; k++) {
+      const u = cuts[k]!;
+      const v = cuts[k + 1]!;
+      if (v - u < 0.05) continue;
+      const mid = (u + v) / 2;
+      const cover = line.members.filter((m) => m.t0 - 0.05 <= mid && mid <= m.t1 + 0.05);
+      if (!cover.length) continue;
+      const left = cover.find((m) => m.side === 1)?.surface.id;
+      const right = cover.find((m) => m.side === -1)?.surface.id;
+      const offset = cover.reduce((sum, m) => sum + m.offset, 0) / cover.length;
+      const a: Vec2 = [line.a[0] + n[0] * offset, line.a[1] + n[1] * offset];
+      // Close the corners: extend each end by half a thickness unless the line continues there.
+      const continuesBefore = line.members.some((m) => m.t0 < u - 0.05 && m.t1 >= u - 0.05);
+      const continuesAfter = line.members.some((m) => m.t1 > v + 0.05 && m.t0 <= v + 0.05);
+      const from = u - (continuesBefore ? 0 : T / 2);
+      const to = v + (continuesAfter ? 0 : T / 2);
+      // Openings from every member surface, in this line's coordinates, clipped to this stretch.
+      const gaps = cover
+        .flatMap((m) => openingsForWall(m.surface, plan).map((o) => ({ o, m })))
+        .map(({ o, m }) => {
+          const [sa, sb] = m.surface.segment!;
+          const sl = Math.hypot(sb[0] - sa[0], sb[1] - sa[1]);
+          const p = (t: number) => {
+            const x = sa[0] + ((sb[0] - sa[0]) / sl) * t;
+            const y = sa[1] + ((sb[1] - sa[1]) / sl) * t;
+            return (x - line.a[0]) * line.dir[0] + (y - line.a[1]) * line.dir[1];
+          };
+          const [g0, g1] = [p(o.offsetM), p(o.offsetM + o.widthM)].sort((x, y) => x - y) as [number, number];
+          return { ...o, offsetM: Math.max(g0, from) - from, widthM: Math.min(g1, to) - Math.max(g0, from) };
+        })
+        .filter((o) => o.widthM > 0.05);
+      const unique = gaps.filter((g, i) => gaps.findIndex((h) => h.kind === g.kind && Math.abs(h.offsetM - g.offsetM) < 0.1) === i);
+      const boxes = (stub: boolean): WallPiece[] => {
+        const pieces: WallPiece[] = [];
+        const rotationY = Math.atan2(line.dir[1], line.dir[0]);
+        const box = (f: number, t: number, bottom: number, top: number) => {
+          if (t - f < 1e-3 || top - bottom < 1e-3) return;
+          const c = from + (f + t) / 2;
+          const p: Vec2 = [a[0] + line.dir[0] * c, a[1] + line.dir[1] * c];
+          pieces.push({ surfaceId: left ?? right ?? '', position: to3(p, (bottom + top) / 2), size: [t - f, top - bottom, T], rotationY });
+        };
+        const h = stub ? STUB_HEIGHT : ceiling;
+        let cursor = 0;
+        for (const g of openingGaps(to - from, ceiling, unique).filter((x) => !stub || x.bottom === 0)) {
+          box(cursor, Math.max(cursor, g.from), 0, h);
+          const f = Math.max(cursor, g.from);
+          if (!stub) {
+            box(f, g.to, 0, g.bottom);
+            box(f, g.to, g.top, h);
+          }
+          cursor = Math.max(cursor, g.to);
+        }
+        box(cursor, to - from, 0, h);
+        return pieces;
+      };
+      const c: Vec2 = [a[0] + line.dir[0] * mid, a[1] + line.dir[1] * mid];
+      out.push({ id: `w${li}-${k}`, left, right, pieces: boxes(false), stub: boxes(true), center: to3(c, ceiling / 2), leftNormal: [n[0], -n[1]], exterior: !(left && right) });
+    }
+  }
+  return out;
+}
+
+/** True when the camera is on the outside of an exterior built wall (it would block the view inside). */
+export function physicalBlocksView(w: PhysicalWall, camera: Vec3): boolean {
+  if (!w.exterior) return false;
+  const towardRoom = w.left ? 1 : -1; // the room is on the left side when `left` is set
+  const dx = camera[0] - w.center[0];
+  const dz = camera[2] - w.center[2];
+  return (dx * w.leftNormal[0] + dz * w.leftNormal[1]) * towardRoom < 0;
+}
+
 export function planGeometry(plan: FloorPlan): PlanGeometry {
   const rooms = new Map(plan.rooms.map((r) => [r.id, r]));
   const walls: WallGeometry[] = [];
@@ -217,6 +362,7 @@ export function planGeometry(plan: FloorPlan): PlanGeometry {
   const mid: Vec2 = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2];
   return {
     walls,
+    physical: physicalWalls(plan),
     floors,
     // size never goes below 3.5 m so the camera stays outside even a closet.
     bounds: { min, max, center: to3(mid, 0), size: Math.max(max[0] - min[0], max[1] - min[1], 3.5) },

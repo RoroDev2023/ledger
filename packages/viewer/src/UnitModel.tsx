@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import * as THREE from 'three';
 import type { DiffItem, FloorPlan } from '@ledger/shared';
 import { PIN_STYLE, pinKind, pinStyle, type PinKind } from './colors.js';
-import { blocksView, pinAnchors, planGeometry, type PlanGeometry, type Vec3, type WallGeometry } from './geometry.js';
+import { physicalBlocksView, pinAnchors, planGeometry, type PhysicalWall, type PlanGeometry, type Vec3 } from './geometry.js';
 
 export interface UnitModelProps {
   plan: FloorPlan;
@@ -30,12 +30,13 @@ export function UnitModel({ plan, items = [], selected = null, onSelect, view = 
   const geo = useMemo(() => planGeometry(plan), [plan]);
   const charged = useMemo(() => new Set(items.filter((i) => pinStyle(i).charged).map((i) => i.surfaceId)), [items]);
   const select = (id: string | null) => onSelect?.(id);
+  const colorOf = (id?: string) => (id && selected === id ? SELECTED : id && charged.has(id) ? WALL_FLAGGED : WALL);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 360, background: 'linear-gradient(#fbfaf7, #efece6)', borderRadius: 12, ...style }}>
-      <Canvas flat shadows="percentage" dpr={[1, 2]} camera={{ fov: 40, near: 0.1, far: 200 }} onPointerMissed={() => select(null)}>
+      <Canvas flat dpr={[1, 2]} camera={{ fov: 40, near: 0.1, far: 200 }} onPointerMissed={() => select(null)}>
         <ambientLight intensity={1.1} />
-        <directionalLight position={[geo.bounds.center[0] + 6, 12, geo.bounds.center[2] + 8]} intensity={1.15} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0005} />
+        <directionalLight position={[geo.bounds.center[0] + 6, 12, geo.bounds.center[2] + 8]} intensity={1.15} />
         <hemisphereLight args={['#ffffff', '#d9d2c3', 0.5]} />
         <CameraRig geo={geo} view={view} />
         {/* drei <Html> loses the FIRST overlay it creates on startup (its React root is unmounted mid-render under
@@ -45,16 +46,10 @@ export function UnitModel({ plan, items = [], selected = null, onSelect, view = 
         {geo.floors.map((f) => (
           <Floor key={f.surfaceId} floor={f} selected={selected === f.surfaceId} onClick={() => select(f.surfaceId)} />
         ))}
-        {geo.walls.map((w) => (
-          <Wall key={w.surfaceId} wall={w} color={selected === w.surfaceId ? SELECTED : charged.has(w.surfaceId) ? WALL_FLAGGED : WALL} mode={view === 'top' ? 'plan' : 'cutaway'} onClick={() => select(w.surfaceId)} />
+        {geo.physical.map((w) => (
+          <BuiltWall key={w.id} wall={w} leftColor={colorOf(w.left)} rightColor={colorOf(w.right)} mode={view === 'top' ? 'plan' : 'cutaway'} onSelect={select} />
         ))}
         <Pins geo={geo} items={items} selected={selected} onSelect={select} />
-        {view === '3d' && (
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[geo.bounds.center[0], -0.01, geo.bounds.center[2]]} receiveShadow>
-          <planeGeometry args={[geo.bounds.size * 4, geo.bounds.size * 4]} />
-          <shadowMaterial opacity={0.12} />
-          </mesh>
-        )}
       </Canvas>
       <Legend items={items} />
     </div>
@@ -89,33 +84,40 @@ function CameraRig({ geo, view }: { geo: PlanGeometry; view: '3d' | 'top' }) {
   return <OrbitControls ref={controls} target={[cx, view === 'top' ? 0 : 0.8, cz]} makeDefault enableRotate={view === '3d'} maxPolarAngle={Math.PI / 2.05} minDistance={1.5} maxDistance={d * 12} />;
 }
 
-function Wall({ wall, color, mode, onClick }: { wall: WallGeometry; color: string; mode: 'cutaway' | 'plan'; onClick: () => void }) {
+function BuiltWall({ wall, leftColor, rightColor, mode, onSelect }: { wall: PhysicalWall; leftColor: string; rightColor: string; mode: 'cutaway' | 'plan'; onSelect: (id: string) => void }) {
   const full = useRef<THREE.Group>(null);
   const stub = useRef<THREE.Group>(null);
-  // Architect's cutaway: a wall between the camera and its room is swapped for a low stub (door gaps only), so
-  // you always look straight into the room. Top-down shows every wall as a stub, like the thick lines of a plan.
+  // Cut-away: an outside wall between the camera and the unit drops to a low stub (door gaps only), so you look
+  // straight in. Top-down shows every wall as a stub, like the thick lines of a paper plan.
   useFrame(({ camera }) => {
-    const low = mode === 'plan' || blocksView(wall, camera.position.toArray() as Vec3);
+    const low = mode === 'plan' || physicalBlocksView(wall, camera.position.toArray() as Vec3);
     if (full.current) full.current.visible = !low;
     if (stub.current) stub.current.visible = low;
   });
+  // Box faces: +x, -x, +y, -y, +z (right side of the wall line), -z (left side). Each side wears its room's color.
+  const materials = useMemo(() => {
+    const m = (c: string) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.95 });
+    return [m(WALL), m(WALL), m(WALL), m(WALL), m(rightColor), m(leftColor)];
+  }, [leftColor, rightColor]);
+  useEffect(() => () => materials.forEach((x) => x.dispose()), [materials]);
+
   const click = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    onClick();
+    const side = e.face?.materialIndex === 4 ? wall.right : e.face?.materialIndex === 5 ? wall.left : undefined;
+    const id = side ?? wall.left ?? wall.right;
+    if (id) onSelect(id);
   };
-  // Stubs cast no shadow: from a low wall it only draws a dark strip on the floor that reads like a line.
-  const boxes = (pieces: WallGeometry['pieces'], shadow: boolean) =>
+  const boxes = (pieces: PhysicalWall['pieces']) =>
     pieces.map((p, i) => (
-      <mesh key={i} position={p.position} rotation={[0, p.rotationY, 0]} castShadow={shadow} receiveShadow userData={{ surfaceId: wall.surfaceId }}>
+      <mesh key={i} position={p.position} rotation={[0, p.rotationY, 0]} material={materials} receiveShadow>
         <boxGeometry args={p.size} />
-        <meshStandardMaterial color={color} roughness={0.95} />
       </mesh>
     ));
   return (
     <group onClick={click}>
-      <group ref={full}>{boxes(wall.pieces, true)}</group>
+      <group ref={full}>{boxes(wall.pieces)}</group>
       <group ref={stub} visible={false}>
-        {boxes(wall.stub, false)}
+        {boxes(wall.stub)}
       </group>
     </group>
   );
