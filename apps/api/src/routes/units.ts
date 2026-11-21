@@ -14,6 +14,9 @@ const PlanPatchSchema = z
   .object({
     ceilingHeightM: z.number().finite().min(1.8).max(6).optional(),
     roomNames: z.record(z.string(), z.string().trim().min(1)).optional(),
+    /** What the camera sees on each surface ("portrait painting", "column"). Replaces that surface's landmarks;
+     *  door/window entries that come from the plan's openings are kept. The pipeline uses these to tell walls apart. */
+    landmarks: z.record(z.string(), z.array(z.string().trim().min(1).max(60)).max(12)).optional(),
   })
   .strict();
 
@@ -50,7 +53,13 @@ export function unitsRoutes(d: Deps) {
     const patch = PlanPatchSchema.safeParse(await c.req.json().catch(() => null));
     if (!patch.success) throw new HttpError(400, patch.error.issues.map((i) => i.message).join('; '));
     const plan = await loadPlan(d.storage, unitId);
-    const { ceilingHeightM, roomNames } = patch.data;
+    const { ceilingHeightM, roomNames, landmarks } = patch.data;
+    for (const [surfaceId, list] of Object.entries(landmarks ?? {})) {
+      const s = plan.surfaces.find((x) => x.id === surfaceId);
+      if (!s) throw new HttpError(400, `unknown surface ${surfaceId}`);
+      const fromOpenings = (s.landmarks ?? []).filter((l) => l === 'door' || l === 'window');
+      s.landmarks = [...new Set([...fromOpenings, ...list.map((l) => l.toLowerCase())])];
+    }
     if (ceilingHeightM !== undefined && ceilingHeightM !== plan.ceilingHeightM) {
       // Wall areas scale linearly with height (openings are a small correction; the parser recomputes exactly).
       const k = ceilingHeightM / plan.ceilingHeightM;

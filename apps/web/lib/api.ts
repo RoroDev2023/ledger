@@ -82,7 +82,20 @@ function upload<T>(path: string, form: FormData, onProgress?: (fraction: number)
   });
 }
 
+/** The proof behind one verdict (subset of @ledger/pipeline's SurfaceEvidence). */
+export interface Proof {
+  surfaceId: string;
+  issueType?: string;
+  supportingPairs: number;
+  proof?: { beforeFrameId: string; afterFrameId: string; bbox?: [number, number, number, number] }[];
+  bbox?: [number, number, number, number];
+}
+
 export const api = {
+  /** Job status while it waits: the API runs one job at a time. */
+  job: (jobId: string) => get<{ status: 'queued' | 'running' | 'done' | 'failed' }>(`/jobs/${jobId}`),
+  health: () => get<{ ok: boolean; pipeline: string; queued: number }>('/health'),
+  evidence: (unitId: string) => get<{ evidence: Proof[]; warnings: string[] }>(`/units/${unitId}/evidence`).catch(() => ({ evidence: [] as Proof[], warnings: [] as string[] })),
   unit: (unitId: string) => get<Unit>(`/units/${unitId}`),
   createUnit: (plan: File, unitId?: string) => {
     const f = new FormData();
@@ -90,7 +103,7 @@ export const api = {
     if (unitId) f.set('unitId', unitId);
     return send<{ unit: Unit; plan: FloorPlan }>('POST', '/units', f);
   },
-  patchPlan: (unitId: string, patch: { ceilingHeightM?: number; roomNames?: Record<string, string> }) => send<FloorPlan>('PATCH', `/units/${unitId}/plan`, patch),
+  patchPlan: (unitId: string, patch: { ceilingHeightM?: number; roomNames?: Record<string, string>; landmarks?: Record<string, string[]> }) => send<FloorPlan>('PATCH', `/units/${unitId}/plan`, patch),
   uploadWalkthrough: (unitId: string, video: File, kind: WalkthroughKind, capturedAt?: string, onProgress?: (f: number) => void) => {
     const f = new FormData();
     f.set('video', video);

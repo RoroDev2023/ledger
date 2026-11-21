@@ -2,23 +2,36 @@
 // walkthroughs/<wid>/frames/<frameId>.jpg (written by the pipeline). In mock mode, or before the pipeline has
 // written them, a labeled placeholder SVG is returned so the evidence panel always has something to show.
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { extname, join, resolve } from 'node:path';
 import { Hono } from 'hono';
 import type { Deps } from '../deps.js';
-import { assertSafeId } from '../storage.js';
+import { HttpError } from '../storage.js';
 import { loadUnit } from '../units.js';
+
+const FRAME_ID = /^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$/; // pipeline ids look like "<walkthrough>.f00042"
 
 export function frameRoutes(d: Deps) {
   const r = new Hono();
   r.get('/:id/frames/:frameId', async (c) => {
     const unitId = c.req.param('id');
-    const frameId = assertSafeId(c.req.param('frameId'));
+    const frameId = c.req.param('frameId');
+    if (!FRAME_ID.test(frameId) || frameId.includes('..')) throw new HttpError(400, `bad frame id: ${frameId}`);
     const unit = await loadUnit(d.storage, unitId);
-    const w = unit.walkthroughs.find((x) => frameId.startsWith(`${x.id}-`));
+    const w = unit.walkthroughs.find((x) => frameId.startsWith(`${x.id}.`) || frameId.startsWith(`${x.id}-`));
     if (w) {
-      for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
-        const data = await readFile(join(d.storage.walkthroughDir(unitId, w.id), 'frames', `${frameId}.${ext}`)).catch(() => null);
-        if (data) return c.body(new Uint8Array(data), 200, { 'content-type': ext === 'jpg' ? 'image/jpeg' : `image/${ext}`, 'cache-control': 'max-age=3600' });
+      const dir = d.storage.walkthroughDir(unitId, w.id);
+      // 1) the pipeline's own frame list knows each frame's file
+      const list = await readFile(join(dir, 'frames.json'), 'utf8').then((t) => JSON.parse(t) as { id: string; path: string }[], () => []);
+      const listed = list.find((f) => f.id === frameId)?.path;
+      // 2) or the conventional file name
+      const candidates = [listed, ...['jpg', 'jpeg', 'png', 'webp'].map((ext) => join(dir, 'frames', `${frameId}.${ext}`))].filter((x): x is string => !!x);
+      for (const file of candidates) {
+        if (!resolve(file).startsWith(resolve(dir))) continue; // never serve outside the walkthrough folder
+        const data = await readFile(file).catch(() => null);
+        if (data) {
+          const ext = extname(file).slice(1).toLowerCase();
+          return c.body(new Uint8Array(data), 200, { 'content-type': ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg', 'cache-control': 'max-age=3600' });
+        }
       }
     }
     return c.body(placeholderFrame(frameId, w?.kind ?? 'unknown'), 200, { 'content-type': 'image/svg+xml', 'cache-control': 'no-store' });

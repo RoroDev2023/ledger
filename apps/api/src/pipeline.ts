@@ -16,7 +16,15 @@ export interface PipelineAdapter {
   /** One walkthrough video -> findings pinned to plan surfaces. */
   runWalkthrough(input: { plan: FloorPlan; walkthrough: Walkthrough; workDir: string } & RunHooks): Promise<Finding[]>;
   /** Baseline (+ addendum) findings vs move-out findings -> per-surface verdicts with costs. */
-  runDiff(input: { plan: FloorPlan; baseline: Finding[]; moveOut: Finding[] } & RunHooks): Promise<DiffItem[]>;
+  runDiff(
+    input: {
+      plan: FloorPlan;
+      baseline: Finding[];
+      moveOut: Finding[];
+      /** Walkthrough folders (the real pipeline reads each one's evidence.json). */
+      dirs?: { baseline?: string; addendum?: string; moveOut: string };
+    } & RunHooks,
+  ): Promise<DiffItem[]>;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

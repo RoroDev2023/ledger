@@ -183,6 +183,25 @@ describe('uploads and validation', () => {
   });
 });
 
+describe('wall landmarks', () => {
+  it('PATCH /plan sets what is on each wall, keeps door/window from openings, rejects unknown surfaces', async () => {
+    const { app } = await makeApp();
+    await newUnit(app, 'lm');
+    const plan = (await (await app.request('/units/lm/plan')).json()) as { surfaces: { id: string; kind: string; landmarks?: string[] }[] };
+    const withDoor = plan.surfaces.find((s) => s.landmarks?.includes('door'))!;
+    const res = await app.request('/units/lm/plan', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ landmarks: { [withDoor.id]: ['Wall light', 'paper sign'] } }),
+    });
+    expect(res.status).toBe(200);
+    const after = (await res.json()) as typeof plan;
+    expect(after.surfaces.find((s) => s.id === withDoor.id)!.landmarks).toEqual(['door', 'wall light', 'paper sign']);
+    const bad = await app.request('/units/lm/plan', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ landmarks: { 'no.such': ['x'] } }) });
+    expect(bad.status).toBe(400);
+  });
+});
+
 describe('walkthrough history', () => {
   it('a re-filmed baseline replaces the first one for the diff', async () => {
     const seen: number[] = [];

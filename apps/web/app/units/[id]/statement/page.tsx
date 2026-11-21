@@ -5,21 +5,21 @@ import { useEffect, useState } from 'react';
 import type { Finding, FloorPlan, Statement } from '@ledger/shared';
 import { Header } from '../../../../components/Header';
 import { StatementView } from '../../../../components/StatementView';
-import { api } from '../../../../lib/api';
+import { api, type Proof } from '../../../../lib/api';
 import { EASE } from '../../../../components/motion';
 import { motion } from 'motion/react';
 
 export default function StatementPage() {
   const { id } = useParams<{ id: string }>();
-  const [data, setData] = useState<{ plan: FloorPlan; statement: Statement | null; findings: Finding[] } | null>(null);
+  const [data, setData] = useState<{ plan: FloorPlan; statement: Statement | null; findings: Finding[]; proofs: Proof[] } | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
     void (async () => {
       try {
         const [unit, plan] = await Promise.all([api.unit(id), api.plan(id)]);
         const hasMoveOut = unit.walkthroughs.some((w) => w.kind === 'move-out');
-        const [statement, moveOut] = hasMoveOut ? await Promise.all([api.statement(id), api.findings(id, 'move-out')]) : [null, null];
-        setData({ plan, statement, findings: moveOut?.findings ?? [] });
+        const [statement, moveOut, ev] = hasMoveOut ? await Promise.all([api.statement(id), api.findings(id, 'move-out'), api.evidence(id)]) : [null, null, null];
+        setData({ plan, statement, findings: moveOut?.findings ?? [], proofs: ev?.evidence ?? [] });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
@@ -50,7 +50,7 @@ export default function StatementPage() {
             No statement yet. <a href={`/units/${id}/moveout`}>Upload the move-out video</a> to create it.
           </div>
         )}
-        {data?.statement && <StatementView statement={data.statement} plan={data.plan} findings={data.findings} />}
+        {data?.statement && <StatementView statement={data.statement} plan={data.plan} findings={data.findings} proofs={data.proofs} />}
       </main>
     </>
   );

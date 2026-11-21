@@ -23,6 +23,11 @@ export function PlanReview({ plan, onConfirmed }: { plan: FloorPlan; onConfirmed
   const [ceiling, setCeiling] = useState(String(plan.ceilingHeightM));
   const [names, setNames] = useState<Record<string, string>>(Object.fromEntries(plan.rooms.map((r) => [r.id, r.name])));
   const [view, setView] = useState<'top' | '3d'>('3d');
+  // What the camera will see on each wall. Doors and windows come from the plan; the rest helps tell walls apart.
+  const walls = plan.surfaces.filter((s) => s.kind === 'wall');
+  const [marks, setMarks] = useState<Record<string, string>>(
+    Object.fromEntries(walls.map((w) => [w.id, (w.landmarks ?? []).filter((l) => l !== 'door' && l !== 'window').join(', ')])),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const doors = plan.openings.filter((o) => o.kind === 'door').length;
@@ -38,7 +43,16 @@ export function PlanReview({ plan, onConfirmed }: { plan: FloorPlan; onConfirmed
     setBusy(true);
     setError('');
     try {
-      onConfirmed(await api.patchPlan(plan.unitId, { ceilingHeightM: h, roomNames: names }));
+      const landmarks = Object.fromEntries(
+        Object.entries(marks).map(([id, text]) => [
+          id,
+          text
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean),
+        ]),
+      );
+      onConfirmed(await api.patchPlan(plan.unitId, { ceilingHeightM: h, roomNames: names, landmarks }));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -93,6 +107,22 @@ export function PlanReview({ plan, onConfirmed }: { plan: FloorPlan; onConfirmed
             </StaggerItem>
           ))}
         </Stagger>
+        <label className="label">What&apos;s on each wall?</label>
+        <p className="faint" style={{ fontSize: 12.5, margin: '-2px 0 8px' }}>
+          Art, lights, a column, a radiator. Helps match every video frame to the right wall.
+        </p>
+        {walls.map((w) => {
+          const fixed = (w.landmarks ?? []).filter((l) => l === 'door' || l === 'window');
+          return (
+            <div key={w.id} style={{ marginBottom: 6 }}>
+              <div className="faint" style={{ fontSize: 12, marginBottom: 3 }}>
+                {w.label}
+                {fixed.length ? ` · ${[...new Set(fixed)].join(', ')}` : ''}
+              </div>
+              <input className="input" value={marks[w.id] ?? ''} onChange={(e) => setMarks({ ...marks, [w.id]: e.target.value })} placeholder="e.g. framed painting, wall lights" style={{ padding: '8px 12px' }} />
+            </div>
+          );
+        })}
         <label className="label">Ceiling height (m)</label>
         <input className="input" type="number" step="0.05" min="1.8" max="6" value={ceiling} onChange={(e) => setCeiling(e.target.value)} style={{ width: 130 }} />
         {plan.warnings.length > 0 && (

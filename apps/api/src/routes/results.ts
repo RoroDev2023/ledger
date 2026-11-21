@@ -1,4 +1,6 @@
 // [Alex] GET /units/:id/findings?walkthrough=, /diff, /statement, /statement.html.
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Hono } from 'hono';
 import { StatementSchema } from '@ledger/shared';
 import type { Deps } from '../deps.js';
@@ -20,6 +22,14 @@ export function resultRoutes(d: Deps) {
     const findings = await loadFindings(d.storage, unitId, w.id);
     if (!findings) throw new HttpError(404, 'findings not ready');
     return c.json({ walkthrough: w, findings });
+  });
+
+  /** The proof behind each verdict (pairs, box), written by the real pipeline. Empty when it wasn't used. */
+  r.get('/:id/evidence', async (c) => {
+    const unitId = c.req.param('id');
+    await loadUnit(d.storage, unitId);
+    const raw = await readFile(join(d.storage.unitDir(unitId), 'diff-evidence.json'), 'utf8').catch(() => null);
+    return c.json(raw ? (JSON.parse(raw) as unknown) : { evidence: [], warnings: [] });
   });
 
   r.get('/:id/diff', async (c) => {

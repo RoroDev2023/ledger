@@ -2,6 +2,15 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 14:15 ET · Real pipeline behind the app; first live run on our own videos
+
+- Branch `alex/conference-room-plan` (main merged in). `apps/api/src/realPipeline.ts` runs R2–R5 like `run:pair`: keyframes → Hydrogen → localize → findings, evidence.json per walkthrough, then `diffWalkthroughs`. `PIPELINE=real` switches it on (needs `FFMPEG_PATH` if ffmpeg isn't on PATH). Decisions stats stream from calls.jsonl. Frames route serves the pipeline's real JPEGs (ids like `<wid>.f00042`). `GET /units/:id/evidence` serves diff-evidence.json; the statement shows both proving pairs on a charge.
+- Speed: Carbon takes ~60 s per call (measured), so the app caps it (6 for localization, 3 for findings; `PIPELINE_SPEED=thorough` for Rahim's defaults). A cap of 0 for localization was tried and was wrong.
+- Live result on video/IMG_0022 → IMG_0023 (conference room, plan `apps/api/test/plans/conference-room.pdf`): **missed the change**. Move-out frames 1.5–31.5 s were nearly all placed on the west wall: the Argon plan had no landmarks on the east/west walls (both described as "plain, no door or window") and Carbon was off. Findings looked at the wrong frames and found nothing.
+- Ground truth from the frames: yellow column mark is in BOTH videos (pre-existing); the new thing in the move-out is a sheet of paper on the wall light by the door, which isn't damage in the R4 checklist.
+- Fix: plan review step has "What's on each wall?" (saved via `PATCH /plan` `landmarks`), so walls can be told apart; Carbon cap back to 6. Re-run by Alex pending. For a charge test, film a move-out with something that looks like damage on a wall.
+- Note: `pnpm --filter @ledger/web e2e` uploads dummy videos, so run it against an API with the mock pipeline (no `PIPELINE=real`).
+
 ## 2026-11-21 13:26 ET · High-end front end: design system, motion, copy
 
 - Branch `alex/frontend-polish` (stacked on #30). New design system in `apps/web/app/globals.css` (warm paper, ink, one signal red for charges, brass accents, paper grain) with Instrument Serif headlines, Geist text, Geist Mono numbers (self-hosted via `next/font`). Motion (`motion` package) for staggered reveals, count-up totals, step pills, page-step slides, drop zones and live progress shimmer.

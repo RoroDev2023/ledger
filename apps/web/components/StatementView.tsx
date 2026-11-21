@@ -4,12 +4,12 @@
 import { motion } from 'motion/react';
 import type { Finding, FloorPlan, Statement } from '@ledger/shared';
 import { displayReason, pinStyle } from '@ledger/viewer/colors';
-import { api } from '../lib/api';
+import { api, type Proof } from '../lib/api';
 import { usd } from '../lib/ui';
 import { Frame } from './EvidencePanel';
 import { CountUp, EASE, Reveal } from './motion';
 
-export function StatementView({ statement, plan, findings }: { statement: Statement; plan: FloorPlan; findings: Finding[] }) {
+export function StatementView({ statement, plan, findings, proofs = [] }: { statement: Statement; plan: FloorPlan; findings: Finding[]; proofs?: Proof[] }) {
   const label = (id: string) => plan.surfaces.find((s) => s.id === id)?.label ?? id;
   const charged = statement.items.filter((i) => pinStyle(i).charged);
   const free = statement.items.filter((i) => !pinStyle(i).charged);
@@ -62,7 +62,10 @@ export function StatementView({ statement, plan, findings }: { statement: Statem
             </Reveal>
             {lines.map((d, i) => {
               const s = pinStyle(d);
-              const bbox = findings.find((f) => f.surfaceId === d.surfaceId && (!d.issueType || f.type === d.issueType))?.bbox;
+              const proof = proofs.find((p) => p.surfaceId === d.surfaceId && (!d.issueType || p.issueType === d.issueType));
+              const bbox = proof?.bbox ?? findings.find((f) => f.surfaceId === d.surfaceId && (!d.issueType || f.type === d.issueType))?.bbox;
+              // A charge shows both independent before/after pairs that proved it (the two-view rule, visible).
+              const pairs = s.charged && proof?.proof?.length === 2 ? proof.proof : [{ beforeFrameId: d.beforeFrameId, afterFrameId: d.afterFrameId, bbox }];
               return (
                 <Reveal key={i} delay={i * 0.06}>
                   <div className="card" style={{ padding: 20, marginBottom: 12, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 22, position: 'relative', overflow: 'hidden' }}>
@@ -85,9 +88,13 @@ export function StatementView({ statement, plan, findings }: { statement: Statem
                       </div>
                     </div>
                     {(d.beforeFrameId || d.afterFrameId) && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                        <Frame title="Move-in" src={d.beforeFrameId ? api.frameUrl(statement.unitId, d.beforeFrameId) : null} />
-                        <Frame title="Move-out" src={d.afterFrameId ? api.frameUrl(statement.unitId, d.afterFrameId) : null} bbox={bbox} color={s.color} />
+                      <div style={{ display: 'grid', gap: 10 }}>
+                        {pairs.map((p, k) => (
+                          <div key={k} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <Frame title={pairs.length > 1 ? `Move-in · view ${k + 1}` : 'Move-in'} src={p.beforeFrameId ? api.frameUrl(statement.unitId, p.beforeFrameId) : null} />
+                            <Frame title={pairs.length > 1 ? `Move-out · view ${k + 1}` : 'Move-out'} src={p.afterFrameId ? api.frameUrl(statement.unitId, p.afterFrameId) : null} bbox={p.bbox ?? bbox} color={s.color} />
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

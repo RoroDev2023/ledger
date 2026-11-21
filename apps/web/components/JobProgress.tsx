@@ -18,6 +18,27 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
   const [stats, setStats] = useState<DecisionsStat | null>(null);
   const [state, setState] = useState<'running' | 'done' | 'error'>('running');
   const [error, setError] = useState('');
+  // Until the first event arrives the job may be waiting behind others (one job runs at a time).
+  const [waiting, setWaiting] = useState<number | null>(null);
+  const started = Object.keys(progress).length > 0;
+  useEffect(() => {
+    if (started || state !== 'running') return setWaiting(null);
+    let alive = true;
+    const check = async () => {
+      try {
+        const [j, h] = await Promise.all([api.job(jobId), api.health()]);
+        if (alive) setWaiting(j.status === 'queued' ? Math.max(1, h.queued - 1) : null);
+      } catch {
+        /* keep the last value */
+      }
+    };
+    void check();
+    const t = setInterval(check, 2000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [jobId, started, state]);
 
   useEffect(
     () =>
@@ -38,7 +59,12 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
 
   return (
     <div>
-      <div className="eyebrow">{state === 'done' ? 'Complete' : state === 'error' ? 'Stopped' : 'Processing'}</div>
+      <div className="eyebrow">{state === 'done' ? 'Complete' : state === 'error' ? 'Stopped' : waiting ? 'Waiting in line' : 'Processing'}</div>
+      {waiting !== null && (
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="muted" style={{ margin: '8px 0 0', fontSize: 14 }}>
+          {waiting === 1 ? 'One video' : `${waiting} videos`} ahead of this one. Videos are processed one at a time; this starts automatically.
+        </motion.p>
+      )}
       <div style={{ marginTop: 14 }}>
         {STAGES.filter((s) => withDiff || s.id !== 'diff').map((s, i) => {
           const p = progress[s.id];
