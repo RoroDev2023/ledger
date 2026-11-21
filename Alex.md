@@ -2,6 +2,14 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 14:24 ET · Faster and hands-free: landmarks from the plan, Argon on move-in, timeouts
+
+- Freeze found: Gemini requests had no timeout; one hung Carbon call froze a whole job. `packages/gemini` now has a per-request timeout (GEMINI_TIMEOUT_MS, retried like a network error) and GEMINI_CONCURRENCY (default 4; my .env uses 12) so second opinions run in one round.
+- Wall landmarks without typing: `ArgonPlanSchema.fixtures` has an optional `at` point and `attachWallLandmarks()` puts each drawn item on the nearest wall of its room (≤ 1 m). Live on conference-room.pdf: north = window, cabinet; east = portrait; south = door; west = column (8 s). The review boxes are pre-filled, for corrections only. (Elmir's package: prompt + schema + new function + test.)
+- Second opinions: Argon (MODEL_PLAN) on the move-in, Carbon only on the move-out and diff (`secondOpinionEnv`, SECOND_OPINION_MOVE_IN=carbon to undo). Not yet measured whether Argon is faster on these prompts.
+- Progress panel: running clock and a "second opinion" line when no event for 6 s.
+- API is stopped; Alex reruns by hand.
+
 ## 2026-11-21 14:15 ET · Real pipeline behind the app; first live run on our own videos
 
 - Branch `alex/conference-room-plan` (main merged in). `apps/api/src/realPipeline.ts` runs R2–R5 like `run:pair`: keyframes → Hydrogen → localize → findings, evidence.json per walkthrough, then `diffWalkthroughs`. `PIPELINE=real` switches it on (needs `FFMPEG_PATH` if ffmpeg isn't on PATH). Decisions stats stream from calls.jsonl. Frames route serves the pipeline's real JPEGs (ids like `<wid>.f00042`). `GET /units/:id/evidence` serves diff-evidence.json; the statement shows both proving pairs on a charge.

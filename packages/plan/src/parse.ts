@@ -33,7 +33,9 @@ export const ArgonPlanSchema = z.object({
       b: gridPt,
     }),
   ),
-  fixtures: z.array(z.object({ room: z.string(), name: z.string() })),
+  /** [Alex] `at` = where the item is drawn (0-1000 grid). Code attaches it to the nearest wall as a landmark, so the
+   *  pipeline can tell walls apart in the video without anyone typing them in. Null when not drawn at a spot. */
+  fixtures: z.array(z.object({ room: z.string(), name: z.string(), at: gridPt.nullable().optional() })),
   /** Total area printed on the plan, in square meters, if any. */
   printedTotalAreaM2: z.number().positive().nullable(),
   /** Degrees clockwise from image-up to the north arrow, if the plan has one. */
@@ -46,7 +48,7 @@ Return JSON only, matching the schema. Use a 0-1000 grid over the whole image: x
 - rooms: every enclosed room with its name as printed (or a short generic name like "Bathroom" if unnamed), and its polygon traced along the CENTER LINE of its walls (the middle of the wall thickness, the same lines the dimension labels measure), corners in order. Rooms that share a wall share those corner points.
 - openings: every door and window, as the two endpoints of the gap in the wall.
 - dimensionLabels: every printed measurement with its exact text, its value in meters (convert feet/inches; null if unreadable), and the two endpoints of the line or wall it measures.
-- fixtures: sinks, stoves, tubs, toilets, counters, closets, radiators, with the room they are in.
+- fixtures: sinks, stoves, tubs, toilets, counters, closets, radiators, and anything drawn or labeled against a wall (art or paintings, wall lights, columns, cabinets, shelves, built-ins), with the room they are in and "at": the point where it is drawn (0-1000 grid), or null.
 - printedTotalAreaM2: total area printed on the plan in square meters (convert sq ft), else null.
 - northArrowDeg: degrees clockwise from image-up to the north arrow, else null.
 Do not invent rooms or measurements that are not on the drawing.`;
@@ -240,6 +242,36 @@ export function validatePlanGeometry(plan: FloorPlan, printedTotalAreaM2: number
 // ---------------------------------------------------------------------------------------------
 // From model output to FloorPlan
 
+/**
+ * [Alex] Fixtures with a drawn position become landmarks on the nearest wall of their room (within 1 m), e.g.
+ * "framed portrait" on the east wall. Without these, plain walls are described identically to the Decisions API
+ * ("plain, no door or window") and video frames can't be told apart between them (seen live).
+ */
+export function attachWallLandmarks(plan: FloorPlan, fixtures: { room: string; name: string; at: Pt | null }[], maxM = 1): void {
+  for (const f of fixtures) {
+    if (!f.at) continue;
+    const room = plan.rooms.find((r) => r.name.toLowerCase() === f.room.toLowerCase()) ?? (plan.rooms.length === 1 ? plan.rooms[0] : undefined);
+    if (!room) continue;
+    let best: { s: FloorPlan['surfaces'][number]; d: number } | null = null;
+    for (const s of plan.surfaces) {
+      if (s.kind !== 'wall' || s.roomId !== room.id || !s.segment) continue;
+      const d = distToSegment(f.at, s.segment[0], s.segment[1]);
+      if (!best || d < best.d) best = { s, d };
+    }
+    if (best && best.d <= maxM) {
+      const name = f.name.toLowerCase();
+      best.s.landmarks = [...new Set([...(best.s.landmarks ?? []), name])];
+    }
+  }
+}
+
+function distToSegment([px, py]: Pt, [ax, ay]: Pt, [bx, by]: Pt): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
 export function planFromArgon(
   argon: ArgonPlan,
   img: { width: number; height: number },
@@ -278,6 +310,7 @@ export function planFromArgon(
     fixtures: argon.fixtures.map((f) => ({ roomName: cleanName(f.room), name: cleanName(f.name) })),
     warnings: opts.ceilingHeightM ? warnings : [...warnings, 'ceiling height assumed 2.6 m; owner should confirm'],
   });
+  attachWallLandmarks(plan, argon.fixtures.map((f) => ({ room: cleanName(f.room), name: cleanName(f.name), at: f.at ? toM(toPx(f.at)) : null })));
   return { plan, errors: validatePlanGeometry(plan, argon.printedTotalAreaM2) };
 }
 

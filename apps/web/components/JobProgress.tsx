@@ -20,6 +20,16 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
   const [error, setError] = useState('');
   // Until the first event arrives the job may be waiting behind others (one job runs at a time).
   const [waiting, setWaiting] = useState<number | null>(null);
+  // A clock and the time of the last event: second opinions (Argon/Carbon) send no progress for up to a minute,
+  // and a silent page looks frozen.
+  const [now, setNow] = useState(() => Date.now());
+  const [startedAt] = useState(() => Date.now());
+  const [lastEventAt, setLastEventAt] = useState(() => Date.now());
+  useEffect(() => {
+    if (state !== 'running') return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [state]);
   const started = Object.keys(progress).length > 0;
   useEffect(() => {
     if (started || state !== 'running') return setWaiting(null);
@@ -43,6 +53,7 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
   useEffect(
     () =>
       api.followJob(jobId, (e: JobEvent) => {
+        setLastEventAt(Date.now());
         if (e.type === 'progress') setProgress((p) => ({ ...p, [e.stage]: { done: e.done, total: e.total } }));
         else if (e.type === 'decisions') setStats(e.stats);
         else if (e.type === 'done') {
@@ -60,6 +71,16 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
   return (
     <div>
       <div className="eyebrow">{state === 'done' ? 'Complete' : state === 'error' ? 'Stopped' : waiting ? 'Waiting in line' : 'Processing'}</div>
+      {state === 'running' && waiting === null && (
+        <div className="faint mono" style={{ fontSize: 12, marginTop: 6 }}>
+          {fmtClock(now - startedAt)}
+          {now - lastEventAt > 6000 && Object.keys(progress).length > 0 && (
+            <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginLeft: 10, color: 'var(--brass)' }}>
+              Second opinion on the unsure frames · can take up to a minute
+            </motion.span>
+          )}
+        </div>
+      )}
       {waiting !== null && (
         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="muted" style={{ margin: '8px 0 0', fontSize: 14 }}>
           {waiting === 1 ? 'One video' : `${waiting} videos`} ahead of this one. Videos are processed one at a time; this starts automatically.
@@ -113,4 +134,9 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
       {state === 'error' && <p style={{ color: 'var(--red)', marginTop: 12 }}>Something went wrong: {error}</p>}
     </div>
   );
+}
+
+function fmtClock(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }

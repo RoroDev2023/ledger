@@ -25,6 +25,16 @@ export function speedConfig(env: NodeJS.ProcessEnv = process.env) {
   };
 }
 
+/**
+ * Which model gives second opinions. Move-in: Argon (MODEL_PLAN), the faster one; the move-in record only needs
+ * frames on the right wall and existing damage noted. Move-out: Carbon (MODEL_DEEP), where the comparison and the
+ * money are. SECOND_OPINION_MOVE_IN=carbon puts Carbon back on the move-in.
+ */
+export function secondOpinionEnv(kind: string, env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  if (kind === 'move-out' || env.SECOND_OPINION_MOVE_IN === 'carbon' || !env.MODEL_PLAN) return env;
+  return { ...env, MODEL_DEEP: env.MODEL_PLAN };
+}
+
 const writeJson = async (path: string, data: unknown) => {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, JSON.stringify(data, null, 2) + '\n');
@@ -56,6 +66,7 @@ export function realPipeline(base: Pick<PipelineAdapter, 'parsePlan'>): Pipeline
       const stop = watchDecisions(hooks);
       try {
         const wid = walkthrough.id;
+        const env = secondOpinionEnv(walkthrough.kind);
         const frames = await extractFrames(walkthrough.videoPath, wid, { workDir, onProgress: (d, t) => hooks.onProgress('frames', d, t) });
         await writeJson(join(workDir, 'frames.json'), frames);
         const captions = await captionFrames(frames);
@@ -64,9 +75,10 @@ export function realPipeline(base: Pick<PipelineAdapter, 'parsePlan'>): Pipeline
           outPath: join(workDir, 'localization.json'),
           planSvgPath: join(workDir, '..', '..', 'plan.svg'),
           config: speedConfig().localize,
+          env,
           onProgress: (stage, d, t) => hooks.onProgress(stage, d, t),
         });
-        const found = await detectFindings(plan, frames, loc, { walkthroughId: wid, config: speedConfig().findings, onProgress: (_s, d, t) => hooks.onProgress('findings', d, t) });
+        const found = await detectFindings(plan, frames, loc, { walkthroughId: wid, config: speedConfig().findings, env, onProgress: (_s, d, t) => hooks.onProgress('findings', d, t) });
         // R4 also drops surfaces whose frames all failed its visibility gate: those count as not covered.
         const coverage: Record<string, SurfaceCoverage> = {};
         for (const [id, c] of Object.entries(loc.coverage)) coverage[id] = { ...c, notVisible: c.notVisible || found.notVisible.includes(id) };
