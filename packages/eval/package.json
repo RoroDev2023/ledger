@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@ledger/shared": "workspace:*",
-    "@ledger/plan": "workspace:*"
+    "@ledger/plan": "workspace:*",
+    "zod": "^3.25.0"
   }
 }
