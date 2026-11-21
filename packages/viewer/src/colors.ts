@@ -1,3 +1,3 @@
-// [Alex] Verdict -> pin color: new-damage red, pre-existing blue, wear gray, moved yellow, not-visible hatched.
+// [Alex] Verdict -> pin color: new-damage red, pre-existing blue, wear gray, moved yellow, not-visible / not provable hatched ($0).
 
 export {};
