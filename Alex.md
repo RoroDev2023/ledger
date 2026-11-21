@@ -2,6 +2,12 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 11:55 ET · A1 merged (PR #10)
+
+- Merged `alex/a1-api` into `main` after CI passed. Includes the API, 48 API tests, the hand-test script and the browser test page at `http://localhost:3001/` (`pnpm --filter @ledger/api dev`).
+- Fixed a flaky CI test: two simultaneous uploads have no guaranteed arrival order. Tests now check that uploads sent one after another run in that order, and that four simultaneous uploads never run at the same time.
+- Next step: A2 viewer + A4 `/demo` page for the 13:00 mock end-to-end.
+
 ## 2026-11-21 11:40 ET · API tests + hand-test script
 
 - Branch `alex/a1-api` (PR #10). Added `apps/api/test/scenarios.test.ts` (46 API tests in total): 3 floor plans, upload validation, re-filmed baseline, tenant addendum, serial job order, SSE replay, pipeline crashes, Decisions totals and the statement charging rules. Mutation-checked: 9 deliberate breaks, all caught except a redundant cent-rounding step.

@@ -225,11 +225,32 @@ describe('walkthrough history', () => {
     const { app } = await makeApp(slow);
     await newUnit(app, 'a');
     await newUnit(app, 'b');
-    const [ra, rb] = await Promise.all([upload(app, 'a', 'baseline'), upload(app, 'b', 'baseline')]);
-    const ja = ((await ra.json()) as { jobId: string }).jobId;
-    const jb = ((await rb.json()) as { jobId: string }).jobId;
+    // Upload a, then b while a is still running (each upload returns before its job finishes).
+    const ja = ((await (await upload(app, 'a', 'baseline')).json()) as { jobId: string }).jobId;
+    const jb = ((await (await upload(app, 'b', 'baseline')).json()) as { jobId: string }).jobId;
     await Promise.all([events(app, ja), events(app, jb)]);
     expect(order).toEqual(['start a', 'end a', 'start b', 'end b']);
+  });
+
+  it('jobs never overlap, even when uploads arrive at the same moment', async () => {
+    let running = 0;
+    let maxRunning = 0;
+    const slow: PipelineAdapter = {
+      ...mockPipeline({ stepMs: 0 }),
+      runWalkthrough: async () => {
+        maxRunning = Math.max(maxRunning, ++running);
+        await new Promise((r) => setTimeout(r, 15));
+        running--;
+        return [];
+      },
+    };
+    const { app } = await makeApp(slow);
+    const ids = ['p', 'q', 'r', 's'];
+    for (const id of ids) await newUnit(app, id);
+    const res = await Promise.all(ids.map((id) => upload(app, id, 'baseline')));
+    const jobs = await Promise.all(res.map(async (r) => ((await r.json()) as { jobId: string }).jobId));
+    await Promise.all(jobs.map((j) => events(app, j)));
+    expect(maxRunning).toBe(1);
   });
 });
 
