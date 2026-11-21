@@ -38,7 +38,7 @@ function Line({ children, delay }: { children: React.ReactNode; delay: number })
 
 function Receipt() {
   return (
-    <motion.div className="receipt" initial={{ opacity: 0, y: -30, rotate: -2 }} animate={{ opacity: 1, y: 0, rotate: -2 }} transition={{ duration: 0.9, ease: EASE, delay: 1.1 }} style={{ width: 300, padding: '22px 22px 18px' }}>
+    <motion.div className="receipt" initial={{ opacity: 0, y: -30, rotate: -2 }} animate={{ opacity: 1, y: 0, rotate: -2 }} transition={{ duration: 0.9, ease: EASE, delay: 1.1 }} style={{ width: 340, padding: '18px 22px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
         <span>LEDGER</span>
         <span>APT 4B</span>
@@ -71,27 +71,26 @@ export default function Home() {
   const hero = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: hero, offset: ['start start', 'end start'] });
   const modelY = useTransform(scrollYProgress, [0, 1], [0, 120]);
-  const receiptY = useTransform(scrollYProgress, [0, 1], [0, -60]);
 
   return (
     <>
       <Header />
       <main style={{ overflowX: 'hidden' }}>
-        <section ref={hero} style={{ maxWidth: 1320, margin: '0 auto', padding: '64px 28px 40px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.15fr)', gap: 40, alignItems: 'center' }}>
+        <section ref={hero} style={{ maxWidth: 1320, margin: '0 auto', padding: '36px 28px 36px', display: 'grid', gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.25fr)', gap: 44, alignItems: 'center', minHeight: 'calc(100vh - 64px)' }}>
           <div>
             <motion.div className="chip" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }}>
               <span className="dot" style={{ color: 'var(--red)' }} /> New York gives landlords 14 days. This takes minutes.
             </motion.div>
-            <h1 className="display" style={{ fontSize: 'clamp(50px, 6vw, 92px)', margin: '26px 0 0' }}>
+            <h1 className="display" style={{ fontSize: 'clamp(48px, 5.4vw, 84px)', margin: '22px 0 0' }}>
               <Line delay={0.1}>Every dent.</Line>
               <Line delay={0.22}>
                 <em>Proven</em> or free.
               </Line>
             </h1>
-            <motion.p className="lede" style={{ marginTop: 28 }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE, delay: 0.6 }}>
+            <motion.p className="lede" style={{ marginTop: 22 }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE, delay: 0.6 }}>
               Film the apartment when the tenant moves in and again when they move out. LEDGER spots what changed and writes the deposit statement. No photo proof, no charge.
             </motion.p>
-            <motion.div style={{ display: 'flex', gap: 10, marginTop: 34, flexWrap: 'wrap' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE, delay: 0.8 }}>
+            <motion.div style={{ display: 'flex', gap: 10, marginTop: 28, flexWrap: 'wrap' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE, delay: 0.8 }}>
               <Link href="/owner/new" className="btn btn-lg">
                 Add an apartment {Icon.arrow}
               </Link>
@@ -102,23 +101,22 @@ export default function Home() {
                 }}
                 style={{ display: 'flex', gap: 8 }}
               >
-                <input className="input" value={id} onChange={(e) => setId(e.target.value)} placeholder="Have an apartment ID?" style={{ width: 220 }} />
+                <input className="input" value={id} onChange={(e) => setId(e.target.value)} placeholder="Apartment ID" style={{ width: 160 }} />
                 <button className="btn btn-ghost btn-lg" disabled={!id.trim()}>
                   Open
                 </button>
               </form>
             </motion.div>
+            <div style={{ marginTop: 34, paddingLeft: 6 }}>
+              <Receipt />
+            </div>
           </div>
 
           <div style={{ position: 'relative' }}>
             <motion.div style={{ y: modelY }} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.2, ease: EASE, delay: 0.3 }}>
-              <div className="card" style={{ height: 540, marginRight: 140, padding: 0, overflow: 'hidden', boxShadow: 'var(--shadow-lg)', background: 'linear-gradient(180deg, #fff, #f1efe9)' }}>
+              <div className="card" style={{ height: 'min(680px, calc(100vh - 150px))', padding: 0, overflow: 'hidden', boxShadow: 'var(--shadow-lg)', background: 'linear-gradient(180deg, #fff, #f1efe9)' }}>
                 <UnitModel plan={HERO.plan} items={HERO.items} autoRotate />
               </div>
-            </motion.div>
-            {/* Decorative: tucked into the corner and click-through, so the 3D underneath stays draggable. */}
-            <motion.div style={{ position: 'absolute', right: -80, top: 70, y: receiptY, scale: 0.72, transformOrigin: '100% 0%', pointerEvents: 'none' }}>
-              <Receipt />
             </motion.div>
           </div>
         </section>
