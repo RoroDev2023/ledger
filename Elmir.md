@@ -2,6 +2,13 @@
 
 Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluation (`packages/shared`, `packages/plan`, and `packages/eval`, E1–E5).
 
+## 2026-11-21 11:33 ET · First LIVE Gemini calls (event key in git-ignored `.env`)
+
+- Key works: Hydrogen 1.0 s, Neon (paid tier) 3.0 s, **Decisions API 0.5 s** with sensible answers. Billing is on.
+- **Argon on our 3 listing-style plan images** (same prompt as parsePlan, JSON schema enforced): rooms 7/7, doors+windows 13/13, median dimension error 0.1-3.2%, 8-10 s per plan. Scored with the repo's `planFromArgon` + `scorePlan`. Without a response schema Argon once returned malformed JSON, so R1's schema enforcement matters.
+- Two bugs found and fixed (see `eval/failures.md`): cropped PNG for wide plans (square canvas now), NaN scale when two labels disagree (longest label now).
+- These live calls were exploration from a throwaway script outside the repo; repo code still calls Gemini only through `packages/gemini` (plan-eval waits for R1).
+
 ## 2026-11-21 11:21 ET · E3 plan images + plan accuracy (branch `elmir/e3-plan-images`)
 
 - **PRs #7 and #9 are both in `main`** (Rahim merged #9 into the E2 branch, then #7 into main).

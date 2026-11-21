@@ -50,6 +50,11 @@ describe('scale', () => {
     expect(s.metersPerPixel).toBeCloseTo(0.01);
     expect(s.warnings.length).toBe(1);
   });
+  it('uses the longest label when two labels disagree (never NaN)', () => {
+    const s = scaleFromLabels([{ meters: 4, a: [0, 0], b: [400, 0] }, { meters: 9.6, a: [0, 0], b: [600, 0] }]);
+    expect(s.metersPerPixel).toBeCloseTo(0.016);
+    expect(s.warnings[0]).toMatch(/longest label/);
+  });
   it('falls back to an assumption with a warning', () => {
     const s = scaleFromLabels([]);
     expect(s.scaleSource).toBe('assumed');

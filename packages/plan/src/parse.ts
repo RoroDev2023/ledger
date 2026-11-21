@@ -158,6 +158,16 @@ export function scaleFromLabels(
     };
     const m0 = median(ratios);
     const kept = ratios.filter((r) => Math.abs(r - m0) / m0 <= 0.15);
+    if (!kept.length) {
+      // Labels disagree with each other (e.g. two labels, far apart). Trust the longest one: it spans the
+      // most pixels, so a misplaced endpoint matters least. Say so.
+      const longest = labels
+        .filter((l) => l.meters && l.meters > 0)
+        .map((l) => ({ r: l.meters! / Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]), len: Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]) }))
+        .filter((x) => Number.isFinite(x.r) && x.r > 0)
+        .sort((a, b) => b.len - a.len)[0]!;
+      return { metersPerPixel: longest.r, scaleSource: 'labels', warnings: [`dimension labels disagree by >15%; scale taken from the longest label only`] };
+    }
     const warnings = kept.length < ratios.length ? [`${ratios.length - kept.length} dimension label(s) disagreed with the others by >15% and were ignored`] : [];
     return { metersPerPixel: median(kept), scaleSource: 'labels', warnings };
   }
