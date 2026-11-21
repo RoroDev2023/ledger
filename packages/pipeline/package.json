@@ -9,7 +9,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
-    "run:pair": "tsx src/runPair.ts"
+    "run:pair": "tsx src/runPair.ts",
+    "localize": "tsx src/localizeCli.ts"
   },
   "dependencies": {
     "@ledger/gemini": "workspace:*",
