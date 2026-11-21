@@ -1,13 +1,32 @@
 {
-  "_note": "PLACEHOLDER rates, confirm before use",
+  "_note": "PLACEHOLDER rates, confirm before use. Every dollar LEDGER charges comes from this file; code does the math (src/price.ts).",
   "currency": "USD",
   "rates": {
-    "paintPerM2": 0,
-    "patchFlat": 0,
-    "cleaningFlat": 0
+    "paintPerM2": 12,
+    "patchFlat": 85,
+    "cleaningFlat": 60,
+    "fixtureFlat": 120
+  },
+  "issues": {
+    "crack": { "flat": "patchFlat", "perM2": "paintPerM2", "life": "paint" },
+    "hole": { "flat": "patchFlat", "perM2": "paintPerM2", "life": "paint" },
+    "stain": { "perM2": "paintPerM2", "life": "paint" },
+    "scuff": { "perM2": "paintPerM2", "life": "paint" },
+    "missing-fixture": { "flat": "fixtureFlat", "life": "fixture" },
+    "other": { "flat": "patchFlat", "life": "paint" }
+  },
+  "kindOverrides": {
+    "floor": {
+      "crack": { "flat": "patchFlat", "life": "flooring" },
+      "hole": { "flat": "patchFlat", "life": "flooring" },
+      "stain": { "flat": "cleaningFlat", "life": "flooring" },
+      "scuff": { "flat": "cleaningFlat", "life": "flooring" },
+      "other": { "flat": "patchFlat", "life": "flooring" }
+    }
   },
   "usefulLifeYears": {
-    "paint": 0,
-    "flooring": 0
+    "paint": 4,
+    "flooring": 10,
+    "fixture": 10
   }
 }
