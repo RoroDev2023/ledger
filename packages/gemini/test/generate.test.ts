@@ -103,3 +103,22 @@ describe('generate (live against a local fake API)', () => {
     expect(api.seen).toHaveLength(2);
   });
 });
+
+describe('toResponseSchema: tuples', () => {
+  const hasArrayItems = (n: unknown): boolean =>
+    !!n && typeof n === 'object' && (Array.isArray((n as { items?: unknown }).items) || Object.values(n).some(hasArrayItems));
+
+  it('never sends draft-07 tuple items (the API rejects them as a JSON syntax error)', () => {
+    const js = toResponseSchema(z.object({ pt: z.tuple([z.number(), z.number()]), pts: z.array(z.tuple([z.number(), z.number()])) }));
+    expect(hasArrayItems(js)).toBe(false);
+    const pt = (js.properties as Record<string, Record<string, unknown>>).pt!;
+    expect(pt).toMatchObject({ type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } });
+  });
+
+  it('mixed tuple positions become anyOf, and the zod schema still validates each position', () => {
+    const schema = z.object({ t: z.tuple([z.string(), z.number()]) });
+    const t = (toResponseSchema(schema).properties as Record<string, Record<string, unknown>>).t!;
+    expect(t.items).toEqual({ anyOf: [{ type: 'string' }, { type: 'number' }] });
+    expect(() => schema.parse({ t: [1, 'a'] })).toThrow();
+  });
+});

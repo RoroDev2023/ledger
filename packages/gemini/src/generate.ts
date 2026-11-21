@@ -40,7 +40,29 @@ export class GenerateValidationError extends Error {
 export function toResponseSchema(schema: z.ZodTypeAny): Record<string, unknown> {
   const js = zodToJsonSchema(schema, { $refStrategy: 'none', target: 'jsonSchema7' }) as Record<string, unknown>;
   delete js.$schema;
-  return js;
+  return noTupleItems(js) as Record<string, unknown>;
+}
+
+/**
+ * z.tuple() becomes draft-07 tuple form `items: [a, b]`, which the Interactions API rejects with a misleading
+ * "Invalid JSON payload: syntax error" (seen live with @ledger/plan's [x, y] points). Rewrite it as one item
+ * schema (or anyOf when the positions differ). minItems/maxItems keep the length, and the zod schema still
+ * checks each position when the reply is validated.
+ */
+export function noTupleItems(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(noTupleItems);
+  if (!node || typeof node !== 'object') return node;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(node)) out[k] = noTupleItems(v);
+  if (Array.isArray(out.items)) {
+    const list = out.items as unknown[];
+    const same = list.every((x) => JSON.stringify(x) === JSON.stringify(list[0]));
+    out.items = list.length === 0 ? {} : same ? list[0] : { anyOf: list };
+    out.minItems ??= list.length;
+    out.maxItems ??= list.length;
+    delete out.additionalItems;
+  }
+  return out;
 }
 
 const InteractionSchema = z
