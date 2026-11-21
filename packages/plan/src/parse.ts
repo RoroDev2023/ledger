@@ -38,7 +38,7 @@ export type ArgonPlan = z.infer<typeof ArgonPlanSchema>;
 
 export const PLAN_PROMPT = `You are reading an apartment floor plan image.
 Return JSON only, matching the schema. Use a 0-1000 grid over the whole image: x from left (0) to right (1000), y from top (0) to bottom (1000).
-- rooms: every enclosed room with its name as printed (or a short generic name like "Bathroom" if unnamed), and its polygon traced along the inside of the walls, corners in order.
+- rooms: every enclosed room with its name as printed (or a short generic name like "Bathroom" if unnamed), and its polygon traced along the CENTER LINE of its walls (the middle of the wall thickness, the same lines the dimension labels measure), corners in order. Rooms that share a wall share those corner points.
 - openings: every door and window, as the two endpoints of the gap in the wall.
 - dimensionLabels: every printed measurement with its exact text, its value in meters (convert feet/inches; null if unreadable), and the two endpoints of the line or wall it measures.
 - fixtures: sinks, stoves, tubs, toilets, counters, closets, radiators, with the room they are in.

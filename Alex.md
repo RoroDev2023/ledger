@@ -2,6 +2,14 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 12:40 ET · 3D openings fixed, 5 test plans checked live with Argon
+
+- (Correction: my entries stamped 12:45 and 13:05 were really ~12:10 and ~12:20; I had guessed the time.)
+- Branch `alex/viewer-openings` (stacked on #24 → #23). Viewer: a door attached to one room's wall now also cuts the other room's slab of a shared wall (`openingsForWall`); cut-away and top-down walls are door-only stubs (windows no longer squash into slits); stubs cast no shadow. 86 viewer tests.
+- 5 test plans in `apps/api/test/plans/` (unit-4b, studio-ft in feet, two-bed-hall, l-living, scan-2b) with truth; `check-plan` now also grades door/window positions (30 cm).
+- **Proposed prompt change in Elmir's `PLAN_PROMPT`:** trace rooms along wall center lines instead of the inside. Inside tracing made small rooms 10–17% too small because the scale comes from center-line dimensions. With center lines, all 4 clean plans pass every check (openings within 2–7 cm). The scan still fails (rooms ~6% large). Details in `apps/api/test/plans/RESULTS.md`.
+- Next step: `/demo` page (A4) for the 13:00 checkpoint.
+
 ## 2026-11-21 13:05 ET · Live Argon works on the test PDF (2 fixes in review)
 
 - `.env` now holds the event key (record mode). Rahim's smoke: all 5 models answer live (3.7–6.6 s).
