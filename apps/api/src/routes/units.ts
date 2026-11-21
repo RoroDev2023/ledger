@@ -33,7 +33,7 @@ export function unitsRoutes(d: Deps) {
     const planFile = `plan${ext}`;
     await d.storage.writeFile(join(p.dir, planFile), new Uint8Array(await file.arrayBuffer()));
 
-    const plan = FloorPlanSchema.parse(await d.pipeline.parsePlan({ unitId, filePath: join(p.dir, planFile) }));
+    const plan = FloorPlanSchema.parse(await d.pipeline.parsePlan({ unitId, filePath: join(p.dir, planFile), originalName: file.name }));
     const unit: Unit = { unitId, createdAt: new Date().toISOString(), planFile, walkthroughs: [] };
     await d.storage.writeJson(p.plan, plan);
     await d.storage.writeJson(p.unit, unit);

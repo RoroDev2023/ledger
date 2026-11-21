@@ -1,6 +1,6 @@
 // [Alex] What the API needs from the pipeline. `mockPipeline` keeps the whole app working
 // (GEMINI_MODE=mock / PIPELINE=mock) until Rahim's @ledger/pipeline and Elmir's parsePlan are wired in.
-import { loadPlanFixture, type DiffItem, type Finding, type FloorPlan, type Walkthrough } from '@ledger/shared';
+import { listPlanFixtures, loadPlanFixture, type DiffItem, type Finding, type FloorPlan, type Walkthrough } from '@ledger/shared';
 import type { DecisionsStat, Stage } from './events.js';
 
 export interface RunHooks {
@@ -12,7 +12,7 @@ export interface RunHooks {
 export interface PipelineAdapter {
   name: string;
   /** Plan image/PDF on disk -> validated FloorPlan. */
-  parsePlan(input: { unitId: string; filePath: string }): Promise<FloorPlan>;
+  parsePlan(input: { unitId: string; filePath: string; originalName?: string }): Promise<FloorPlan>;
   /** One walkthrough video -> findings pinned to plan surfaces. */
   runWalkthrough(input: { plan: FloorPlan; walkthrough: Walkthrough; workDir: string } & RunHooks): Promise<Finding[]>;
   /** Baseline (+ addendum) findings vs move-out findings -> per-surface verdicts with costs. */
@@ -48,9 +48,11 @@ export function mockPipeline(opts: { stepMs?: number; fixture?: string } = {}): 
 
   return {
     name: 'mock',
-    async parsePlan({ unitId }) {
+    /** Mock only: a plan file named after a fixture (e.g. studio-l.png) loads that fixture. */
+    async parsePlan({ unitId, originalName }) {
       await sleep(stepMs * 3);
-      return { ...loadPlanFixture(fixture), unitId };
+      const named = listPlanFixtures().find((n) => originalName?.toLowerCase().startsWith(n));
+      return { ...loadPlanFixture(named ?? fixture), unitId };
     },
 
     async runWalkthrough({ plan, walkthrough, ...hooks }) {

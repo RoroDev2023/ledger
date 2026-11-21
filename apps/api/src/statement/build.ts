@@ -16,7 +16,7 @@ export function isCharged(d: DiffItem): boolean {
 export function buildStatement(unitId: string, moveOutDate: string, diff: DiffItem[]): Statement {
   const items = diff
     .filter((d) => d.verdict !== 'no-change')
-    .map((d) => (isCharged(d) ? d : { ...d, costUsd: 0 }))
+    .map((d) => ({ ...d, costUsd: isCharged(d) ? Math.round((d.costUsd ?? 0) * 100) / 100 : 0 }))
     .sort((a, b) => Number(isCharged(b)) - Number(isCharged(a)) || a.surfaceId.localeCompare(b.surfaceId));
   const cents = items.reduce((sum, d) => sum + Math.round((d.costUsd ?? 0) * 100), 0);
   return StatementSchema.parse({

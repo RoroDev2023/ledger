@@ -2,6 +2,14 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 11:40 ET · API tests + hand-test script
+
+- Branch `alex/a1-api` (PR #10). Added `apps/api/test/scenarios.test.ts` (46 API tests in total): 3 floor plans, upload validation, re-filmed baseline, tenant addendum, serial job order, SSE replay, pipeline crashes, Decisions totals and the statement charging rules. Mutation-checked: 9 deliberate breaks, all caught except a redundant cent-rounding step.
+- **Fixes found by the tests:** the API now validates pipeline findings and diffs against the shared contract *before* saving them (it used to save bad data, e.g. severity 9). Statement lines are rounded to cents so they always add up to the total. The Decisions counter keeps growing across a job.
+- `pnpm --filter @ledger/api try` runs every scenario against a running API and prints a ✓/✗ report. In mock mode a plan file named after a fixture (`studio-l.png`, `one-bed-railroad.pdf`) loads that plan.
+- For Rahim: `PipelineAdapter.parsePlan` takes an optional `originalName` (mock only, safe to ignore). Bad pipeline output now fails the job with `pipeline returned invalid findings: 0.severity ...`.
+- Next step: A2 viewer + A4 `/demo` page.
+
 ## 2026-11-21 11:20 ET · A1 API server with mock pipeline
 
 - Branch `alex/a1-api`. `apps/api` is a working Hono server: `pnpm --filter @ledger/api dev` (PORT 3001, data in `<repo>/.data`).

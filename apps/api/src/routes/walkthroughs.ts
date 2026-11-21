@@ -3,7 +3,8 @@
 import { randomUUID } from 'node:crypto';
 import { extname, join } from 'node:path';
 import { Hono } from 'hono';
-import { WalkthroughKindSchema, type Walkthrough } from '@ledger/shared';
+import { z } from 'zod';
+import { DiffItemSchema, FindingSchema, WalkthroughKindSchema, type Walkthrough } from '@ledger/shared';
 import type { Deps } from '../deps.js';
 import { DecisionsTotals } from '../events.js';
 import type { RunHooks } from '../pipeline.js';
@@ -58,7 +59,7 @@ async function runJob(d: Deps, jobId: string, unitId: string, w: Walkthrough): P
     const p = paths(d.storage, unitId);
     const plan = await loadPlan(d.storage, unitId);
     totals.begin();
-    const findings = await d.pipeline.runWalkthrough({ plan, walkthrough: w, workDir: d.storage.walkthroughDir(unitId, w.id), ...hooks });
+    const findings = checked('findings', z.array(FindingSchema), await d.pipeline.runWalkthrough({ plan, walkthrough: w, workDir: d.storage.walkthroughDir(unitId, w.id), ...hooks }));
     await d.storage.writeJson(p.findings(w.id), findings);
 
     let diffItems: number | undefined;
@@ -67,13 +68,22 @@ async function runJob(d: Deps, jobId: string, unitId: string, w: Walkthrough): P
       const before = [latest(unit, 'baseline'), latest(unit, 'tenant-addendum')].filter((x): x is Walkthrough => !!x);
       const baseline = (await Promise.all(before.map((b) => loadFindings(d.storage, unitId, b.id)))).flatMap((f) => f ?? []);
       totals.begin();
-      const diff = await d.pipeline.runDiff({ plan, baseline, moveOut: findings, ...hooks });
+      const diff = checked('diff', z.array(DiffItemSchema), await d.pipeline.runDiff({ plan, baseline, moveOut: findings, ...hooks }));
+      const statement = buildStatement(unitId, w.capturedAt, diff);
       await d.storage.writeJson(p.diff, diff);
-      await d.storage.writeJson(p.statement, buildStatement(unitId, w.capturedAt, diff));
+      await d.storage.writeJson(p.statement, statement);
       diffItems = diff.length;
     }
     d.jobs.emit(jobId, { type: 'done', result: { walkthroughId: w.id, findings: findings.length, diffItems } });
   } catch (err) {
     d.jobs.emit(jobId, { type: 'error', message: err instanceof Error ? err.message : String(err) });
   }
+}
+
+/** Validate pipeline output against the shared contract before anything is saved. */
+function checked<T>(what: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>, value: unknown): T {
+  const r = schema.safeParse(value);
+  if (r.success) return r.data;
+  const first = r.error.issues[0];
+  throw new Error(`pipeline returned invalid ${what}: ${first ? `${first.path.join('.')} ${first.message}` : 'unknown'}`);
 }
