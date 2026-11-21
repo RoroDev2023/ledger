@@ -5,6 +5,7 @@ import { extname, join } from 'node:path';
 import { Hono } from 'hono';
 import { WalkthroughKindSchema, type Walkthrough } from '@ledger/shared';
 import type { Deps } from '../deps.js';
+import { DecisionsTotals } from '../events.js';
 import type { RunHooks } from '../pipeline.js';
 import { buildStatement } from '../statement/build.js';
 import { HttpError } from '../storage.js';
@@ -48,13 +49,15 @@ export function walkthroughRoutes(d: Deps) {
 
 async function runJob(d: Deps, jobId: string, unitId: string, w: Walkthrough): Promise<void> {
   d.jobs.setStatus(jobId, 'running');
+  const totals = new DecisionsTotals();
   const hooks: RunHooks = {
     onProgress: (stage, done, total) => d.jobs.emit(jobId, { type: 'progress', stage, done, total }),
-    onDecisions: (stats) => d.jobs.emit(jobId, { type: 'decisions', stats }),
+    onDecisions: (stats) => d.jobs.emit(jobId, { type: 'decisions', stats: totals.add(stats) }),
   };
   try {
     const p = paths(d.storage, unitId);
     const plan = await loadPlan(d.storage, unitId);
+    totals.begin();
     const findings = await d.pipeline.runWalkthrough({ plan, walkthrough: w, workDir: d.storage.walkthroughDir(unitId, w.id), ...hooks });
     await d.storage.writeJson(p.findings(w.id), findings);
 
@@ -63,6 +66,7 @@ async function runJob(d: Deps, jobId: string, unitId: string, w: Walkthrough): P
       const unit = await loadUnit(d.storage, unitId);
       const before = [latest(unit, 'baseline'), latest(unit, 'tenant-addendum')].filter((x): x is Walkthrough => !!x);
       const baseline = (await Promise.all(before.map((b) => loadFindings(d.storage, unitId, b.id)))).flatMap((f) => f ?? []);
+      totals.begin();
       const diff = await d.pipeline.runDiff({ plan, baseline, moveOut: findings, ...hooks });
       await d.storage.writeJson(p.diff, diff);
       await d.storage.writeJson(p.statement, buildStatement(unitId, w.capturedAt, diff));

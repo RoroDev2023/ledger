@@ -5,6 +5,7 @@ import type { DecisionsStat, Stage } from './events.js';
 
 export interface RunHooks {
   onProgress: (stage: Stage, done: number, total: number) => void;
+  /** Stats counted from zero for this step (runWalkthrough or runDiff). The API keeps the job-wide total. */
   onDecisions: (stats: DecisionsStat) => void;
 }
 

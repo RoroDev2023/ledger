@@ -11,6 +11,35 @@ export interface DecisionsStat {
   avgLatencyMs: number;
 }
 
+/**
+ * Running Decisions totals for a whole job. Each pipeline step (runWalkthrough, then runDiff) reports
+ * stats counted from zero; `begin()` starts a new step so the totals keep growing instead of resetting.
+ */
+export class DecisionsTotals {
+  private done = { calls: 0, questions: 0, latencySum: 0 };
+  private step = { calls: 0, questions: 0, latencySum: 0 };
+
+  /** Call before each pipeline step. */
+  begin(): void {
+    this.done.calls += this.step.calls;
+    this.done.questions += this.step.questions;
+    this.done.latencySum += this.step.latencySum;
+    this.step = { calls: 0, questions: 0, latencySum: 0 };
+  }
+
+  /** Takes the current step's own stats, returns job-wide totals. */
+  add(s: DecisionsStat): DecisionsStat {
+    this.step = { calls: s.calls, questions: s.questions, latencySum: s.avgLatencyMs * s.calls };
+    const calls = this.done.calls + s.calls;
+    return {
+      calls,
+      questions: this.done.questions + s.questions,
+      lastLatencyMs: s.lastLatencyMs,
+      avgLatencyMs: calls ? Math.round((this.done.latencySum + this.step.latencySum) / calls) : 0,
+    };
+  }
+}
+
 export type JobEvent =
   | { type: 'progress'; stage: Stage; done: number; total: number }
   | { type: 'decisions'; stats: DecisionsStat }

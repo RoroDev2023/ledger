@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { StatementSchema, type DiffItem } from '@ledger/shared';
 import { createApp } from '../src/app.js';
+import { DecisionsTotals } from '../src/events.js';
 import { mockPipeline } from '../src/pipeline.js';
 import { buildStatement, isCharged } from '../src/statement/build.js';
 
@@ -31,7 +32,7 @@ async function events(jobId: string) {
   return text
     .split('\n')
     .filter((l) => l.startsWith('data: ') && l.length > 6)
-    .map((l) => JSON.parse(l.slice(6)) as { type: string; stage?: string; stats?: { questions: number } });
+    .map((l) => JSON.parse(l.slice(6)) as { type: string; stage?: string; stats?: { calls: number; questions: number } });
 }
 
 describe('mock end-to-end', () => {
@@ -58,7 +59,11 @@ describe('mock end-to-end', () => {
 
     const out = await app.request('/units/demo/walkthroughs', upload('video', 'out.mp4', { kind: 'move-out', capturedAt: '2026-11-21' }));
     const { jobId: outJob } = (await out.json()) as { jobId: string };
-    expect((await events(outJob)).at(-1)?.type).toBe('done');
+    const outEvents = await events(outJob);
+    expect(outEvents.at(-1)?.type).toBe('done');
+    // Decisions totals keep growing through the walkthrough and diff steps (no reset to 0).
+    const calls = outEvents.filter((e) => e.type === 'decisions').map((e) => e.stats!.calls);
+    expect(calls.every((c, i) => i === 0 || c > calls[i - 1]!)).toBe(true);
 
     const st = StatementSchema.parse(await (await app.request('/units/demo/statement')).json());
     expect(st.dueBy).toBe('2026-12-05');
@@ -93,6 +98,17 @@ describe('mock end-to-end', () => {
     expect(after.ceilingHeightM).toBe(2.8);
     expect(after.rooms.find((r) => r.id === roomId)?.name).toBe('Front room');
     expect((await app.request('/units/patch/plan', { method: 'PATCH', body: '{"ceilingHeightM":99}', headers: { 'content-type': 'application/json' } })).status).toBe(400);
+  });
+});
+
+describe('DecisionsTotals', () => {
+  it('adds a new step on top of the previous one', () => {
+    const t = new DecisionsTotals();
+    t.begin();
+    t.add({ calls: 1, questions: 10, lastLatencyMs: 400, avgLatencyMs: 400 });
+    expect(t.add({ calls: 2, questions: 20, lastLatencyMs: 600, avgLatencyMs: 500 })).toEqual({ calls: 2, questions: 20, lastLatencyMs: 600, avgLatencyMs: 500 });
+    t.begin();
+    expect(t.add({ calls: 1, questions: 5, lastLatencyMs: 800, avgLatencyMs: 800 })).toEqual({ calls: 3, questions: 25, lastLatencyMs: 800, avgLatencyMs: 600 });
   });
 });
 
