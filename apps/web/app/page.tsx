@@ -116,7 +116,8 @@ export default function Home() {
                 <UnitModel plan={HERO.plan} items={HERO.items} autoRotate />
               </div>
             </motion.div>
-            <motion.div style={{ position: 'absolute', left: -70, top: 30, y: receiptY }}>
+            {/* Decorative: tucked into the corner and click-through, so the 3D underneath stays draggable. */}
+            <motion.div style={{ position: 'absolute', left: -70, bottom: -70, y: receiptY, scale: 0.82, transformOrigin: '0% 100%', pointerEvents: 'none' }}>
               <Receipt />
             </motion.div>
           </div>
