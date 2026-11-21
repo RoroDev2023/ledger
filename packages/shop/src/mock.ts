@@ -49,7 +49,10 @@ export function writeFixture(rec: RecordedCall, env: NodeJS.ProcessEnv = process
   const p = fixturePath(rec.tool, rec.key, env);
   mkdirSync(join(p, '..'), { recursive: true });
   const tmp = `${p}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(rec, null, 2)}\n`);
+  // content[0].text repeats structuredContent as a string: drop it, and store compact JSON (fixtures are committed).
+  const { content, ...rest } = rec.result;
+  const result = rest.structuredContent !== undefined ? rest : { ...rest, content };
+  writeFileSync(tmp, `${JSON.stringify({ ...rec, result })}\n`);
   renameSync(tmp, p);
 }
 

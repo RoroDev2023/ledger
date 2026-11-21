@@ -66,6 +66,40 @@ Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/w
 - 5 test plans in `apps/api/test/plans/` (unit-4b, studio-ft in feet, two-bed-hall, l-living, scan-2b) with truth; `check-plan` now also grades door/window positions (30 cm).
 - **Proposed prompt change in Elmir's `PLAN_PROMPT`:** trace rooms along wall center lines instead of the inside. Inside tracing made small rooms 10–17% too small because the scale comes from center-line dimensions. With center lines, all 4 clean plans pass every check (openings within 2–7 cm). The scan still fails (rooms ~6% large). Details in `apps/api/test/plans/RESULTS.md`.
 - Next step: `/demo` page (A4) for the 13:00 checkpoint.
+
+## 2026-11-21 14:40 ET · From Rahim: tenant fix kit API, `POST/GET /units/:id/fixkit` (branch `rahim/fixkit-shop`)
+
+- Small addition to your app: new `apps/api/src/routes/fixkit.ts`, 2 lines in `app.ts`, and additive types in `events.ts` (`Stage` gains `'fixkit'`, a new `fixkit` JobEvent, and `done.result` may be `{ fixkit: FixKitSummary }`). No existing route changed. Tests: `apps/api/test/fixkit.test.ts`.
+- **Button (statement page, tenant view):** "Fix it yourself: $X vs $Y deduction", where X = `diyTotal`, Y = `deductionTotal`, and the saving = `savings` (negative means DIY costs more). Show it once a diff exists.
+- `POST /units/:id/fixkit` → `202 { jobId, events: "/jobs/<jobId>/events" }`. Use the same `EventSource` as the walkthrough jobs. `409` = no diff yet. `?wait=1` runs inline and returns the kit (`200`).
+  - Optional JSON body `{ checkout?: boolean, choices?: { [item.key]: variantId } }`. With `choices`, the stored kit swaps an unsure pick for the chosen alternative and rebuilds only the checkouts (no new search or model call).
+- **SSE events on that job (in order):**
+  - `progress` `{ type:'progress', stage:'fixkit', done, total }`. `total` grows once the number of sellers is known.
+  - `fixkit` `{ type:'fixkit', text, event }`. `text` is a ready-made feed line, e.g. `picked “Zep Foaming Wall Cleaner” from Hartville Hardware · $6.27 (82%)`. `event.step` is one of:
+    - `rules` `{ diffItems, needs, uncovered }`
+    - `query` `{ key, need, query, colorHint?, finish?, fallback }`
+    - `searching` `{ key, need, query }`
+    - `picked` `{ key, need, product, seller, price, confidence, needsChoice, candidates }`
+    - `missing` `{ key, need, reason }`
+    - `checkout` `{ seller, shop, lines }` ("building checkout for <seller>")
+    - `checkout-ready` `{ seller, shop, ok, subtotal, status?, error? }`
+    - `done` `{ diyTotal, deductionTotal, savings, complete }`
+    - Every event also carries `done` and `total`.
+  - `decisions` `{ type:'decisions', stats:{ calls, questions, lastLatencyMs, avgLatencyMs } }` after each pick (Decisions calls of this job only).
+  - `done` `{ type:'done', result:{ fixkit:{ items, checkouts, diyTotal, deductionTotal, savings, complete } } }`, or `error` `{ message }`.
+- `GET /units/:id/fixkit` → the kit (`FixKitSchema` exported from `@ledger/pipeline`), `404` until built. Its parts:
+  - `items[]`: `{ key, needLabel, quantity, product.title, seller.name, price, lineTotal, url, confidence, needsChoice, alternatives[], forDiffItem.surfaceId }`.
+  - `checkouts[]`: `{ seller, subtotal, continue_url?, status, messages[], error? }`.
+  - Also `missing[]`, `uncovered[]`, `warnings[]`, `complete`.
+- **UI notes:**
+  - Link each product to `url` exactly as returned.
+  - Give one "Checkout at <seller>" button per `checkouts[].continue_url`. It opens the merchant's page, and the tenant pays there. We never place orders.
+  - `continue_url` carries an access key: don't log it or put it in analytics.
+  - Show `checkouts[].messages` (e.g. "A destination address is required"). The live checkout is `incomplete` until the tenant adds an address on the merchant page.
+  - For `needsChoice` items, show both options. Post `choices` to swap.
+  - `subtotal` is before tax and shipping.
+- Mock: `SHOP_MODE=mock` (default) serves real recorded catalog results for the rule queries. Checkout links point to `https://checkout.mock.invalid/...`.
+
 ## 2026-11-21 13:00 ET · From Rahim: `POST /units/:id/scan` added to the API (branch `rahim/scan-to-plan`)
 
 - Small addition to your app: new file `apps/api/src/routes/scan.ts`, plus 2 lines in `app.ts` (import + `app.route('/units', scanRoutes(deps))`). No existing route changed. Tests: `apps/api/test/scan.test.ts`.
