@@ -93,6 +93,15 @@ describe('different floor plans', () => {
   }
 });
 
+describe('test page', () => {
+  it('GET / serves the browser test page', async () => {
+    const { app } = await makeApp();
+    const res = await app.request('/');
+    expect(res.headers.get('content-type')).toContain('text/html');
+    expect(await res.text()).toContain('LEDGER · API test page');
+  });
+});
+
 describe('mock plan picked by file name', () => {
   it('studio-l.png loads the studio, anything else the default', async () => {
     const { app } = await makeApp();

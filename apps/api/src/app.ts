@@ -6,6 +6,7 @@ import type { Deps } from './deps.js';
 import { JobRegistry } from './events.js';
 import { mockPipeline, type PipelineAdapter } from './pipeline.js';
 import { SerialQueue } from './queue.js';
+import { TEST_PAGE } from './testPage.js';
 import { jobRoutes } from './routes/jobs.js';
 import { resultRoutes } from './routes/results.js';
 import { unitsRoutes } from './routes/units.js';
@@ -22,6 +23,7 @@ export function createApp(opts: { dataDir?: string; pipeline?: PipelineAdapter }
 
   const app = new Hono();
   app.use('*', cors({ origin: (o) => o ?? '*' }));
+  app.get('/', (c) => c.html(TEST_PAGE));
   app.get('/health', (c) => c.json({ ok: true, pipeline: deps.pipeline.name, queued: deps.queue.size }));
   app.route('/units', unitsRoutes(deps));
   app.route('/units', walkthroughRoutes(deps));
