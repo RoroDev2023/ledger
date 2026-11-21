@@ -10,20 +10,26 @@ export function feetInches(m: number): string {
   return `${Math.floor(totalIn / 12)}'${totalIn % 12}"`;
 }
 
-export function renderListingSvg(plan: FloorPlan, opts: { pxPerM?: number; title?: string } = {}): string {
+/** square: pad the canvas to a square so square thumbnailers (e.g. macOS Quick Look) do not crop wide plans. */
+export function renderListingSvg(plan: FloorPlan, opts: { pxPerM?: number; title?: string; square?: boolean } = {}): string {
   const k = opts.pxPerM ?? 110;
   const m = 90;
   const xs = plan.rooms.flatMap((r) => r.polygon.map((p) => p[0]));
   const ys = plan.rooms.flatMap((r) => r.polygon.map((p) => p[1]));
   const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-  const W = Math.round((maxX - minX) * k + 2 * m);
-  const H = Math.round((maxY - minY) * k + 2 * m + 40);
-  const X = (x: number) => m + (x - minX) * k;
-  const Y = (y: number) => m + 40 + (maxY - y) * k;
+  const W0 = Math.round((maxX - minX) * k + 2 * m);
+  const H0 = Math.round((maxY - minY) * k + 2 * m + 40);
+  const S = Math.max(W0, H0);
+  const W = opts.square ? S : W0;
+  const H = opts.square ? S : H0;
+  const padX = (W - W0) / 2;
+  const padY = (H - H0) / 2;
+  const X = (x: number) => padX + m + (x - minX) * k;
+  const Y = (y: number) => padY + m + 40 + (maxY - y) * k;
   const out: string[] = [];
   out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Helvetica, Arial, sans-serif">`);
   out.push(`<rect width="100%" height="100%" fill="#ffffff"/>`);
-  if (opts.title) out.push(`<text x="${m}" y="40" font-size="20" font-weight="bold" fill="#111">${esc(opts.title)}</text>`);
+  if (opts.title) out.push(`<text x="${padX + m}" y="${padY + 40}" font-size="20" font-weight="bold" fill="#111">${esc(opts.title)}</text>`);
 
   // Floors (light), then walls (thick black), then openings cut into the walls.
   for (const r of plan.rooms) {

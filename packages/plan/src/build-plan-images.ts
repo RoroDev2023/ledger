@@ -11,7 +11,7 @@ mkdirSync(out, { recursive: true });
 for (const name of listPlanFixtures()) {
   const plan = loadPlanFixture(name);
   const svgPath = join(out, `${name}.svg`);
-  writeFileSync(svgPath, renderListingSvg(plan, { title: name === 'demo-table' ? 'Unit 4B' : undefined }) + '\n');
+  writeFileSync(svgPath, renderListingSvg(plan, { title: name === 'demo-table' ? 'Unit 4B' : undefined, square: true }) + '\n');
   try {
     execFileSync('qlmanage', ['-t', '-s', '1400', '-o', out, svgPath], { stdio: 'ignore' });
     const ql = join(out, `${name}.svg.png`);

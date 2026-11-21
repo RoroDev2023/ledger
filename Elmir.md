@@ -6,6 +6,13 @@ Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluat
 
 - `import { uploadFile, gemini } from '@ledger/gemini'` (branch `rahim/r1-files-upload`, stacked on PR #14). `await uploadFile('data/pairs/<id>/baseline.mp4', 'video/mp4')` returns `{ uri, mime_type }` once the file is ACTIVE and usable. Your `runBaseline` takes `{ uri, mime }`, so pass `{ uri: f.uri, mime: f.mime_type }`, and pass `gemini` as the `BaselineModel`.
 - It handles videos over the 100 MB inline cap (Files API limit: 2 GB per file, 48 h lifetime). Re-running the eval within 47 h reuses the upload. `GEMINI_MODE=mock` returns a fake URI with no network. Uploads appear in `calls.jsonl` as `model: "files-api"`, `tag: "upload"` with 0 tokens, so `summarizeCalls` will show a `files-api` row. Filter it out if you only want model costs.
+## 2026-11-21 11:33 ET · First LIVE Gemini calls (event key in git-ignored `.env`)
+
+- Key works: Hydrogen 1.0 s, Neon (paid tier) 3.0 s, **Decisions API 0.5 s** with sensible answers. Billing is on.
+- **Argon on our 3 listing-style plan images** (same prompt as parsePlan, JSON schema enforced): rooms 7/7, doors+windows 13/13, median dimension error 0.1-3.2%, 8-10 s per plan. Scored with the repo's `planFromArgon` + `scorePlan`. Without a response schema Argon once returned malformed JSON, so R1's schema enforcement matters.
+- Two bugs found and fixed (see `eval/failures.md`): cropped PNG for wide plans (square canvas now), NaN scale when two labels disagree (longest label now).
+- These live calls were exploration from a throwaway script outside the repo; repo code still calls Gemini only through `packages/gemini` (plan-eval waits for R1).
+
 ## 2026-11-21 11:21 ET · E3 plan images + plan accuracy (branch `elmir/e3-plan-images`)
 
 - **PRs #7 and #9 are both in `main`** (Rahim merged #9 into the E2 branch, then #7 into main).
