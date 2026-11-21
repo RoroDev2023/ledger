@@ -6,6 +6,41 @@ Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluat
 
 - `import { uploadFile, gemini } from '@ledger/gemini'` (branch `rahim/r1-files-upload`, stacked on PR #14). `await uploadFile('data/pairs/<id>/baseline.mp4', 'video/mp4')` returns `{ uri, mime_type }` once the file is ACTIVE and usable. Your `runBaseline` takes `{ uri, mime }`, so pass `{ uri: f.uri, mime: f.mime_type }`, and pass `gemini` as the `BaselineModel`.
 - It handles videos over the 100 MB inline cap (Files API limit: 2 GB per file, 48 h lifetime). Re-running the eval within 47 h reuses the upload. `GEMINI_MODE=mock` returns a fake URI with no network. Uploads appear in `calls.jsonl` as `model: "files-api"`, `tag: "upload"` with 0 tokens, so `summarizeCalls` will show a `files-api` row. Filter it out if you only want model costs.
+## 2026-11-21 12:20 ET · Alex's test plan read live; loadPlanImage fixes for #20
+
+- **Live on Alex's own test plan** (`apps/api/test/plans/unit-4b.pdf`, 4-room L shape, drawn by Alex), via a local merge of main + #20 + #12 and his `check-plan` script: rooms 4/4 within 0.8% area, doors 4/4 and windows 4/4 within 9 cm, scale from labels, 15.4 s. Fixtures 0/5 (not used for pricing).
+- **Fixed in #12 (asked by Alex):** `loadPlanImage` falls back to macOS `sips` when pdftoppm is missing; real MIME types and header-based sizes for WEBP and GIF (tests added). Alex's API can call `parsePlan` on the PDF directly once #12 is in.
+- **#12 is needed before #20 works live:** without it every Argon call 400s on the tuple schema.
+
+## 2026-11-21 11:47 ET · Integration test with R1: plan parsing works live through packages/gemini
+
+- Local merge of main + Rahim's #14 (client) + #17 (uploadFile) + my #12: typecheck clean, **113 tests pass** across shared, plan, gemini, eval and api.
+- **Bug found and fixed:** our `z.tuple` points made the Gemini API return HTTP 400 "Invalid JSON payload". Points are plain 2-number arrays now. With the fix, **plan-eval live through R1: rooms 7/7, doors+windows 13/13, dimension error 0.4-1.8%, ~8 s per plan** (`eval/plan-results.md`; 3 clean drawings, not a benchmark).
+- **Rahim, important:** `BBoxSchema` (shared contract) is also a `z.tuple`; as a Carbon response schema it will 400 the same way. Suggest fixing it once in `toResponseSchema`: turn array-form `items` into an object `items` with min/maxItems. Contract stays unchanged.
+- `plan-eval` and `baseline` now load `.env` themselves (`process.loadEnvFile`), and plan-eval writes to the repo-root `eval/`.
+
+## 2026-11-21 11:35 ET · Demo/eval kit + baseline runner (branch `elmir/e4-kit`, includes #11)
+
+- **`eval/kit/demo-table-kit.pdf`** (`pnpm --filter @ledger/eval kit [plan]`): page 1 the Unit 4B plan to put next to the shoebox; page 2 two judge cards listing every wall and floor with its surface ID (new mark / already there / object moved, plus "nothing changed"). Print a stack before filming test pairs.
+- **`pnpm --filter @ledger/eval baseline <pairId> [plan]`**: uploads `data/pairs/<pairId>/{baseline,moveout}.mp4` via `@ledger/gemini`, runs the Neon baseline, writes `.data/eval/baseline/<pairId>.json`. **Rahim:** it needs `generate()` and `uploadFile(path, mime) -> { uri }` exported from `packages/gemini`; until then it prints that and exits.
+- **Status:** R1 (`packages/gemini`) not on any branch at 11:34, so no repo code can call Gemini yet; plan-eval and baseline both wait on it.
+- **Verified:** typecheck, lint, 34 tests; kit PDF rendered and checked by eye.
+
+## 2026-11-21 11:33 ET · First LIVE Gemini calls (event key in git-ignored `.env`)
+
+- Key works: Hydrogen 1.0 s, Neon (paid tier) 3.0 s, **Decisions API 0.5 s** with sensible answers. Billing is on.
+- **Argon on our 3 listing-style plan images** (same prompt as parsePlan, JSON schema enforced): rooms 7/7, doors+windows 13/13, median dimension error 0.1-3.2%, 8-10 s per plan. Scored with the repo's `planFromArgon` + `scorePlan`. Without a response schema Argon once returned malformed JSON, so R1's schema enforcement matters.
+- Two bugs found and fixed (see `eval/failures.md`): cropped PNG for wide plans (square canvas now), NaN scale when two labels disagree (longest label now).
+- These live calls were exploration from a throwaway script outside the repo; repo code still calls Gemini only through `packages/gemini` (plan-eval waits for R1).
+
+## 2026-11-21 11:21 ET · E3 plan images + plan accuracy (branch `elmir/e3-plan-images`)
+
+- **PRs #7 and #9 are both in `main`** (Rahim merged #9 into the E2 branch, then #7 into main).
+- **Listing-style plan images** `packages/shared/fixtures/plan-images/<name>.{svg,png}` drawn from each fixture by `pnpm --filter @ledger/plan plan-images` (`renderListingSvg`): thick walls, door swings, double-line windows, room names with sizes in feet, overall dimension lines, north arrow, no surface IDs. We drew them, so the exact answer is known and there is no rights issue. `demo-table.png` ("Unit 4B") is the printable plan for the demo table.
+- **`scorePlan(parsed, truth)`** in `@ledger/eval`: rooms found, room names matched, doors/windows matched by relative position (scale-independent), median room-dimension error %.
+- **`pnpm --filter @ledger/eval plan-eval`** parses every image with Argon via `@ledger/gemini` and writes `eval/plan-results.md`. Today it prints "no generate() yet (R1)" and exits; it runs as soon as R1 lands and a key is in `.env`.
+- **Verified:** 33 tests, typecheck, lint; images checked by eye. **Not verified:** any live Argon call.
+- **Next:** run plan-eval live when R1 + key exist; film dev pairs per `docs/eval-protocol.md`.
 
 ## 2026-11-21 11:11 ET · E4 eval + protocol + README (branch `elmir/e4-eval`, stacked on PR #7)
 

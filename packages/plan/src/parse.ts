@@ -2,7 +2,7 @@
 // Argon only reads the drawing (rooms, openings, dimension labels) on a 0-1000 grid.
 // Everything numeric after that (scale, meters, walls, areas, IDs) is plain code.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
 import { z } from 'zod';
@@ -13,7 +13,12 @@ type Pt = [number, number];
 
 // ---------------------------------------------------------------------------------------------
 // What we ask the model for. Coordinates are on a 0-1000 grid (x right, y down) over the image.
-const gridPt = z.tuple([z.number().min(-20).max(1020), z.number().min(-20).max(1020)]);
+// A point is "an array of exactly 2 numbers", not z.tuple: zod-to-json-schema turns tuples into the old
+// array-form `items: [...]`, which the Gemini API rejects as a syntax error (found live, 11:50).
+const gridPt = z
+  .array(z.number().min(-20).max(1020))
+  .length(2)
+  .transform((v): Pt => [v[0]!, v[1]!]);
 
 export const ArgonPlanSchema = z.object({
   rooms: z.array(z.object({ name: z.string().min(1), polygon: z.array(gridPt).min(3) })).min(1),
@@ -53,7 +58,7 @@ export type Part =
   | { type: 'image'; data: string; mime_type: string };
 
 export interface PlanModel {
-  generate<T>(args: { model: string; parts: Part[]; schema: z.ZodType<T>; tag: string }): Promise<T>;
+  generate<T>(args: { model: string; parts: Part[]; schema: z.ZodType<T, z.ZodTypeDef, unknown>; tag: string }): Promise<T>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -76,20 +81,54 @@ export function imageSize(buf: Buffer): { width: number; height: number } {
       i += 2 + len;
     }
   }
-  throw new Error('unsupported image: expected PNG or JPEG');
+  if (buf.length >= 10 && buf.toString('ascii', 0, 3) === 'GIF') {
+    return { width: buf.readUInt16LE(6), height: buf.readUInt16LE(8) };
+  }
+  if (buf.length >= 30 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') {
+    const chunk = buf.toString('ascii', 12, 16);
+    if (chunk === 'VP8X') return { width: 1 + buf.readUIntLE(24, 3), height: 1 + buf.readUIntLE(27, 3) };
+    if (chunk === 'VP8 ') return { width: buf.readUInt16LE(26) & 0x3fff, height: buf.readUInt16LE(28) & 0x3fff };
+    if (chunk === 'VP8L') {
+      const b = buf.readUInt32LE(21);
+      return { width: 1 + (b & 0x3fff), height: 1 + ((b >> 14) & 0x3fff) };
+    }
+  }
+  throw new Error('unsupported image: expected PNG, JPEG, GIF or WEBP');
 }
 
-/** PDF -> PNG (first page, 200 dpi) via pdftoppm; images pass through. */
+const MIME: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' };
+
+function hasCommand(cmd: string): boolean {
+  try {
+    execFileSync('/usr/bin/which', [cmd], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * PDF -> PNG (first page, 200 dpi) via pdftoppm, or macOS's built-in `sips` when poppler is not installed.
+ * Images pass through with their real MIME type.
+ */
 export function loadPlanImage(path: string): { data: Buffer; mime: string } {
   const ext = extname(path).toLowerCase();
   if (ext === '.pdf') {
     const dir = mkdtempSync(join(tmpdir(), 'ledger-plan-'));
-    execFileSync('pdftoppm', ['-r', '200', '-png', '-f', '1', '-l', '1', '-singlefile', path, join(dir, 'page')]);
+    if (hasCommand('pdftoppm')) {
+      execFileSync('pdftoppm', ['-r', '200', '-png', '-f', '1', '-l', '1', '-singlefile', path, join(dir, 'page')]);
+    } else if (process.platform === 'darwin' && existsSync('/usr/bin/sips')) {
+      execFileSync('/usr/bin/sips', ['-s', 'format', 'png', '-s', 'dpiWidth', '200', '-s', 'dpiHeight', '200', path, '--out', join(dir, 'page.png')], { stdio: 'ignore' });
+    } else {
+      throw new Error('Cannot read PDF plans: install poppler (pdftoppm), or upload a PNG/JPG instead.');
+    }
     const png = readdirSync(dir).find((f) => f.endsWith('.png'));
-    if (!png) throw new Error('pdftoppm produced no image');
+    if (!png) throw new Error('PDF conversion produced no image');
     return { data: readFileSync(join(dir, png)), mime: 'image/png' };
   }
-  return { data: readFileSync(path), mime: ext === '.png' ? 'image/png' : 'image/jpeg' };
+  const mime = MIME[ext];
+  if (!mime) throw new Error(`unsupported plan file type ${ext || '(none)'}: use PDF, PNG, JPG, WEBP or GIF`);
+  return { data: readFileSync(path), mime };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -158,6 +197,16 @@ export function scaleFromLabels(
     };
     const m0 = median(ratios);
     const kept = ratios.filter((r) => Math.abs(r - m0) / m0 <= 0.15);
+    if (!kept.length) {
+      // Labels disagree with each other (e.g. two labels, far apart). Trust the longest one: it spans the
+      // most pixels, so a misplaced endpoint matters least. Say so.
+      const longest = labels
+        .filter((l) => l.meters && l.meters > 0)
+        .map((l) => ({ r: l.meters! / Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]), len: Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]) }))
+        .filter((x) => Number.isFinite(x.r) && x.r > 0)
+        .sort((a, b) => b.len - a.len)[0]!;
+      return { metersPerPixel: longest.r, scaleSource: 'labels', warnings: [`dimension labels disagree by >15%; scale taken from the longest label only`] };
+    }
     const warnings = kept.length < ratios.length ? [`${ratios.length - kept.length} dimension label(s) disagreed with the others by >15% and were ignored`] : [];
     return { metersPerPixel: median(kept), scaleSource: 'labels', warnings };
   }

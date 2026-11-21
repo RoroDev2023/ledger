@@ -9,11 +9,15 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "eval": "tsx src/run.ts"
+    "eval": "tsx src/run.ts",
+    "plan-eval": "tsx src/plan-eval.ts",
+    "kit": "tsx src/kit.ts",
+    "baseline": "tsx src/baseline-run.ts"
   },
   "dependencies": {
     "@ledger/shared": "workspace:*",
     "@ledger/plan": "workspace:*",
-    "zod": "^3.25.0"
+    "zod": "^3.25.0",
+    "@ledger/gemini": "workspace:*"
   }
 }

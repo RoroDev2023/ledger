@@ -7,6 +7,9 @@ Goal: an honest number on inputs we did not prepare. The headline numbers are **
 - One fixed lamp, phone exposure locked (long-press to lock AE/AF on iPhone).
 - Marks about 1 cm or larger: dry-erase marker scratch, coffee-coloured sticker stain, a removable "hole" sticker. One movable chair.
 
+## Print first
+`eval/kit/demo-table-kit.pdf` (regenerate: `pnpm --filter @ledger/eval kit`): page 1 is the Unit 4B plan for the table, page 2 has two judge cards with every surface ID pre-printed. One card per pair.
+
 ## What we film
 | Set | Count | Who changes things | Use |
 |---|---|---|---|
@@ -31,7 +34,7 @@ Pair ids: `dev-01`..., `test-01`..., `clean-01`... Clean re-shoots get `cleanRes
 ## Running it
 ```
 pnpm --filter @ledger/pipeline run:pair <plan> <baseline.mp4> <moveout.mp4>   # ours -> .data/units/<pairId>/diff.json
-# baseline -> .data/eval/baseline/<pairId>.json (runBaseline in @ledger/eval)
+pnpm --filter @ledger/eval baseline <pairId>                                 # baseline -> .data/eval/baseline/<pairId>.json
 pnpm eval --split test                                                       # -> eval/results.md
 ```
 

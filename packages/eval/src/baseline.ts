@@ -9,7 +9,7 @@ export type BaselinePart =
 
 /** The only thing the baseline needs from packages/gemini (R1 generate<T>). Mockable. */
 export interface BaselineModel {
-  generate<T>(args: { model: string; parts: BaselinePart[]; schema: z.ZodType<T>; tag: string }): Promise<T>;
+  generate<T>(args: { model: string; parts: BaselinePart[]; schema: z.ZodType<T, z.ZodTypeDef, unknown>; tag: string }): Promise<T>;
 }
 
 export const BaselineOutputSchema = z.object({
