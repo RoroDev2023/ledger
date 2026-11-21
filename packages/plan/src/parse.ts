@@ -13,7 +13,12 @@ type Pt = [number, number];
 
 // ---------------------------------------------------------------------------------------------
 // What we ask the model for. Coordinates are on a 0-1000 grid (x right, y down) over the image.
-const gridPt = z.tuple([z.number().min(-20).max(1020), z.number().min(-20).max(1020)]);
+// A point is "an array of exactly 2 numbers", not z.tuple: zod-to-json-schema turns tuples into the old
+// array-form `items: [...]`, which the Gemini API rejects as a syntax error (found live, 11:50).
+const gridPt = z
+  .array(z.number().min(-20).max(1020))
+  .length(2)
+  .transform((v): Pt => [v[0]!, v[1]!]);
 
 export const ArgonPlanSchema = z.object({
   rooms: z.array(z.object({ name: z.string().min(1), polygon: z.array(gridPt).min(3) })).min(1),
@@ -53,7 +58,7 @@ export type Part =
   | { type: 'image'; data: string; mime_type: string };
 
 export interface PlanModel {
-  generate<T>(args: { model: string; parts: Part[]; schema: z.ZodType<T>; tag: string }): Promise<T>;
+  generate<T>(args: { model: string; parts: Part[]; schema: z.ZodType<T, z.ZodTypeDef, unknown>; tag: string }): Promise<T>;
 }
 
 // ---------------------------------------------------------------------------------------------

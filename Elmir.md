@@ -6,6 +6,13 @@ Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluat
 
 - `import { uploadFile, gemini } from '@ledger/gemini'` (branch `rahim/r1-files-upload`, stacked on PR #14). `await uploadFile('data/pairs/<id>/baseline.mp4', 'video/mp4')` returns `{ uri, mime_type }` once the file is ACTIVE and usable. Your `runBaseline` takes `{ uri, mime }`, so pass `{ uri: f.uri, mime: f.mime_type }`, and pass `gemini` as the `BaselineModel`.
 - It handles videos over the 100 MB inline cap (Files API limit: 2 GB per file, 48 h lifetime). Re-running the eval within 47 h reuses the upload. `GEMINI_MODE=mock` returns a fake URI with no network. Uploads appear in `calls.jsonl` as `model: "files-api"`, `tag: "upload"` with 0 tokens, so `summarizeCalls` will show a `files-api` row. Filter it out if you only want model costs.
+## 2026-11-21 11:47 ET · Integration test with R1: plan parsing works live through packages/gemini
+
+- Local merge of main + Rahim's #14 (client) + #17 (uploadFile) + my #12: typecheck clean, **113 tests pass** across shared, plan, gemini, eval and api.
+- **Bug found and fixed:** our `z.tuple` points made the Gemini API return HTTP 400 "Invalid JSON payload". Points are plain 2-number arrays now. With the fix, **plan-eval live through R1: rooms 7/7, doors+windows 13/13, dimension error 0.4-1.8%, ~8 s per plan** (`eval/plan-results.md`; 3 clean drawings, not a benchmark).
+- **Rahim, important:** `BBoxSchema` (shared contract) is also a `z.tuple`; as a Carbon response schema it will 400 the same way. Suggest fixing it once in `toResponseSchema`: turn array-form `items` into an object `items` with min/maxItems. Contract stays unchanged.
+- `plan-eval` and `baseline` now load `.env` themselves (`process.loadEnvFile`), and plan-eval writes to the repo-root `eval/`.
+
 ## 2026-11-21 11:35 ET · Demo/eval kit + baseline runner (branch `elmir/e4-kit`, includes #11)
 
 - **`eval/kit/demo-table-kit.pdf`** (`pnpm --filter @ledger/eval kit [plan]`): page 1 the Unit 4B plan to put next to the shoebox; page 2 two judge cards listing every wall and floor with its surface ID (new mark / already there / object moved, plus "nothing changed"). Print a stack before filming test pairs.

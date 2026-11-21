@@ -62,6 +62,14 @@ describe('scale', () => {
   });
 });
 
+describe('ArgonPlanSchema points', () => {
+  it('accepts [x, y] and rejects other lengths (plain array, not z.tuple: the Gemini API rejects tuple JSON schemas)', async () => {
+    const { ArgonPlanSchema } = await import('../src/index.js');
+    expect(ArgonPlanSchema.safeParse({ ...argon, openings: [{ kind: 'door', a: [1, 2], b: [3, 4] }] }).success).toBe(true);
+    expect(ArgonPlanSchema.safeParse({ ...argon, openings: [{ kind: 'door', a: [1, 2, 3], b: [3, 4] }] }).success).toBe(false);
+  });
+});
+
 describe('planFromArgon', () => {
   it('builds a valid plan in meters with walls, openings and fixtures', () => {
     const { plan, errors } = planFromArgon(argon, IMG, { unitId: 'u1', ceilingHeightM: 2.5 });

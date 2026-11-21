@@ -16,6 +16,8 @@ const pairDir = join(root, 'data', 'pairs', pairId);
 for (const f of ['baseline.mp4', 'moveout.mp4'])
   if (!existsSync(join(pairDir, f))) { console.log(`missing ${join(pairDir, f)}`); process.exit(1); }
 
+// Load the repo's git-ignored .env (Node 22+), so GEMINI_API_KEY and GEMINI_MODE apply without extra tooling.
+try { process.loadEnvFile(new URL('../../../.env', import.meta.url)); } catch { /* no .env: env already set or mock mode */ }
 const gemini: Record<string, unknown> = await import('@ledger/gemini');
 const upload = gemini.uploadFile as ((path: string, mime: string) => Promise<{ uri: string }>) | undefined;
 if (typeof gemini.generate !== 'function' || typeof upload !== 'function') {

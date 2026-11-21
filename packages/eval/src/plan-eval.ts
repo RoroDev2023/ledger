@@ -2,11 +2,13 @@
 // Parses every listing-style image in packages/shared/fixtures/plan-images/ with parsePlan (Argon via
 // packages/gemini) and scores it against the fixture it was drawn from. Needs R1's generate() and a key.
 import { existsSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { FIXTURES_DIR, loadPlanFixture } from '@ledger/shared';
 import { parsePlan, type PlanModel } from '@ledger/plan';
 import { scorePlan } from './plan-score.js';
 
+// Load the repo's git-ignored .env (Node 22+), so GEMINI_API_KEY and GEMINI_MODE apply without extra tooling.
+try { process.loadEnvFile(new URL('../../../.env', import.meta.url)); } catch { /* no .env: env already set or mock mode */ }
 const gemini: Record<string, unknown> = await import('@ledger/gemini');
 if (typeof gemini.generate !== 'function') {
   console.log('packages/gemini has no generate() yet (R1). Nothing run.');
@@ -36,6 +38,7 @@ const md = [
   '|---|---|---|---|---|---|---|---|',
   ...rows, '',
 ].join('\n');
-mkdirSync('eval', { recursive: true });
-writeFileSync(join('eval', 'plan-results.md'), md);
+const evalDir = resolve(import.meta.dirname, '..', '..', '..', 'eval');
+mkdirSync(evalDir, { recursive: true });
+writeFileSync(join(evalDir, 'plan-results.md'), md);
 console.log(md);
