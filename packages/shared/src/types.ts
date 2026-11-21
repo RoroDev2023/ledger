@@ -105,7 +105,7 @@ export interface DiffItem {
   confidence: number;
   /** Where on the surface the damage is, so the 3D pin lands on it: height above the floor, and the plan item
    * (fixture surface id or opening id) it's next to. Additive and optional. [Alex] */
-  spot?: { heightM?: number; nearId?: string };
+  spot?: { heightM?: number; nearId?: string; side?: 'left' | 'right' | 'on' };
 }
 
 export interface Statement {

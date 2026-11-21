@@ -29,6 +29,7 @@ function fakeDecide(opts: { wrong: number[]; changed: boolean }) {
         answers: {
           on: { type: 'choice', choice: 'wall', probabilities: { wall: 0.9 }, confidence: 0.9 },
           near: { type: 'choice', choice: 'none', probabilities: { none: 0.9 }, confidence: 0.9 },
+          side: { type: 'choice', choice: 'right', probabilities: { right: 0.9 }, confidence: 0.9 },
           height: { type: 'choice', choice: 'chest', probabilities: { chest: 0.5, above: 0.5 }, confidence: 0.5 },
         },
         usage: {},

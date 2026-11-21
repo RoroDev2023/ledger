@@ -101,3 +101,16 @@ describe('pins at the exact spot (any surface)', () => {
     expect(spotAnchor(geo, plan, { surfaceId: 'conference.wall-4' }, pieces)).toBeNull();
   });
 });
+
+describe('left / right of the item it is next to', () => {
+  const geo = planGeometry(plan);
+  it('"right of the portrait" is to the right when facing that wall, past the frame', () => {
+    const art = get('portrait');
+    const wall = geo.walls.find((w) => w.surfaceId === art.wallSurfaceId)!;
+    const right: [number, number] = [wall.inward[1], -wall.inward[0]]; // facing the wall (-inward), right-hand side
+    const at = (side: 'left' | 'right') => spotAnchor(geo, plan, { surfaceId: wall.surfaceId, spot: { heightM: 1.9, nearId: art.surfaceId, side } }, pieces)!;
+    const off = (p: number[]) => (p[0]! - art.position[0]) * right[0] + (p[2]! - art.position[2]) * right[1];
+    expect(off(at('right'))).toBeGreaterThan(art.size[0] / 2);
+    expect(off(at('left'))).toBeLessThan(-art.size[0] / 2);
+  });
+});

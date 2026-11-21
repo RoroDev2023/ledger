@@ -423,22 +423,27 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
  * The exact spot of one line, when the comparison said where it is (item.spot: height above the floor, and the
  * plan item or door/window it's next to). Works for any wall, fixture or floor. Null → fall back to pinAnchors.
  */
-export function spotAnchor(geo: PlanGeometry, plan: FloorPlan, item: { surfaceId: string; spot?: { heightM?: number; nearId?: string } }, targets: PinTarget[] = []): Vec3 | null {
+export function spotAnchor(geo: PlanGeometry, plan: FloorPlan, item: { surfaceId: string; spot?: { heightM?: number; nearId?: string; side?: 'left' | 'right' | 'on' } }, targets: PinTarget[] = []): Vec3 | null {
   const spot = item.spot;
   if (!spot || (spot.heightM === undefined && !spot.nearId)) return null;
   const ceiling = plan.ceilingHeightM;
   // (x, z) of the thing it's next to: a placed fixture, or the middle of a door/window.
   let near: Vec2 | null = null;
+  let nearHalf = 0; // half the width of that thing, to step past its edge for "left of" / "right of"
   if (spot.nearId) {
     const t = targets.find((x) => x.surfaceId === spot.nearId);
     const o = plan.openings.find((x) => x.id === spot.nearId);
     const host = o && plan.surfaces.find((x) => x.id === o.wallId);
-    if (t) near = [t.position[0], t.position[2]];
+    if (t) {
+      near = [t.position[0], t.position[2]];
+      nearHalf = t.size[0] / 2;
+    }
     else if (o && host?.segment) {
       const [a, b] = host.segment;
       const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
       const k = (o.offsetM + o.widthM / 2) / len;
       near = [a[0] + (b[0] - a[0]) * k, -(a[1] + (b[1] - a[1]) * k)];
+      nearHalf = o.widthM / 2;
     }
   }
   const t = targets.find((x) => x.surfaceId === item.surfaceId);
@@ -472,7 +477,9 @@ export function spotAnchor(geo: PlanGeometry, plan: FloorPlan, item: { surfaceId
   if (wall) {
     const along: Vec2 = [-wall.inward[1], wall.inward[0]];
     const half = Math.max(0, wall.length / 2 - 0.15);
-    const k = near ? clamp((near[0] - wall.center[0]) * along[0] + (near[1] - wall.center[2]) * along[1], -half, half) : 0;
+    // Facing the wall from the room, "right in the photo" is -along (along = left when facing the wall).
+    const step = spot.side === 'right' ? -(nearHalf + 0.3) : spot.side === 'left' ? nearHalf + 0.3 : 0;
+    const k = near ? clamp((near[0] - wall.center[0]) * along[0] + (near[1] - wall.center[2]) * along[1] + step, -half, half) : 0;
     const y = clamp(spot.heightM ?? wall.center[1], 0.1, ceiling - 0.1);
     return [wall.center[0] + along[0] * k + wall.inward[0] * 0.1, y, wall.center[2] + along[1] * k + wall.inward[1] * 0.1];
   }

@@ -378,7 +378,7 @@ async function locateSpot(a: {
   what: string;
   ask: (q: { input: Content[]; questions: Record<string, DecisionQuestion> }) => Promise<{ answers: Record<string, unknown> }>;
   img: (f: Frame) => Promise<Content>;
-}): Promise<{ surfaceId: string; spot: { heightM?: number; nearId?: string } }> {
+}): Promise<{ surfaceId: string; spot: NonNullable<DiffItem['spot']> }> {
   const { plan, wallId } = a;
   const roomId = plan.surfaces.find((x) => x.id === wallId)?.roomId;
   const room = plan.rooms.find((r) => r.id === roomId)?.name ?? '';
@@ -408,7 +408,7 @@ async function locateSpot(a: {
   let surfaceId = wallId;
   if (onK.startsWith('f') && onP >= 0.5) surfaceId = fixtures[Number(onK.slice(1))]!.id;
   else if (onK === 'floor' && onP >= 0.5) surfaceId = plan.surfaces.find((x) => x.kind === 'floor' && x.roomId === roomId)?.id ?? wallId;
-  const spot: { heightM?: number; nearId?: string } = {};
+  const spot: NonNullable<DiffItem['spot']> = {};
   // Height: probability-weighted over the bands, so an unsure "chest or above" lands in between.
   const hp = answers.height?.probabilities;
   if (hp && Object.keys(hp).length) {
@@ -426,6 +426,20 @@ async function locateSpot(a: {
   if (nearP >= 0.4) {
     if (nearK.startsWith('f')) spot.nearId = fixtures[Number(nearK.slice(1))]!.id;
     else if (nearK.startsWith('o')) spot.nearId = openings[Number(nearK.slice(1))]!.id;
+    // Which side of THAT item, asked by name (a generic "closest item" question mostly answered "on").
+    const name = nearK.startsWith('f') ? `the ${short(fixtures[Number(nearK.slice(1))]!.label)}` : near[nearK]!;
+    const sideRes = await a.ask({
+      input: [await a.img(a.frame)],
+      questions: {
+        side: {
+          type: 'choice',
+          instructions: `${lead} In this photo, where is it compared with ${name}?`,
+          criteria: { left: `to the left of ${name}, beside it`, right: `to the right of ${name}, beside it`, on: `on ${name} itself, covering part of it` },
+        },
+      },
+    });
+    const [sideK, sideP] = top((sideRes.answers as Record<string, { probabilities?: Record<string, number> } | undefined>).side?.probabilities);
+    if (sideP >= 0.5 && (sideK === 'left' || sideK === 'right' || sideK === 'on')) spot.side = sideK;
   }
   return { surfaceId, spot };
 }
