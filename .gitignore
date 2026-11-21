@@ -7,3 +7,4 @@ coverage/
 *.tsbuildinfo
 .hack/
 .next*/
+eval/*.sample.*

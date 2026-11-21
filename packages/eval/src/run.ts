@@ -39,7 +39,10 @@ const base = { name: 'Neon one-call baseline', byPair: Object.fromEntries(labels
 
 const callsPath = join(dataDir, 'calls.jsonl');
 const costs = summarizeCalls(existsSync(callsPath) ? readFileSync(callsPath, 'utf8').split('\n') : []);
-const md = renderReport([summarize(ours, labels), summarize(base, labels)], labels, { split, generatedAt: new Date().toISOString(), costs });
+const summaries = [summarize(ours, labels), summarize(base, labels)];
+const md = renderReport(summaries, labels, { split, generatedAt: new Date().toISOString(), costs });
 mkdirSync(join(root, 'eval'), { recursive: true });
 writeFileSync(join(root, 'eval', 'results.md'), md);
+// Structured copy for the proof slide (pnpm --filter @ledger/eval proof-slide).
+writeFileSync(join(root, 'eval', 'results.json'), JSON.stringify({ split, generatedAt: new Date().toISOString(), pairs: labels.length, cleanPairs: labels.filter((l) => l.cleanReshoot).length, systems: summaries }, null, 2));
 console.log(labels.length ? `Scored ${labels.length} ${split} pairs -> eval/results.md` : `No ${split} labels in data/labels/ yet; wrote an empty table to eval/results.md`);

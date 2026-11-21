@@ -83,7 +83,7 @@ export async function extractKeyframes(
   for (const [i, file] of files.entries()) {
     const path = join(framesDir, file);
     const index = Number(file.slice(0, 5));
-    const [sharpness, phash] = await Promise.all([sharpnessOf(path), dHashOf(path)]);
+    const [sharpness, phash] = await Promise.all([frameSharpness(path), dHashOf(path)]);
     raw.push({ index, tMs: Math.round(((index - 1) * 1000) / FRAME_FPS), path, sharpness, phash });
     opts.onProgress?.(i + 1, files.length);
   }
@@ -197,7 +197,8 @@ export function hammingHex(a: string, b: string): number {
   return count;
 }
 
-async function sharpnessOf(path: string): Promise<number> {
+/** Laplacian-variance sharpness of a JPEG on disk (same measure extractFrames stores in Frame.sharpness). */
+export async function frameSharpness(path: string): Promise<number> {
   const { data, info } = await sharp(path).greyscale().raw().toBuffer({ resolveWithObject: true });
   return laplacianVariance(data, info.width, info.height);
 }

@@ -1,0 +1,39 @@
+# [Rahim] XcodeGen spec for the LEDGER room scanner. The generated LedgerScanner.xcodeproj is committed,
+# so you only need `xcodegen` (brew install xcodegen) if you change this file.
+name: LedgerScanner
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  LedgerScanner:
+    type: application
+    platform: iOS
+    sources:
+      - LedgerScanner
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ledger.scanner
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: LedgerScanner/Info.plist
+    info:
+      path: LedgerScanner/Info.plist
+      properties:
+        CFBundleDisplayName: LEDGER Scan
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSCameraUsageDescription: LEDGER uses the camera and LiDAR to scan the room's walls, doors and windows.
+        NSLocalNetworkUsageDescription: LEDGER uploads the room scan to the LEDGER server on your laptop over Wi-Fi.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+          NSAllowsLocalNetworking: true
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true

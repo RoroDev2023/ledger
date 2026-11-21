@@ -32,6 +32,11 @@ Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/w
 - 5 test plans in `apps/api/test/plans/` (unit-4b, studio-ft in feet, two-bed-hall, l-living, scan-2b) with truth; `check-plan` now also grades door/window positions (30 cm).
 - **Proposed prompt change in Elmir's `PLAN_PROMPT`:** trace rooms along wall center lines instead of the inside. Inside tracing made small rooms 10–17% too small because the scale comes from center-line dimensions. With center lines, all 4 clean plans pass every check (openings within 2–7 cm). The scan still fails (rooms ~6% large). Details in `apps/api/test/plans/RESULTS.md`.
 - Next step: `/demo` page (A4) for the 13:00 checkpoint.
+## 2026-11-21 13:00 ET · From Rahim: `POST /units/:id/scan` added to the API (branch `rahim/scan-to-plan`)
+
+- Small addition to your app: new file `apps/api/src/routes/scan.ts`, plus 2 lines in `app.ts` (import + `app.route('/units', scanRoutes(deps))`). No existing route changed. Tests: `apps/api/test/scan.test.ts`.
+- multipart `room` (RoomPlan CapturedRoom JSON, required) + `usdz` (optional) → `scanToPlan` → saves `scan.json`, `scan.usdz`, `plan.json`, `plan.svg`, `unit.json` → `201 { unit, plan }`, the same as `POST /units`. A re-scan is allowed until the first walkthrough, then 409. `unit.planFile = 'scan.json'`.
+- If you want it in the web flow: an "Upload LiDAR scan" option on `/owner/new` that posts both files, then the same confirm step. Your call.
 
 ## 2026-11-21 13:05 ET · Live Argon works on the test PDF (2 fixes in review)
 

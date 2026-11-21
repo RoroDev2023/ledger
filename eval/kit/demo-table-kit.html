@@ -1,0 +1,71 @@
+<!doctype html><html><head><meta charset="utf-8"><title>LEDGER demo kit · demo-table</title>
+<style>
+  @page { size: letter; margin: 12mm; }
+  body { font-family: Helvetica, Arial, sans-serif; color: #111; }
+  .plan { page-break-after: always; text-align: center; }
+  .plan svg { width: 100%; height: auto; max-height: 230mm; }
+  .card { page-break-inside: avoid; border: 1.5px solid #111; border-radius: 6px; padding: 8px 12px; margin-bottom: 10mm; }
+  h1 { font-size: 20px; margin: 0 0 6px; } h2 { font-size: 15px; margin: 0 0 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th, td { border: 1px solid #999; padding: 3px 5px; text-align: left; }
+  td.id { font-family: Menlo, monospace; font-size: 10px; white-space: nowrap; } td.box { width: 22%; }
+  .small { font-size: 10px; color: #444; margin: 2px 0 6px; }
+</style></head><body>
+<div class="plan"><h1>Unit 4B · floor plan</h1><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 785 785" width="785" height="785" font-family="Helvetica, Arial, sans-serif">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="90" y="185" font-size="20" font-weight="bold" fill="#111">Unit 4B</text>
+<polygon points="90.0,550.0 420.0,550.0 420.0,275.0 90.0,275.0" fill="#f7f7f2" stroke="none"/>
+<polygon points="420.0,550.0 695.0,550.0 695.0,275.0 420.0,275.0" fill="#f7f7f2" stroke="none"/>
+<line x1="90.0" y1="550.0" x2="420.0" y2="550.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="420.0" y1="550.0" x2="420.0" y2="275.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="420.0" y1="275.0" x2="90.0" y2="275.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="90.0" y1="275.0" x2="90.0" y2="550.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="420.0" y1="550.0" x2="695.0" y2="550.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="695.0" y1="550.0" x2="695.0" y2="275.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="695.0" y1="275.0" x2="420.0" y2="275.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="420.0" y1="275.0" x2="420.0" y2="550.0" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+<line x1="150.5" y1="550.0" x2="249.5" y2="550.0" stroke="#ffffff" stroke-width="11"/>
+<line x1="150.5" y1="550.0" x2="150.5" y2="451.0" stroke="#111" stroke-width="2"/>
+<path d="M 150.5 451.0 A 99.0 99.0 0 0 0 249.5 550.0" fill="none" stroke="#111" stroke-width="1.2"/>
+<line x1="420.0" y1="506.0" x2="420.0" y2="418.0" stroke="#ffffff" stroke-width="11"/>
+<line x1="420.0" y1="506.0" x2="332.0" y2="506.0" stroke="#111" stroke-width="2"/>
+<path d="M 332.0 506.0 A 88.0 88.0 0 0 0 420.0 418.0" fill="none" stroke="#111" stroke-width="1.2"/>
+<line x1="321.0" y1="275.0" x2="189.0" y2="275.0" stroke="#ffffff" stroke-width="11"/>
+<line x1="321.0" y1="279.4" x2="189.0" y2="279.4" stroke="#111" stroke-width="2"/>
+<line x1="321.0" y1="270.6" x2="189.0" y2="270.6" stroke="#111" stroke-width="2"/>
+<line x1="695.0" y1="467.5" x2="695.0" y2="357.5" stroke="#ffffff" stroke-width="11"/>
+<line x1="690.6" y1="467.5" x2="690.6" y2="357.5" stroke="#111" stroke-width="2"/>
+<line x1="699.4" y1="467.5" x2="699.4" y2="357.5" stroke="#111" stroke-width="2"/>
+<text x="255.0" y="412.5" text-anchor="middle" font-size="15" font-weight="bold" fill="#111">LIVING ROOM</text>
+<text x="255.0" y="430.5" text-anchor="middle" font-size="13" fill="#333">9'10" x 8'2"</text>
+<text x="557.5" y="412.5" text-anchor="middle" font-size="15" font-weight="bold" fill="#111">BEDROOM</text>
+<text x="557.5" y="430.5" text-anchor="middle" font-size="13" fill="#333">8'2" x 8'2"</text>
+<line x1="90" y1="580" x2="695" y2="580" stroke="#555" stroke-width="1"/>
+<line x1="90" y1="574" x2="90" y2="586" stroke="#555"/>
+<line x1="695" y1="574" x2="695" y2="586" stroke="#555"/>
+<text x="392.5" y="598" text-anchor="middle" font-size="13" fill="#333">18'1"</text>
+<line x1="60" y1="275" x2="60" y2="550" stroke="#555" stroke-width="1"/>
+<line x1="54" y1="275" x2="66" y2="275" stroke="#555"/>
+<line x1="54" y1="550" x2="66" y2="550" stroke="#555"/>
+<text x="50" y="412.5" text-anchor="middle" font-size="13" fill="#333" transform="rotate(-90 50 412.5)">8'2"</text>
+<g transform="translate(735,70)"><path d="M0 -22 L8 6 L0 0 L-8 6 Z" fill="#111"/><text y="22" text-anchor="middle" font-size="13" font-weight="bold">N</text></g>
+</svg>
+</div>
+<section class="card">
+  <h2>Judge card 1 · Unit 4B</h2>
+  <p class="small">Write this <b>before</b> you see any result. Pair id: ________ &nbsp; Your name (optional): ____________</p>
+  <table>
+    <thead><tr><th>Surface</th><th></th><th>New mark<br><span class="small">(type)</span></th><th>Already there</th><th>Object moved<br><span class="small">to/from</span></th></tr></thead>
+    <tbody><tr><td class="id">living-room.wall-s</td><td>Living room south wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">living-room.wall-e</td><td>Living room east wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">living-room.wall-n</td><td>Living room north wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">living-room.wall-w</td><td>Living room west wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">living-room.floor</td><td>Living room floor</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">bedroom.wall-s</td><td>Bedroom south wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">bedroom.wall-e</td><td>Bedroom east wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">bedroom.wall-n</td><td>Bedroom north wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">bedroom.wall-w</td><td>Bedroom west wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">bedroom.floor</td><td>Bedroom floor</td><td class="box"></td><td class="box"></td><td class="box"></td></tr></tbody>
+  </table>
+  <p class="small">Mark types: scratch / scuff · stain · hole · crack · missing fixture · other. &nbsp; ☐ Nothing changed (clean re-shoot)</p>
+</section><section class="card">
+  <h2>Judge card 2 · Unit 4B</h2>
+  <p class="small">Write this <b>before</b> you see any result. Pair id: ________ &nbsp; Your name (optional): ____________</p>
+  <table>
+    <thead><tr><th>Surface</th><th></th><th>New mark<br><span class="small">(type)</span></th><th>Already there</th><th>Object moved<br><span class="small">to/from</span></th></tr></thead>
+    <tbody><tr><td class="id">living-room.wall-s</td><td>Living room south wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">living-room.wall-e</td><td>Living room east wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">living-room.wall-n</td><td>Living room north wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">living-room.wall-w</td><td>Living room west wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">living-room.floor</td><td>Living room floor</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">bedroom.wall-s</td><td>Bedroom south wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">bedroom.wall-e</td><td>Bedroom east wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">bedroom.wall-n</td><td>Bedroom north wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">bedroom.wall-w</td><td>Bedroom west wall</td><td class="box"></td><td class="box"></td><td class="box"></td></tr><tr><td class="id">bedroom.floor</td><td>Bedroom floor</td><td class="box"></td><td class="box"></td><td class="box"></td></tr></tbody>
+  </table>
+  <p class="small">Mark types: scratch / scuff · stain · hole · crack · missing fixture · other. &nbsp; ☐ Nothing changed (clean re-shoot)</p>
+</section>
+</body></html>
