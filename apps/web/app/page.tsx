@@ -21,8 +21,11 @@ export default function Page() {
         <input value={id} onChange={(e) => setId(e.target.value)} placeholder="unit id, e.g. demo-1" style={{ flex: 1, padding: '10px 12px', border: '1px solid #d8d2c6', borderRadius: 8 }} />
         <button style={{ padding: '10px 18px', border: 0, borderRadius: 8, background: '#15130f', color: '#fff' }}>Open in 3D</button>
       </form>
+      <a href="/owner/new" style={{ display: 'inline-block', marginTop: 18, padding: '12px 20px', borderRadius: 8, background: '#15130f', color: '#fff', textDecoration: 'none' }}>
+        + New unit from a floor plan
+      </a>
       <p style={{ color: '#8a8173', fontSize: 13 }}>
-        No unit yet? Create one on the <a href={API_URL}>API test page</a>.
+        Developer tools: <a href={API_URL}>API test page</a> · <a href="/lab">3D viewer lab</a>
       </p>
     </main>
   );

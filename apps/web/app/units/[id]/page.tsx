@@ -6,7 +6,10 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import type { DiffItem, Finding, FloorPlan, Statement } from '@ledger/shared';
 import { EvidencePanel } from '../../../components/EvidencePanel';
-import { api } from '../../../lib/api';
+import { Header } from '../../../components/Header';
+import { VideoUpload } from '../../../components/VideoUpload';
+import { api, type Unit } from '../../../lib/api';
+import { C, btn, card } from '../../../lib/ui';
 
 // three.js needs the browser (WebGL), so the 3D view never renders on the server.
 const UnitModel = dynamic(() => import('@ledger/viewer/UnitModel').then((m) => m.UnitModel), {
@@ -15,6 +18,7 @@ const UnitModel = dynamic(() => import('@ledger/viewer/UnitModel').then((m) => m
 });
 
 interface Loaded {
+  unit: Unit;
   plan: FloorPlan;
   statement: Statement | null;
   items: DiffItem[];
@@ -29,29 +33,31 @@ function UnitPage() {
   const q = useSearchParams();
   const [selected, setSelected] = useState<string | null>(q.get('select'));
   const [view, setView] = useState<'3d' | 'top'>(q.get('view') === 'top' ? 'top' : '3d');
+  const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const plan = await api.plan(id);
-      const statement = await api.statement(id);
+      const [unit, plan] = await Promise.all([api.unit(id), api.plan(id)]);
+      // Only ask for results that can exist yet (a 404 is handled, but the browser still logs it as an error).
+      const statement = unit.walkthroughs.some((w) => w.kind === 'move-out') ? await api.statement(id) : null;
       let items = statement?.items ?? [];
       let moveOutFindings: Finding[] = [];
       if (statement) {
         moveOutFindings = (await api.findings(id, 'move-out'))?.findings ?? [];
       } else {
-        const base = await api.findings(id, 'baseline');
+        const base = unit.walkthroughs.some((w) => w.kind === 'baseline') ? await api.findings(id, 'baseline') : null;
         items = (base?.findings ?? []).map((f) => ({
           surfaceId: f.surfaceId,
           verdict: 'pre-existing' as const,
           issueType: f.type,
           reason: `In the move-in record: ${f.type}, severity ${f.severity}/5.`,
-          afterFrameId: f.frameIds[0],
+          beforeFrameId: f.frameIds[0], // a move-in frame: shown under "Move-in" in the evidence panel
           confidence: f.confidence,
           costUsd: 0,
         }));
         moveOutFindings = base?.findings ?? [];
       }
-      setData({ plan, statement, items, moveOutFindings });
+      setData({ unit, plan, statement, items, moveOutFindings });
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -68,9 +74,17 @@ function UnitPage() {
   if (error) return <Centered>Could not load unit “{id}”: {error}</Centered>;
   if (!data) return <Centered>Loading…</Centered>;
   const { plan, statement, items } = data;
+  const hasBaseline = data.unit.walkthroughs.some((w) => w.kind === 'baseline');
+  const next = statement
+    ? { href: `/units/${plan.unitId}/statement`, label: 'Open statement →' }
+    : hasBaseline
+      ? { href: `/units/${plan.unitId}/moveout`, label: 'Upload move-out →' }
+      : null;
 
   return (
-    <main style={{ height: '100vh', display: 'grid', gridTemplateRows: 'auto 1fr', padding: '18px 24px', gap: 16 }}>
+    <>
+    <Header unitId={plan.unitId} />
+    <main style={{ height: 'calc(100vh - 52px)', display: 'grid', gridTemplateRows: 'auto 1fr', padding: '18px 24px', gap: 16 }}>
       <header style={{ display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 22 }}>{plan.unitId}</h1>
         <span style={{ color: '#6b6255' }}>
@@ -87,16 +101,43 @@ function UnitPage() {
         ) : (
           <span style={{ color: '#6b6255' }}>Move-in record · {items.length} existing issue(s)</span>
         )}
-        <button onClick={() => void load()} style={btn}>
+        <button onClick={() => void load()} style={btnSmall}>
           Refresh
         </button>
+        {next ? (
+          <a href={next.href} style={{ ...btn, textDecoration: 'none' }}>
+            {next.label}
+          </a>
+        ) : (
+          <button onClick={() => setUploading(true)} style={btn}>
+            Upload move-in video
+          </button>
+        )}
       </header>
+      {uploading && !hasBaseline && (
+        <div style={{ ...card, position: 'fixed', right: 24, top: 120, width: 420, zIndex: 50, boxShadow: '0 12px 40px rgba(0,0,0,.18)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <b>Move-in walkthrough</b>
+            <button onClick={() => setUploading(false)} style={{ border: 0, background: 'none', color: C.muted }}>
+              ✕
+            </button>
+          </div>
+          <VideoUpload
+            unitId={plan.unitId}
+            kind="baseline"
+            onDone={() => {
+              setUploading(false);
+              void load();
+            }}
+          />
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 400px', gap: 20, minHeight: 0 }}>
         <div style={{ position: 'relative', minHeight: 0 }}>
           <UnitModel plan={plan} items={items} selected={selected} onSelect={setSelected} view={view} />
           <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', gap: 6 }}>
             {(['3d', 'top'] as const).map((v) => (
-              <button key={v} onClick={() => setView(v)} style={{ ...btn, background: view === v ? '#15130f' : '#fff', color: view === v ? '#fff' : '#15130f' }}>
+              <button key={v} onClick={() => setView(v)} style={{ ...btnSmall, background: view === v ? '#15130f' : '#fff', color: view === v ? '#fff' : '#15130f' }}>
                 {v === '3d' ? '3D' : 'Top-down'}
               </button>
             ))}
@@ -105,10 +146,11 @@ function UnitPage() {
         <EvidencePanel unitId={plan.unitId} items={items} findings={data.moveOutFindings} selected={selected} onSelect={setSelected} surfaceLabel={surfaceLabel} />
       </div>
     </main>
+    </>
   );
 }
 
-const btn = { padding: '6px 12px', border: '1px solid #d8d2c6', borderRadius: 8, background: '#fff' } as const;
+const btnSmall = { padding: '6px 12px', border: '1px solid #d8d2c6', borderRadius: 8, background: '#fff' } as const;
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <main style={{ height: '100vh', display: 'grid', placeItems: 'center', color: '#6b6255' }}>{children}</main>;

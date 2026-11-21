@@ -62,7 +62,7 @@ function Line({ unitId, item, findings, expanded, onClick, surfaceLabel }: { uni
   );
 }
 
-function Frame({ title, src, bbox, color = '#dc2626' }: { title: string; src: string | null; bbox?: [number, number, number, number]; color?: string }) {
+export function Frame({ title, src, bbox, color = '#dc2626' }: { title: string; src: string | null; bbox?: [number, number, number, number]; color?: string }) {
   return (
     <figure style={{ margin: 0 }}>
       <figcaption style={{ fontSize: 12, color: '#6b6255', marginBottom: 4 }}>{title}</figcaption>

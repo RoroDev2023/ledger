@@ -1,7 +1,7 @@
 // [Alex] <UnitModel plan items selected onSelect view /> : the 3D evidence map.
 // Walls and floors come from the plan (geometry.ts), pins from the statement/diff items (colors.ts).
 // Clicking a wall, floor or pin calls onSelect(surfaceId); clicking empty space calls onSelect(null).
-import { Html, OrbitControls } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import * as THREE from 'three';
@@ -31,6 +31,21 @@ export function UnitModel({ plan, items = [], selected = null, onSelect, view = 
   const charged = useMemo(() => new Set(items.filter((i) => pinStyle(i).charged).map((i) => i.surfaceId)), [items]);
   const select = (id: string | null) => onSelect?.(id);
   const colorOf = (id?: string) => (id && selected === id ? SELECTED : id && charged.has(id) ? WALL_FLAGGED : WALL);
+  const [hovered, setHovered] = useState<number | null>(null);
+  const placed = useMemo(() => placePins(geo, items), [geo, items]);
+
+  // Text over the 3D view (room names, pin tags). Plain DOM positioned every frame by <LabelProjector>; drei's <Html>
+  // was used before but under React 19 it dropped its first label and threw removeChild errors on unmount.
+  const labels: Label[] = [
+    ...geo.floors.map((f) => ({ key: f.surfaceId, at: [f.center[0], 0.05, f.center[2]] as Vec3, text: f.label.replace(/ floor$/i, ''), kind: 'room' as const })),
+    ...placed.flatMap(({ item, at }, i) => {
+      const s = pinStyle(item);
+      const active = selected === item.surfaceId;
+      if (!(s.charged || active || hovered === i)) return [];
+      return [{ key: `pin-${i}`, at: [at[0], at[1] + 0.24, at[2]] as Vec3, text: s.charged ? `$${(item.costUsd ?? 0).toFixed(2)}` : `${s.label} · $0`, kind: 'pin' as const, color: s.color, z: active ? 3 : s.charged ? 2 : 1 }];
+    }),
+  ];
+  const labelEls = useRef<(HTMLSpanElement | null)[]>([]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 360, background: 'linear-gradient(#fbfaf7, #efece6)', borderRadius: 12, ...style }}>
@@ -39,18 +54,32 @@ export function UnitModel({ plan, items = [], selected = null, onSelect, view = 
         <directionalLight position={[geo.bounds.center[0] + 6, 12, geo.bounds.center[2] + 8]} intensity={1.15} />
         <hemisphereLight args={['#ffffff', '#d9d2c3', 0.5]} />
         <CameraRig geo={geo} view={view} />
-        {/* drei <Html> loses the FIRST overlay it creates on startup (its React root is unmounted mid-render under
-            React 19; see "synchronously unmount a root" in the console). This empty one takes that hit so the room
-            labels and pin tags that follow all appear. Verified by screenshot: without it the first room label is missing. */}
-        <Html>{null}</Html>
         {geo.floors.map((f) => (
           <Floor key={f.surfaceId} floor={f} selected={selected === f.surfaceId} onClick={() => select(f.surfaceId)} />
         ))}
         {geo.physical.map((w) => (
           <BuiltWall key={w.id} wall={w} leftColor={colorOf(w.left)} rightColor={colorOf(w.right)} mode={view === 'top' ? 'plan' : 'cutaway'} onSelect={select} />
         ))}
-        <Pins geo={geo} items={items} selected={selected} onSelect={select} />
+        <Pins placed={placed} selected={selected} hovered={hovered} onHover={setHovered} onSelect={select} />
+        <LabelProjector points={labels.map((l) => l.at)} els={labelEls} />
       </Canvas>
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', borderRadius: 12 }}>
+        {labels.map((l, i) => (
+          <span
+            key={l.key}
+            ref={(el) => {
+              labelEls.current[i] = el;
+            }}
+            style={
+              l.kind === 'room'
+                ? { position: 'absolute', left: 0, top: 0, font: '600 11px system-ui', color: '#8a8173', whiteSpace: 'nowrap', letterSpacing: '.06em', textTransform: 'uppercase', visibility: 'hidden' }
+                : { position: 'absolute', left: 0, top: 0, zIndex: l.z, background: l.color, color: '#fff', font: '600 11px/1 system-ui', padding: '4px 7px', borderRadius: 999, whiteSpace: 'nowrap', boxShadow: '0 2px 6px rgba(0,0,0,.18)', visibility: 'hidden' }
+            }
+          >
+            {l.text}
+          </span>
+        ))}
+      </div>
       <Legend items={items} />
     </div>
   );
@@ -139,62 +168,75 @@ function Floor({ floor, selected, onClick }: { floor: PlanGeometry['floors'][num
         <shapeGeometry args={[shape]} />
         <meshStandardMaterial color={selected ? SELECTED : FLOOR} roughness={1} />
       </mesh>
-      <Html position={[floor.center[0], 0.05, floor.center[2]]} center style={{ pointerEvents: 'none', font: '600 11px system-ui', color: '#8a8173', whiteSpace: 'nowrap', letterSpacing: '.06em', textTransform: 'uppercase' }}>
-        {floor.label.replace(/ floor$/i, '')}
-      </Html>
     </group>
   );
 }
 
-function Pins({ geo, items, selected, onSelect }: { geo: PlanGeometry; items: DiffItem[]; selected: string | null; onSelect: (id: string) => void }) {
-  const placed = useMemo(() => {
-    const bySurface = new Map<string, DiffItem[]>();
-    for (const it of items) bySurface.set(it.surfaceId, [...(bySurface.get(it.surfaceId) ?? []), it]);
-    return [...bySurface.entries()].flatMap(([surfaceId, list]) => {
-      const anchors = pinAnchors(geo, surfaceId, list.length);
-      return list.map((item, i) => ({ item, at: anchors[i]! }));
-    });
-  }, [geo, items]);
-  const [hovered, setHovered] = useState<number | null>(null);
+type Placed = { item: DiffItem; at: Vec3 };
 
+/** Pin positions: items grouped by surface, spread out along their wall (see pinAnchors). */
+function placePins(geo: PlanGeometry, items: DiffItem[]): Placed[] {
+  const bySurface = new Map<string, DiffItem[]>();
+  for (const it of items) bySurface.set(it.surfaceId, [...(bySurface.get(it.surfaceId) ?? []), it]);
+  return [...bySurface.entries()].flatMap(([surfaceId, list]) => {
+    const anchors = pinAnchors(geo, surfaceId, list.length);
+    return list.map((item, i) => ({ item, at: anchors[i]! }));
+  });
+}
+
+function Pins({ placed, selected, hovered, onHover, onSelect }: { placed: Placed[]; selected: string | null; hovered: number | null; onHover: (i: number | null) => void; onSelect: (id: string) => void }) {
   return (
     <>
       {placed.map(({ item, at }, i) => {
         const s = pinStyle(item);
-        const active = selected === item.surfaceId;
-        // Text tags only where they matter (charges, the selected surface, the pin under the mouse); every other
-        // pin is just a colored dot explained by the legend. Keeps crowded walls readable.
-        const showTag = s.charged || active || hovered === i;
+        const big = selected === item.surfaceId || hovered === i;
         return (
-          <group key={i} position={at}>
-            <mesh
-              castShadow
-              scale={active || hovered === i ? 1.35 : 1}
-              onPointerOver={(e) => {
-                e.stopPropagation();
-                setHovered(i);
-              }}
-              onPointerOut={() => setHovered((h) => (h === i ? null : h))}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(item.surfaceId);
-              }}
-            >
-              <sphereGeometry args={[0.11, 24, 16]} />
-              <meshStandardMaterial color={s.color} emissive={s.color} emissiveIntensity={active ? 0.6 : 0.25} roughness={0.4} />
-            </mesh>
-            {showTag && (
-            <Html position={[0, 0.24, 0]} center zIndexRange={[active ? 30 : s.charged ? 20 : 10, 0]} style={{ pointerEvents: 'none' }}>
-              <div style={{ background: s.color, color: '#fff', font: '600 11px/1 system-ui', padding: '4px 7px', borderRadius: 999, whiteSpace: 'nowrap', boxShadow: '0 2px 6px rgba(0,0,0,.18)', opacity: active ? 1 : 0.92 }}>
-                {s.charged ? `$${(item.costUsd ?? 0).toFixed(2)}` : `${s.label} · $0`}
-              </div>
-            </Html>
-            )}
-          </group>
+          <mesh
+            key={i}
+            position={at}
+            scale={big ? 1.35 : 1}
+            onPointerOver={(e) => {
+              e.stopPropagation();
+              onHover(i);
+            }}
+            onPointerOut={() => onHover(null)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(item.surfaceId);
+            }}
+          >
+            <sphereGeometry args={[0.11, 24, 16]} />
+            <meshStandardMaterial color={s.color} emissive={s.color} emissiveIntensity={big ? 0.6 : 0.25} roughness={0.4} />
+          </mesh>
         );
       })}
     </>
   );
+}
+
+interface Label {
+  key: string;
+  at: Vec3;
+  text: string;
+  kind: 'room' | 'pin';
+  color?: string;
+  z?: number;
+}
+
+/** Moves each label element to its 3D point's screen position every frame (hidden when behind the camera). */
+function LabelProjector({ points, els }: { points: Vec3[]; els: React.RefObject<(HTMLSpanElement | null)[]> }) {
+  const v = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ camera, size }) => {
+    points.forEach((p, i) => {
+      const el = els.current?.[i];
+      if (!el) return;
+      v.set(p[0], p[1], p[2]).project(camera);
+      const visible = v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2;
+      el.style.visibility = visible ? 'visible' : 'hidden';
+      el.style.transform = `translate(${((v.x + 1) / 2) * size.width}px, ${((1 - v.y) / 2) * size.height}px) translate(-50%, -50%)`;
+    });
+  });
+  return null;
 }
 
 /** Color key for the pins actually on screen, with counts. */

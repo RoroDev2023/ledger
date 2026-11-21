@@ -2,6 +2,15 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 13:05 ET · A3 web flows built and clicked through end to end
+
+- Branch `alex/a3-web-flows` (stacked on #25). Pages: `/owner/new` (plan PDF/image → Argon reads it → review with 3D plan preview, room areas, warnings, rename rooms, fix ceiling height → move-in video with live progress → unit page), `/units/<id>/moveout` (upload, live progress → statement), `/units/<id>/statement` (send-by date, total, charged lines first, $0 lines kept, before/after frames with the damage box, link to each line in 3D, printable version). The unit page got the header and a next-step button. `/confirm` removed (tenant sign-off is cut). Shared components: PlanUpload, PlanReview, VideoUpload (XHR upload progress), JobProgress (stage bars + Decisions counters), StatementView, Header.
+- The viewer's room names and pin tags are now our own DOM overlay projected each frame; drei `<Html>` dropped its first label and threw `removeChild` errors when a 3D view unmounted (seen in the flow). The sacrificial `<Html>` workaround is gone.
+- `PLAN_PARSER=argon` in my `.env` (documented in `.env.example`): uploads from the web app are read by live Argon.
+- `pnpm --filter @ledger/web e2e <plan.pdf>` drives real Chrome (puppeteer-core, devDependency) through the whole flow; it passed on unit-4b, studio-ft, two-bed-hall and l-living with **zero browser errors**.
+- Videos still use the mock pipeline until Rahim's R3–R5 land.
+- Next step: plug Rahim's pipeline into the API adapter when #19/#21/#22 merge; `/demo` after that.
+
 ## 2026-11-21 12:43 ET · Built walls: no more doubled or overlapping walls
 
 - Branch `alex/viewer-openings` (PR #25). The viewer now draws one wall per wall line (`physicalWalls()`), centered on the line and shared by the rooms on both sides, instead of one slab per room. That removes the doubled walls between rooms, the tall-wall-plus-stub combos in the cut-away, and the slivers at corners. Each side face wears its room's color (selected / charged), and a click picks the room on the side you hit. Room edges within 35 cm and 3° count as one wall (scans put the two sides ~30 cm apart). Only exterior walls are lowered in the cut-away. Wall shadows removed (they drew dark shapes on floors).
