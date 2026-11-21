@@ -12,7 +12,9 @@
     "run:pair": "tsx src/runPair.ts"
   },
   "dependencies": {
+    "@ledger/gemini": "workspace:*",
     "@ledger/shared": "workspace:*",
-    "@ledger/gemini": "workspace:*"
+    "sharp": "^0.34.5",
+    "zod": "^3.25.76"
   }
 }
