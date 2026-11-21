@@ -7,28 +7,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { dataDir, geminiMode, readCallStats, repoRoot } from '@ledger/gemini';
-import { FloorPlanSchema, type Finding, type FloorPlan, type Frame, type Localization } from '@ledger/shared';
+import { FloorPlanSchema, type FloorPlan } from '@ledger/shared';
 import { diffWalkthroughs, type SurfaceCoverage, type WalkthroughEvidence } from './diff.js';
 import { extractFrames } from './frames.js';
-import * as pipeline from './index.js';
-import { captionFrames, type FrameCaption } from './landmarks.js';
+import { detectFindings } from './findings.js';
+import { captionFrames } from './landmarks.js';
+import { localizeWalkthrough } from './localize.js';
 import { buildStatement, isCharged } from './statement.js';
-
-/** Entry points of the parallel branches. Looked up at runtime so this CLI runs before they merge. */
-const R3_ENTRY = 'localizeWalkthrough'; // rahim/r3-localize
-const R4_ENTRY = 'detectFindings'; // rahim/r4-findings
-
-type LocalizeFn = (
-  plan: FloorPlan,
-  frames: Frame[],
-  opts: { captions?: FrameCaption[]; outPath?: string; env?: NodeJS.ProcessEnv },
-) => Promise<{ localizations: Localization[]; coverage: Record<string, SurfaceCoverage> }>;
-type FindingsFn = (
-  plan: FloorPlan,
-  frames: Frame[],
-  loc: { localizations: Localization[]; coverage: Record<string, SurfaceCoverage> },
-  opts: { walkthroughId?: string; env?: NodeJS.ProcessEnv },
-) => Promise<{ findings: Finding[]; notVisible: string[] }>;
 
 /** Load KEY=VALUE lines from .env without overriding variables already set on the command line. */
 export function loadDotEnv(path: string, env: NodeJS.ProcessEnv = process.env): void {
@@ -78,10 +63,6 @@ async function main(): Promise<number> {
   const unitDir = join(dataDir(), 'units', unitId);
   console.log(`run:pair unit=${unitId} GEMINI_MODE=${mode} → ${unitDir}`);
 
-  const ns = pipeline as unknown as Record<string, unknown>;
-  const localize = typeof ns[R3_ENTRY] === 'function' ? (ns[R3_ENTRY] as LocalizeFn) : undefined;
-  const detect = typeof ns[R4_ENTRY] === 'function' ? (ns[R4_ENTRY] as FindingsFn) : undefined;
-
   const walk = async (kind: 'baseline' | 'move-out', video: string) => {
     const wid = `${unitId}-${kind}`;
     const workDir = join(unitDir, 'walkthroughs', wid);
@@ -96,18 +77,11 @@ async function main(): Promise<number> {
   const base = await walk('baseline', baselineVideo);
   const out = await walk('move-out', moveOutVideo);
 
-  if (!localize || !detect) {
-    const missing = [!localize && `R3 (${R3_ENTRY}, branch rahim/r3-localize)`, !detect && `R4 (${R4_ENTRY}, branch rahim/r4-findings)`].filter(Boolean);
-    console.error(`\nR3/R4 not merged: @ledger/pipeline has no ${missing.join(' or ')} on this branch yet.`);
-    console.error(`Frames and captions were saved under ${join(unitDir, 'walkthroughs')}. Diff skipped (it needs localization + findings).`);
-    return 2;
-  }
-
   const evidence = async (w: typeof base): Promise<WalkthroughEvidence> => {
     console.log(`[${w.wid}] localize…`);
-    const loc = await localize(plan, w.frames, { captions: w.captions, outPath: join(w.workDir, 'localization.json') });
+    const loc = await localizeWalkthrough(plan, w.frames, { captions: w.captions, outPath: join(w.workDir, 'localization.json') });
     console.log(`[${w.wid}] findings…`);
-    const found = await detect(plan, w.frames, loc, { walkthroughId: w.wid });
+    const found = await detectFindings(plan, w.frames, loc, { walkthroughId: w.wid });
     write(join(w.workDir, 'findings.json'), found.findings);
     // R4 also drops surfaces whose frames all failed its visibility gate: treat those as not covered.
     const coverage: Record<string, SurfaceCoverage> = {};

@@ -30,14 +30,9 @@ import { NOT_PROVABLE_PREFIX } from './statement.js';
 // ---------------------------------------------------------------------------------------------
 // Inputs
 
-/** Per-surface coverage of one walkthrough (same shape as R3's `LocalizeResult.coverage` values). */
-export interface SurfaceCoverage {
-  /** Keyframes with P(visible) above the R3 threshold. */
-  frames: number;
-  frameIds: string[];
-  /** frames < MIN_COVERAGE: the surface is not-visible for this walkthrough. */
-  notVisible: boolean;
-}
+/** Per-surface coverage of one walkthrough: R3's type, re-exported so both modules name the same declaration. */
+import type { SurfaceCoverage } from './localize.js';
+export type { SurfaceCoverage };
 
 /** Everything R2–R4 produced for one walkthrough. */
 export interface WalkthroughEvidence {
