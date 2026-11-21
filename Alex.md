@@ -2,6 +2,32 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 12:45 ET · Real plan parsing wired in, checked on a drawn PDF
+
+- Branch `alex/plan-pdf-check` (viewer branch + main). `apps/api/test/plans/unit-4b.{pdf,png,truth.json}`: a listing-style 4-room L-shaped plan (46.5 m², 4 doors, 4 windows, dimension labels, north arrow) drawn by `apps/api/scripts/make-test-plan.py`, with the true geometry and a perfect Argon reading on the 0-1000 grid.
+- `apps/api/src/planParser.ts`: PDF -> PNG (pdftoppm, or macOS `sips` when poppler is missing) -> Elmir's `parsePlan` with Rahim's `gemini` client. `PLAN_PARSER=argon` makes `POST /units` use it. API server and scripts now load `<repo>/.env`.
+- `pnpm --filter @ledger/api check-plan <pdf> [--truth]` parses and grades against `*.truth.json`, then saves the unit so `/units/<id>` shows it in 3D. With `--truth` (no key): 4/4 rooms within 0.3%, 4/4 doors, 4/4 windows, scale from labels. **Live Argon not run yet: no GEMINI_API_KEY on this machine.**
+- Viewer bugs found on this real plan and fixed: (1) camera aimed at (0,0,0) when OrbitControls mounted after the effect, so plans not starting at the origin were off-center and top-down was blank; target now passed at creation, 3/3 fresh runs correct. (2) drei `<Html>` drops the first overlay it creates (first room label always missing); an empty first `<Html>` takes the hit, verified by screenshot.
+- For Elmir: `loadPlanImage` uses pdftoppm only (absent on our Macs) and maps `.webp` to `image/jpeg`.
+- Next step: live Argon run on unit-4b.pdf once we have a key, then `/demo`.
+
+## 2026-11-21 12:20 ET · Viewer tested on tricky plans
+
+- Branch `alex/a2-viewer`. Added `packages/viewer/src/samples.ts`: 11 synthetic plans (every verdict, 6 pins on one wall, L shape, angled bay, building rotated 30°, coordinates at 120/80 m, 1 × 1.2 m closet, 18 × 11 m loft with 6 windows, doors at wall ends and overlapping openings, clean unit, unknown surface ids). 77 viewer tests now. `/lab?case=<id>&view=top&select=<surfaceId>` renders any of them. The unit page also takes `?view=top&select=<surfaceId>`.
+- Screenshotted every case with headless Chrome and fixed what looked wrong: inward walls now use a point-in-polygon probe (the centroid method can point the wrong way in concave rooms); pins spread by wall length with alternating height; text tags only on charged, selected or hovered pins, plus a color legend; the camera frame is at least 3.5 m so it stays outside small rooms; top-down is a near-orthographic plan view with low walls.
+- Not done: a production `next build` (dev only so far). The red "Issues" badge in dev is drei `<Html>` double-mounting under React strict mode.
+- Next step: `/demo` page (A4).
+
+## 2026-11-21 12:00 ET · A2 3D viewer (WIP on `alex/a2-viewer`)
+
+- `packages/viewer`: `geometry.ts` (plan -> wall boxes split around doors/windows, floors, pin anchors, cutaway test) with 21 tests across all fixtures; `colors.ts` (verdict -> pin color/label, "Not provable" overrides the verdict); `<UnitModel plan items selected onSelect view />` in React Three Fiber with an architect's cutaway (walls between camera and room drop to stubs), pins with cost tags, click to select, and a 3D / top-down toggle.
+- `apps/web` is now a real Next.js 16 app (`pnpm --filter @ledger/web dev`, port 3000, webpack mode because the workspace packages use `.js` import paths). `/units/<id>` shows the 3D map next to the evidence panel (verdict, reason, cost, before/after frames with the damage box). Before move-out it shows the move-in record.
+- API: `GET /units/:id/frames/:frameId` serves real frames from `walkthroughs/<wid>/frames/` or a labeled placeholder SVG.
+- Repo: `.next/` gitignored and excluded from eslint; `agentRules: false` stops `next dev` from writing an AGENTS.md into apps/web.
+- Verified: viewer 21 + API 49 tests, repo typecheck and lint; headless-Chrome screenshot of `/units/demo-3d` shows walls, door/window gaps, cutaway and all 4 pins.
+- For Rahim: write keyframes to `walkthroughs/<wid>/frames/<frameId>.jpg` with frame ids starting `<wid>-` and the panel shows them with no other change.
+- Next step: `/demo` page (A4) using `<UnitModel>`, SSE progress and the Decisions panel.
+
 ## 2026-11-21 11:55 ET · A1 merged (PR #10)
 
 - Merged `alex/a1-api` into `main` after CI passed. Includes the API, 48 API tests, the hand-test script and the browser test page at `http://localhost:3001/` (`pnpm --filter @ledger/api dev`).
