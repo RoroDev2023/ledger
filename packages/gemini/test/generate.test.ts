@@ -122,3 +122,20 @@ describe('toResponseSchema: tuples', () => {
     expect(() => schema.parse({ t: [1, 'a'] })).toThrow();
   });
 });
+
+describe('postJson timeout', () => {
+  it('a request that never answers is abandoned and retried, then fails instead of hanging', async () => {
+    const { postJson } = await import('../src/cache.js');
+    let tries = 0;
+    const never: typeof fetch = (_url, init) =>
+      new Promise((_resolve, reject) => {
+        tries++;
+        init?.signal?.addEventListener('abort', () => reject(Object.assign(new Error('timed out'), { name: 'TimeoutError' })));
+      });
+    const env = { ...process.env, GEMINI_API_KEY: 'test-key', GEMINI_TIMEOUT_MS: '1000' };
+    const t0 = Date.now();
+    await expect(postJson('interactions', {}, { env, fetchImpl: never, backoffMs: 1 })).rejects.toThrow();
+    expect(tries).toBe(3);
+    expect(Date.now() - t0).toBeLessThan(6000);
+  }, 10_000);
+});

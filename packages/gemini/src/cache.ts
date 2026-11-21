@@ -70,8 +70,15 @@ export function writeStore(name: StoreName, entry: StoredResponse, env: NodeJS.P
 // ---------------------------------------------------------------------------------------------
 // HTTP: one shared limiter, backoff on 429/5xx
 
-/** At most 4 requests in flight across the whole process (all models share the project quota). */
-export const limit = pLimit(4);
+/**
+ * At most GEMINI_CONCURRENCY (default 4) requests in flight across the whole process (all models share the project
+ * quota). [Alex] Configurable: Carbon answers take 20-60 s, so with 4 slots a job's Carbon second opinions ran in
+ * rounds and the Decisions calls queued behind them. 12 is well inside the Decisions quota (1,500 RPM on Tier 1).
+ */
+export const limit = pLimit(Math.max(1, Number(process.env.GEMINI_CONCURRENCY) || 4));
+
+/** [Alex] Per-request timeout. Without one, a request Gemini never answers froze the whole job (seen live). */
+export const requestTimeoutMs = (env: NodeJS.ProcessEnv = process.env) => Math.max(1000, Number(env.GEMINI_TIMEOUT_MS) || 90_000);
 
 export class GeminiHttpError extends Error {
   constructor(
@@ -116,6 +123,8 @@ export async function postJson(endpoint: string, body: unknown, opts: PostOption
       try {
         const res = await doFetch(url, {
           method: 'POST',
+          // A hung request is abandoned and retried like a network error (see the catch below).
+          signal: AbortSignal.timeout(requestTimeoutMs(env)),
           headers: {
             'content-type': 'application/json',
             'x-goog-api-key': key,
