@@ -46,6 +46,17 @@ const plans = {
     fixtures: [{ roomName: 'Main room', name: 'kitchen counter' }, { roomName: 'Bathroom', name: 'sink' }],
     warnings: ['hand-made fixture, not parsed from a listing'],
   }),
+  // A generic single room for a LIVE demo in an unknown room (e.g. the judging room). No drawing needed:
+  // pick the wall you film and call it the north wall. 5 x 4 m, door on the south wall.
+  'judging-room': buildPlan({
+    unitId: 'judging-room',
+    ceilingHeightM: 2.7,
+    metersPerPixel: 0.01,
+    scaleSource: 'assumed',
+    rooms: [{ name: 'Room', polygon: [[0, 0], [5, 0], [5, 4], [0, 4]] }],
+    openings: [{ id: 'door-entry', kind: 'door', center: [4.2, 0], widthM: 0.9 }],
+    warnings: ['generic room for a live demo: the filmed wall is the north wall; sizes are approximate'],
+  }),
   // A one-bedroom railroad-style layout: three rooms in a row.
   'one-bed-railroad': buildPlan({
     unitId: 'one-bed-railroad',
