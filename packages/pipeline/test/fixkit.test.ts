@@ -22,6 +22,7 @@ import {
   type ProductPicker,
   type QueryWriter,
 } from '../src/fixkit.js';
+import { buildStatement } from '../src/statement.js';
 
 const plan = loadPlanFixture('demo-table');
 const rules = loadFixKitRules();
@@ -147,9 +148,21 @@ describe('a. deterministic rules (fixkit-rules.json)', () => {
     expect(by('bedroom.wall-e')).toEqual(['stain-cleaner']);
     expect(by('bedroom.wall-n')).toEqual(['replacement-fixture']);
     expect(by('living-room.floor')).toEqual(['floor-cleaner']);
-    expect(uncovered).toEqual([{ surfaceId: 'bedroom.wall-w', issueType: 'other', reason: 'no DIY repair rule for "other"' }]);
+    expect(by('bedroom.wall-w')).toEqual(['adhesive-remover', 'touch-up-paint', 'sanding-sponge']);
+    expect(uncovered).toEqual([]);
     expect(needs.some((n) => ['bedroom.wall-s', 'living-room.wall-e', 'living-room.wall-w', 'bedroom.floor'].includes(n.diffItem.surfaceId))).toBe(false);
     expect(new Set(needs.map((n) => n.key)).size).toBe(needs.length);
+  });
+
+  it('an issue type without a rule falls back to the "other" needs and says so; uncovered only when "other" is empty too', () => {
+    const noStain = { ...rules, issues: { ...rules.issues, stain: [] } };
+    const r = planNeeds([item('bedroom.wall-e', 'new-damage', 'stain', 60.6)], plan, noStain);
+    expect(r.needs.map((n) => n.needKey)).toEqual(['adhesive-remover', 'touch-up-paint', 'sanding-sponge']);
+    expect(r.uncovered).toEqual([]);
+    expect(r.warnings).toContain('bedroom.wall-e: no DIY repair rule for "stain", used the generic "other" kit');
+    const none = planNeeds([item('bedroom.wall-e', 'new-damage', 'stain', 60.6)], plan, { ...noStain, issues: { ...noStain.issues, other: [] } });
+    expect(none.needs).toEqual([]);
+    expect(none.uncovered).toEqual([{ surfaceId: 'bedroom.wall-e', issueType: 'stain', reason: 'no DIY repair rule for "stain"' }]);
   });
 
   it('quantities from areaM2 and coverage, clamped; fixed counts for tools', () => {
@@ -299,6 +312,26 @@ describe('e/f. checkouts per seller, money math', () => {
     expect(last).toMatchObject({ step: 'done', diyTotal: 36.96, deductionTotal: 133.32, savings: 96.36 });
     expect(last.done).toBe(last.total);
     expect(events.every((e, i) => i === 0 || e.done >= events[i - 1]!.done)).toBe(true);
+  });
+
+  it('live-run regression: 1 charged new-damage "other" at $85 → deduction = statement total (8500 cents), kit non-empty', async () => {
+    const diff = [item('bedroom.wall-w', 'new-damage', 'other', 85), item('living-room.wall-e', 'not-visible', 'scuff', 40, { reason: 'Not provable: 1 pair' })];
+    const statement = buildStatement('demo', '2026-11-21', diff);
+    expect(statement.totalUsd).toBe(85);
+    // Scripted shop: no adhesive remover in the catalog, paint + sponge found. Deduction still counts the whole charged item.
+    const s = scriptedShop(CATALOG);
+    const kit = await buildFixKit(statement.items, plan, [], { env: testEnv(), checkout: false, deps: { shop: s.shop, writeQuery: fixedQuery, pickProduct: firstPick } });
+    expect(Math.round(kit.deductionTotal * 100)).toBe(8500);
+    expect(kit.deductionTotal).toBe(statement.totalUsd);
+    expect(kit.items.map((i) => i.need)).toEqual(['touch-up-paint', 'sanding-sponge']);
+    expect(kit.uncovered).toEqual([]);
+    expect(kit.missing.map((m) => m.need)).toEqual(['adhesive-remover']);
+    // Full mock mode (Hydrogen + Decisions + Shop mocks): all three needs, same deduction.
+    const full = await buildFixKit(statement.items, plan, [], { env: testEnv(), checkout: false });
+    expect(full.items.length).toBeGreaterThan(0);
+    expect(Math.round(full.deductionTotal * 100)).toBe(8500);
+    // applyChoices keeps the statement deduction.
+    expect((await applyChoices(kit, {}, { env: testEnv(), checkout: false })).deductionTotal).toBe(85);
   });
 
   it('not-provable and uncharged items add $0 deduction; a failing seller does not sink the kit', async () => {

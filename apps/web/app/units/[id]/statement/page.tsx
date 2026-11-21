@@ -14,6 +14,9 @@ export default function StatementPage() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<{ plan: FloorPlan; statement: Statement | null; findings: Finding[]; proofs: Proof[] } | null>(null);
   const [error, setError] = useState('');
+  const [runToken, setRunToken] = useState(0);
+  const [fixRunning, setFixRunning] = useState(false);
+  const hasNewDamage = !!data?.statement?.items.some((i) => i.verdict === 'new-damage');
   useEffect(() => {
     void (async () => {
       try {
@@ -39,9 +42,16 @@ export default function StatementPage() {
             </h1>
           </div>
           {data?.statement && (
-            <a href={api.statementHtmlUrl(id)} target="_blank" rel="noreferrer" className="btn btn-ghost">
-              Print
-            </a>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {hasNewDamage && (
+                <button type="button" className="btn" onClick={() => setRunToken((t) => t + 1)} disabled={fixRunning}>
+                  {fixRunning ? 'Finding fixes…' : 'Find fixes on Shopify'}
+                </button>
+              )}
+              <a href={api.statementHtmlUrl(id)} target="_blank" rel="noreferrer" className="btn btn-ghost">
+                Print
+              </a>
+            </div>
           )}
         </motion.div>
         {error && <p style={{ color: 'var(--red)' }}>Could not load unit “{id}”: {error}</p>}
@@ -58,7 +68,7 @@ export default function StatementPage() {
           </div>
         )}
         {data?.statement && <StatementView statement={data.statement} plan={data.plan} findings={data.findings} proofs={data.proofs} />}
-        {data?.statement?.items.some((i) => i.verdict === 'new-damage') && <FixKitPanel unitId={id} />}
+        {hasNewDamage && <FixKitPanel unitId={id} runToken={runToken} onRunningChange={setFixRunning} />}
       </main>
     </>
   );
