@@ -123,6 +123,9 @@ importers:
       '@ledger/shared':
         specifier: workspace:*
         version: link:../shared
+      '@ledger/shop':
+        specifier: workspace:*
+        version: link:../shop
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
@@ -141,6 +144,15 @@ importers:
 
   packages/shared:
     dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+
+  packages/shop:
+    dependencies:
+      '@ledger/gemini':
+        specifier: workspace:*
+        version: link:../gemini
       zod:
         specifier: ^3.25.76
         version: 3.25.76
