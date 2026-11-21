@@ -7,6 +7,7 @@ export * from './localizeConfig.js';
 export * from './describe.js';
 export * from './hmm.js';
 export * from './findings.js';
+export * from './findingsConfig.js';
 export * from './diff.js';
 export * from './price.js';
 export * from './progress.js';

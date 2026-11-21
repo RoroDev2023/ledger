@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "run:pair": "tsx src/runPair.ts",
-    "localize": "tsx src/localizeCli.ts"
+    "localize": "tsx src/localizeCli.ts",
+    "findings": "tsx src/findingsCli.ts"
   },
   "dependencies": {
     "@ledger/gemini": "workspace:*",
