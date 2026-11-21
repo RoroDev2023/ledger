@@ -6,11 +6,15 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "try": "tsx scripts/try.ts"
   },
   "dependencies": {
-    "@ledger/shared": "workspace:*",
+    "@hono/node-server": "^2.1.11",
     "@ledger/pipeline": "workspace:*",
-    "@ledger/plan": "workspace:*"
+    "@ledger/plan": "workspace:*",
+    "@ledger/shared": "workspace:*",
+    "hono": "^4.13.19",
+    "zod": "^3.25.76"
   }
 }
