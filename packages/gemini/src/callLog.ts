@@ -21,7 +21,7 @@ export interface CallRecord {
   /** Same value as `questions` (alias requested for the R1 ticket). */
   questionCount: number;
   source: CallSource;
-  endpoint: 'interactions' | 'decisions' | 'files';
+  endpoint: 'interactions' | 'decisions' | 'files' | 'shop';
   ok: boolean;
   error?: string;
 }

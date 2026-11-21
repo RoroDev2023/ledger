@@ -1,0 +1,90 @@
+{
+  "_note": "PLACEHOLDER coverage numbers and price caps, confirm before use. Deterministic mapping from a proven new-damage DiffItem to repair needs (src/fixkit.ts). Models only write the search query and pick among real products; quantities and money are code.",
+  "context": { "country": "US", "currency": "USD" },
+  "searchLimit": 10,
+  "lowConfidence": 0.5,
+  "needs": {
+    "touch-up-paint": {
+      "label": "Touch-up paint",
+      "defaultQuery": "interior wall touch up paint",
+      "maxPriceUsd": 40,
+      "coverageM2PerUnit": 10,
+      "maxUnits": 4,
+      "usesHint": true
+    },
+    "sanding-sponge": {
+      "label": "Sanding sponge",
+      "defaultQuery": "fine grit sanding sponge",
+      "maxPriceUsd": 12,
+      "fixedQuantity": 1,
+      "usesHint": false
+    },
+    "spackle": {
+      "label": "Spackle",
+      "defaultQuery": "lightweight spackling compound for drywall holes",
+      "maxPriceUsd": 20,
+      "coverageM2PerUnit": 5,
+      "maxUnits": 2,
+      "usesHint": false
+    },
+    "putty-knife": {
+      "label": "Putty knife",
+      "defaultQuery": "flexible putty knife",
+      "maxPriceUsd": 15,
+      "fixedQuantity": 1,
+      "usesHint": false
+    },
+    "crack-filler": {
+      "label": "Crack filler",
+      "defaultQuery": "wall crack filler",
+      "maxPriceUsd": 20,
+      "coverageM2PerUnit": 5,
+      "maxUnits": 2,
+      "usesHint": false
+    },
+    "stain-cleaner": {
+      "label": "Stain cleaner",
+      "defaultQuery": "wall stain remover cleaner",
+      "maxPriceUsd": 20,
+      "fixedQuantity": 1,
+      "usesHint": true
+    },
+    "floor-cleaner": {
+      "label": "Floor stain and scuff cleaner",
+      "defaultQuery": "floor stain and scuff remover",
+      "maxPriceUsd": 25,
+      "fixedQuantity": 1,
+      "usesHint": true
+    },
+    "floor-repair-kit": {
+      "label": "Floor repair kit",
+      "defaultQuery": "wood floor scratch and gouge repair kit",
+      "maxPriceUsd": 30,
+      "fixedQuantity": 1,
+      "usesHint": true
+    },
+    "replacement-fixture": {
+      "label": "Replacement fixture",
+      "defaultQuery": "replacement cabinet knob",
+      "maxPriceUsd": 60,
+      "fixedQuantity": 1,
+      "usesHint": true
+    }
+  },
+  "issues": {
+    "scuff": ["touch-up-paint", "sanding-sponge"],
+    "hole": ["spackle", "putty-knife", "touch-up-paint"],
+    "crack": ["crack-filler", "putty-knife", "touch-up-paint"],
+    "stain": ["stain-cleaner"],
+    "missing-fixture": ["replacement-fixture"],
+    "other": []
+  },
+  "kindOverrides": {
+    "floor": {
+      "scuff": ["floor-cleaner"],
+      "stain": ["floor-cleaner"],
+      "hole": ["floor-repair-kit"],
+      "crack": ["floor-repair-kit"]
+    }
+  }
+}

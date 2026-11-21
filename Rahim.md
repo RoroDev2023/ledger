@@ -2,6 +2,37 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 14:40 ET · Tenant fix kit via Shop MCP (Shopify bonus) (branch `rahim/fixkit-shop`)
+
+- **Ready:** `packages/shop` (new) is a stateless Shop MCP client for `https://mcp.shop.com/`.
+  - **Wire:** JSON-RPC `tools/call` with the documented headers (`MCP-Protocol-Version: 2026-07-28`, `Mcp-Method`, `Mcp-Name`) and `params._meta` (clientInfo `ledger-fixkit`). No auth.
+  - **Tools:** `searchCatalog` / `getProduct` / `createCheckout` only. The allowlist throws on `complete_checkout`, so it is unreachable.
+  - **Errors:** JSON-RPC 400 → `ShopRpcError`, `isError` → `ShopToolError` (with `_meta` code and `retry_after`).
+  - **Retries:** reads retry on 429/5xx/network/`rate_limited`/`upstream_unavailable`. `create_checkout` retries only on `rate_limited` or 429, with the same idempotency key.
+  - **Call log:** every call lands in the same `calls.jsonl` (`model: shop-mcp`, `tag: shop.<tool>`, `endpoint: shop`). `continue_url` and checkout ids are never logged.
+  - **Modes:** `SHOP_MODE=live|mock|record|replay`, default mock. Mock serves the closest recorded real search (`packages/shop/fixtures/search_catalog`, 9 queries recorded live today), else a synthesized catalog. Record never saves checkouts.
+- Request shapes come only from `docs/vendor/shop-{quickstart,checkout,tools,search,errors}.md`, saved verbatim from shop.dev's `.md` pages.
+- **Ready:** `buildFixKit(diffItems, plan, frames, { onEvent, checkout?, deps? }) → FixKit` and `applyChoices(kit, choices)` in `@ledger/pipeline` (`src/fixkit.ts`). Steps:
+  - (a) `fixkit-rules.json` (PLACEHOLDER caps and coverage) maps issue → needs, with a floor override. Quantity = ceil(area / coverage), clamped.
+  - (b) Hydrogen `fixkit.query.<need>` writes `{ query, colorHint?, finish? }` (zod) from the damage frame; the default query is the fallback.
+  - (c) `search_catalog` US/USD with cap × 100 and limit 10. Code re-checks available / USD / ≤ cap.
+  - (d) Decisions `choice` over `c0..cN` (title · $price · seller · options). Confidence < 0.5 → top 2 kept, `needsChoice`.
+  - (e) `get_product` re-check, then group by `seller.domain`, merge identical variants, and run `create_checkout` per seller → `continue_url`.
+  - (f) Cent math: `diyTotal`, `deductionTotal` (charged cost of the covered new-damage items), `savings`.
+  - Progress events: `rules → query → searching → picked (confidence) → checkout <seller> → checkout-ready → done`, plus `describeFixKitEvent()` for feed text.
+- **API:** `POST /units/:id/fixkit` (202 job, SSE on `/jobs/:id/events`, `?wait=1` inline, `{ choices }` to swap a pick) and `GET /units/:id/fixkit`. Event shape is in Alex.md.
+- **CLI:** `pnpm --filter @ledger/pipeline fixkit <diff.json> [--plan] [--frames] [--no-checkout]` prints the feed, the kit table and the checkout links, and writes `fixkit.json`. `pnpm --filter @ledger/shop smoke ["query"] [--max-usd N] [--checkout]` is the live check.
+- **Verified:**
+  - 9 shop tests, 12 pipeline fixkit tests and 3 API tests, all mock or on a local fake server. They cover the request shape, errors and retries, the allowlist, rule mapping, the query schema, the Decisions pick, the < 0.5 fallback and `choices`, seller grouping, one checkout per seller, savings math, and that `complete_checkout` is never sent.
+  - `pnpm -r typecheck`, `pnpm lint` and `pnpm -r test` (316) are green.
+  - **Live search** ("interior wall touch up paint" ≤ $40): 10 real products in 408 ms, schema OK.
+  - **Live create_checkout** (1 sanding sponge): status `incomplete`, `continue_url` on `shop.app`, merchant messages "sign in / destination address required". No order was placed.
+  - **Full fixkit CLI** against the real catalog (SHOP_MODE=record, GEMINI mocked, 7 diff items, 12 needs): 24 Shop calls, 0 errors, $193.48 DIY vs $711.72.
+  - **Not verified:** Hydrogen and Decisions live on fix-kit inputs (mock only), and a real damage frame.
+- **For Alex:** button "Fix it yourself: $X vs $Y deduction"; details in Alex.md.
+- **For Elmir:** `calls.jsonl` now has `shop-mcp` rows (0 tokens), so filter them in `summarizeCalls` if you only want model cost. `packages/shop` could get a row in the AGENTS.md layout table (owner Rahim).
+- **Next:** one live run with GEMINI_MODE=record on a real `run:pair` diff, then check that Hydrogen's queries and Decisions' picks look sane on real damage frames.
+
 ## 2026-11-21 13:00 ET · LiDAR scan → FloorPlan (branch `rahim/scan-to-plan`)
 
 - **Ready:** `scanToPlan(capturedRoomJson, { unitId, roomName?, log? }) → FloorPlan` in `@ledger/plan` (`packages/plan/src/scan.ts`, Elmir's package, new file only). It reads Apple RoomPlan `CapturedRoom` JSON: `walls/doors/windows/openings/objects/floors/sections`, each with `dimensions` [w, h, d] and a column-major 4×4 `transform` (flat 16 or 4 columns). Property list checked against Apple's RoomPlan docs. The docs don't name the axes, so we assume ARKit y-up with local x along the surface. Unknown fields are logged and items that don't parse are skipped, so neither is fatal.

@@ -1,7 +1,8 @@
 // [Alex] Job registry + per-job event log, streamed to the web app over SSE.
 // Late subscribers get every past event first, so a page reload never misses progress.
+import type { FixKitEvent } from '@ledger/pipeline';
 
-export type Stage = 'frames' | 'rooms' | 'surfaces' | 'findings' | 'diff';
+export type Stage = 'frames' | 'rooms' | 'surfaces' | 'findings' | 'diff' | 'fixkit';
 
 /** Live Decisions API stats for the demo screen (from Rahim's calls.jsonl rows). */
 export interface DecisionsStat {
@@ -43,8 +44,20 @@ export class DecisionsTotals {
 export type JobEvent =
   | { type: 'progress'; stage: Stage; done: number; total: number }
   | { type: 'decisions'; stats: DecisionsStat }
-  | { type: 'done'; result: { walkthroughId: string; findings: number; diffItems?: number } }
+  | { type: 'done'; result: { walkthroughId: string; findings: number; diffItems?: number } | { fixkit: FixKitSummary } }
+  /** Fix kit steps (POST /units/:id/fixkit): `event` is @ledger/pipeline's FixKitEvent, `text` a ready-made feed line. */
+  | { type: 'fixkit'; event: FixKitEvent; text: string }
   | { type: 'error'; message: string };
+
+/** Totals in the `done` event of a fix kit job; the full kit is at GET /units/:id/fixkit. */
+export interface FixKitSummary {
+  items: number;
+  checkouts: number;
+  diyTotal: number;
+  deductionTotal: number;
+  savings: number;
+  complete: boolean;
+}
 
 export type JobStatus = 'queued' | 'running' | 'done' | 'failed';
 
