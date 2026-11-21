@@ -5,6 +5,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { FIXTURES_DIR, FloorPlanSchema } from '@ledger/shared';
 import { buildPlan } from './surfaces.js';
+import { renderPlanSvg } from './svg.js';
 
 const plans = {
   // The cardboard "shoebox" apartment on the demo table, drawn at real-world scale
@@ -73,5 +74,6 @@ mkdirSync(dir, { recursive: true });
 for (const [name, plan] of Object.entries(plans)) {
   FloorPlanSchema.parse(plan);
   writeFileSync(join(dir, `${name}.json`), JSON.stringify(plan, null, 2) + '\n');
+  writeFileSync(join(dir, `${name}.svg`), renderPlanSvg(plan) + '\n');
   console.log(`wrote ${name}.json: ${plan.rooms.length} rooms, ${plan.surfaces.length} surfaces, ${plan.openings.length} openings, warnings=${plan.warnings.length}`);
 }
