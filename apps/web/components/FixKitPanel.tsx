@@ -30,7 +30,11 @@ function follow(jobId: string, onLine: (who: Line['who'], step: string, text: st
   });
 }
 
-export function FixKitPanel({ unitId }: { unitId: string }) {
+/**
+ * The run is started from the "Find fixes on Shopify" button in the statement header: each new `runToken`
+ * scrolls this panel into view and starts a run. `onRunningChange` lets the header button show progress.
+ */
+export function FixKitPanel({ unitId, runToken = 0, onRunningChange }: { unitId: string; runToken?: number; onRunningChange?: (running: boolean) => void }) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [lines, setLines] = useState<Line[]>([]);
   const [kit, setKit] = useState<FixKit | null>(null);
@@ -38,6 +42,7 @@ export function FixKitPanel({ unitId }: { unitId: string }) {
   const [stats, setStats] = useState<{ calls: number; questions: number } | null>(null);
   const [error, setError] = useState('');
   const feedRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const nextId = useRef(0);
 
   // A kit (and carts) from an earlier run stay visible after a reload.
@@ -88,11 +93,26 @@ export function FixKitPanel({ unitId }: { unitId: string }) {
   }
 
   const running = phase === 'kit' || phase === 'carts';
+  const runRef = useRef(run);
+  runRef.current = run;
+  const runningRef = useRef(running);
+  runningRef.current = running;
+
+  useEffect(() => {
+    onRunningChange?.(running);
+  }, [running, onRunningChange]);
+
+  useEffect(() => {
+    if (!runToken) return;
+    sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!runningRef.current) void runRef.current();
+  }, [runToken]);
+
   const shots = lines.filter((l) => l.screenshot);
   const latestShot = shots[shots.length - 1];
 
   return (
-    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE }} className="card card-pad" style={{ marginTop: 34 }}>
+    <motion.section ref={sectionRef} id="fix-it-yourself" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE }} className="card card-pad" style={{ marginTop: 34 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 260 }}>
           <div className="eyebrow">For the tenant</div>
@@ -100,13 +120,9 @@ export function FixKitPanel({ unitId }: { unitId: string }) {
             Fix it <em style={{ fontStyle: 'italic', color: 'var(--brass)' }}>yourself</em>
           </h2>
           <p className="muted" style={{ margin: '6px 0 0', fontSize: 14 }}>
-            The agent finds the repair supplies on Shopify, then fills each seller&apos;s cart in a browser you can watch. It never checks out.
+            {phase === 'idle' ? 'Press “Find fixes on Shopify” at the top of the statement. ' : ''}The agent finds the repair supplies on Shopify, then fills each seller&apos;s cart in a browser you can watch. It never checks out.
           </p>
         </div>
-        <button type="button" className="btn btn-lg" onClick={() => void run()} disabled={running}>
-          {running ? 'Working…' : kit ? 'Find fixes on Shopify again' : 'Find fixes on Shopify'}
-          {!running && <span className="arrow">→</span>}
-        </button>
       </div>
 
       {(lines.length > 0 || running) && (
@@ -163,6 +179,24 @@ export function FixKitPanel({ unitId }: { unitId: string }) {
 }
 
 function KitTable({ kit }: { kit: FixKit }) {
+  if (!kit.items.length) {
+    // No products, nothing to compare: never show "$0.00 vs $0.00".
+    return (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }} style={{ marginTop: 24 }}>
+        <div style={{ background: 'var(--ink)', color: 'var(--paper)', borderRadius: 16, padding: '20px 24px' }}>
+          <div className="display" style={{ fontSize: 32 }}>
+            No DIY kit for these repairs
+          </div>
+          {kit.deductionTotal > 0 && (
+            <div style={{ fontSize: 13.5, color: '#b9ad99', marginTop: 6 }}>
+              The statement deduction of {usd(kit.deductionTotal)} stands.
+            </div>
+          )}
+        </div>
+        <NotInKit kit={kit} />
+      </motion.div>
+    );
+  }
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }} style={{ marginTop: 24 }}>
       <div style={{ background: 'var(--ink)', color: 'var(--paper)', borderRadius: 16, padding: '20px 24px' }}>
@@ -175,8 +209,7 @@ function KitTable({ kit }: { kit: FixKit }) {
           {kit.savings > 0 ? `${usd(kit.savings)} less than the deduction, before tax and shipping.` : 'Doing it yourself costs about the same as the deduction here.'}
         </div>
       </div>
-      {kit.items.length > 0 ? (
-        <div style={{ marginTop: 14 }}>
+      <div style={{ marginTop: 14 }}>
           {kit.items.map((it) => (
             <div key={it.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr) 90px 90px', gap: 14, alignItems: 'baseline', padding: '11px 2px', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
               <div style={{ minWidth: 0 }}>
@@ -202,18 +235,18 @@ function KitTable({ kit }: { kit: FixKit }) {
               </div>
             </div>
           ))}
-        </div>
-      ) : (
-        <p className="muted" style={{ marginTop: 14 }}>
-          No buyable product was found for these repairs.
-        </p>
-      )}
-      {(kit.missing.length > 0 || kit.uncovered.length > 0) && (
-        <p className="faint" style={{ fontSize: 13, marginTop: 10 }}>
-          Not in the kit: {[...kit.missing.map((m) => `${m.needLabel} (${m.reason})`), ...kit.uncovered.map((u) => `${u.surfaceId}${u.issueType ? ` ${u.issueType}` : ''} (${u.reason})`)].join(' · ')}
-        </p>
-      )}
+      </div>
+      <NotInKit kit={kit} />
     </motion.div>
+  );
+}
+
+function NotInKit({ kit }: { kit: FixKit }) {
+  if (!kit.missing.length && !kit.uncovered.length) return null;
+  return (
+    <p className="faint" style={{ fontSize: 13, marginTop: 10 }}>
+      Not in the kit: {[...kit.missing.map((m) => `${m.needLabel} (${m.reason})`), ...kit.uncovered.map((u) => `${u.surfaceId}${u.issueType ? ` ${u.issueType}` : ''} (${u.reason})`)].join(' · ')}
+    </p>
   );
 }
 

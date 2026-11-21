@@ -114,10 +114,16 @@ export function planNeeds(diffItems: DiffItem[], plan: FloorPlan, rules: FixKitR
       continue;
     }
     const surface = plan.surfaces.find((s) => s.id === d.surfaceId);
-    const keys = (surface && rules.kindOverrides[surface.kind]?.[d.issueType]) ?? rules.issues[d.issueType];
+    let keys = (surface && rules.kindOverrides[surface.kind]?.[d.issueType]) ?? rules.issues[d.issueType] ?? [];
     if (!keys.length) {
-      uncovered.push({ surfaceId: d.surfaceId, issueType: d.issueType, reason: `no DIY repair rule for "${d.issueType}"` });
-      continue;
+      // Generic fallback: an issue type without its own rule uses the "other" needs, so a charged item never gets an empty kit.
+      const generic = d.issueType === 'other' ? [] : rules.issues.other;
+      if (!generic.length) {
+        uncovered.push({ surfaceId: d.surfaceId, issueType: d.issueType, reason: `no DIY repair rule for "${d.issueType}"` });
+        continue;
+      }
+      warnings.push(`${d.surfaceId}: no DIY repair rule for "${d.issueType}", used the generic "other" kit`);
+      keys = generic;
     }
     const areaM2 = d.areaM2 ?? surfaceAreaM2(plan, d.surfaceId);
     for (const needKey of keys) {
@@ -348,7 +354,7 @@ export const FixKitSchema = z.object({
   warnings: z.array(z.string()),
   /** Σ lineTotal, USD. */
   diyTotal: z.number().nonnegative(),
-  /** Σ charged deductions of the DiffItems this kit has products for, USD. */
+  /** Σ charged items on the statement, USD (same total as the statement). */
   deductionTotal: z.number().nonnegative(),
   /** deductionTotal − diyTotal (negative when DIY costs more). */
   savings: z.number(),
@@ -444,12 +450,20 @@ export async function createCheckouts(items: FixKitItem[], shop: ShopClient, cou
   return out;
 }
 
-/** Totals in integer cents. Deduction = charged cost of each DiffItem the kit has at least one product for. */
-export function kitTotals(items: FixKitItem[]): { diyTotal: number; deductionTotal: number; savings: number } {
+/** Σ charged items in integer cents: the same rule and rounding as the statement total (statement.ts). */
+export function chargedDeductionCents(diffItems: DiffItem[]): number {
+  return diffItems.filter(isCharged).reduce((s, d) => s + Math.round((d.costUsd ?? 0) * 100), 0);
+}
+
+/**
+ * Totals in integer cents. Deduction = the statement's charged total when given (so the comparison matches the
+ * statement even when some items found no product); otherwise the charged cost of each DiffItem the kit has a product for.
+ */
+export function kitTotals(items: FixKitItem[], deductionCents?: number): { diyTotal: number; deductionTotal: number; savings: number } {
   const diy = items.reduce((s, it) => s + Math.round(it.price * 100) * it.quantity, 0);
   const ded = new Map<string, number>();
   for (const it of items) ded.set(`${it.forDiffItem.surfaceId}|${it.forDiffItem.issueType}`, Math.round(it.forDiffItem.deductionUsd * 100));
-  const deduction = [...ded.values()].reduce((s, c) => s + c, 0);
+  const deduction = deductionCents ?? [...ded.values()].reduce((s, c) => s + c, 0);
   return { diyTotal: usdFromCents(diy), deductionTotal: usdFromCents(deduction), savings: usdFromCents(deduction - diy) };
 }
 
@@ -645,7 +659,7 @@ export async function buildFixKit(diffItems: DiffItem[], plan: FloorPlan, frames
 
   const items = outcomes.flatMap((o) => ('item' in o ? [o.item] : []));
   const missing = outcomes.flatMap((o) => ('missing' in o ? [o.missing] : []));
-  return finish({ unitId: opts.unitId, items, missing, uncovered: planned.uncovered, warnings }, shop, country, opts.checkout !== false, send, () => {
+  return finish({ unitId: opts.unitId, items, missing, uncovered: planned.uncovered, warnings, deductionCents: chargedDeductionCents(diffItems) }, shop, country, opts.checkout !== false, send, () => {
     done = total;
   }, (n) => {
     total = done + n;
@@ -653,7 +667,7 @@ export async function buildFixKit(diffItems: DiffItem[], plan: FloorPlan, frames
 }
 
 async function finish(
-  k: Pick<FixKit, 'items' | 'missing' | 'uncovered' | 'warnings'> & { unitId: string | undefined },
+  k: Pick<FixKit, 'items' | 'missing' | 'uncovered' | 'warnings'> & { unitId: string | undefined; deductionCents: number },
   shop: ShopClient,
   country: string,
   checkout: boolean,
@@ -665,7 +679,7 @@ async function finish(
   if (checkout) setRemaining(sellers);
   const checkouts = checkout && k.items.length ? await createCheckouts(k.items, shop, country, send) : [];
   markDone();
-  const totals = kitTotals(k.items);
+  const totals = kitTotals(k.items, k.deductionCents);
   const kit = FixKitSchema.parse({
     ...(k.unitId ? { unitId: k.unitId } : {}),
     createdAt: new Date().toISOString(),
@@ -717,7 +731,7 @@ export async function applyChoices(
   let done = 0;
   let total = 1;
   const send = (e: EventBody) => opts.onEvent?.({ ...e, done, total } as FixKitEvent);
-  return finish({ unitId: kit.unitId, items, missing: kit.missing, uncovered: kit.uncovered, warnings }, shop, rules.context.country, opts.checkout !== false, send, () => {
+  return finish({ unitId: kit.unitId, items, missing: kit.missing, uncovered: kit.uncovered, warnings, deductionCents: Math.round(kit.deductionTotal * 100) }, shop, rules.context.country, opts.checkout !== false, send, () => {
     done = total;
   }, (n) => {
     total = done + n;
