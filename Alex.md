@@ -2,6 +2,14 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 13:30 ET · High-end front end: design system, motion, copy
+
+- Branch `alex/frontend-polish` (stacked on #30). New design system in `apps/web/app/globals.css` (warm paper, ink, one signal red for charges, brass accents, paper grain) with Instrument Serif headlines, Geist text, Geist Mono numbers (self-hosted via `next/font`). Motion (`motion` package) for staggered reveals, count-up totals, step pills, page-step slides, drop zones and live progress shimmer.
+- Landing page rebuilt: headline, live auto-rotating 3D unit (`HERO` sample in `@ledger/viewer/samples`), how it works, "No proof, no charge." Every page restyled (new unit, review, move-out, unit, statement, evidence panel).
+- Viewer: camera fly-in, pins drop in one by one with a bounce, charged pins pulse, tags appear after the drop, optional autorotate.
+- Copy rewritten in one brand voice (short, concrete, no model jargon in headlines). Parser warnings are reworded for people; the "Not provable:" marker is hidden from displayed reasons (`displayReason`). Pin labels: "Moved", "Not enough evidence".
+- Verified: `pnpm --filter @ledger/web e2e` passes with zero browser errors; 271 tests, typecheck and lint clean.
+
 ## 2026-11-21 13:05 ET · A3 web flows built and clicked through end to end
 
 - Branch `alex/a3-web-flows` (stacked on #25). Pages: `/owner/new` (plan PDF/image → Argon reads it → review with 3D plan preview, room areas, warnings, rename rooms, fix ceiling height → move-in video with live progress → unit page), `/units/<id>/moveout` (upload, live progress → statement), `/units/<id>/statement` (send-by date, total, charged lines first, $0 lines kept, before/after frames with the damage box, link to each line in 3D, printable version). The unit page got the header and a next-step button. `/confirm` removed (tenant sign-off is cut). Shared components: PlanUpload, PlanReview, VideoUpload (XHR upload progress), JobProgress (stage bars + Decisions counters), StatementView, Header.

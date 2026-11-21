@@ -6,7 +6,8 @@ import type { Finding, FloorPlan, Statement } from '@ledger/shared';
 import { Header } from '../../../../components/Header';
 import { StatementView } from '../../../../components/StatementView';
 import { api } from '../../../../lib/api';
-import { C, btnGhost, card, h1, page } from '../../../../lib/ui';
+import { EASE } from '../../../../components/motion';
+import { motion } from 'motion/react';
 
 export default function StatementPage() {
   const { id } = useParams<{ id: string }>();
@@ -28,21 +29,25 @@ export default function StatementPage() {
   return (
     <>
       <Header unitId={id} />
-      <main style={page}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-          <h1 style={{ ...h1, flex: 1 }}>Itemized deposit statement (draft)</h1>
+      <main className="page">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE }} style={{ display: 'flex', alignItems: 'end', gap: 12, marginBottom: 24 }}>
+          <div style={{ flex: 1 }}>
+            <div className="eyebrow">Unit {id} · Draft</div>
+            <h1 className="display" style={{ fontSize: 56, marginTop: 8 }}>
+              Itemized <em>statement</em>
+            </h1>
+          </div>
           {data?.statement && (
-            <a href={api.statementHtmlUrl(id)} target="_blank" rel="noreferrer" style={{ ...btnGhost, textDecoration: 'none' }}>
+            <a href={api.statementHtmlUrl(id)} target="_blank" rel="noreferrer" className="btn btn-ghost">
               Printable version
             </a>
           )}
-        </div>
-        <p style={{ color: C.muted, marginTop: 0 }}>Unit {id}</p>
-        {error && <p style={{ color: C.red }}>Could not load unit “{id}”: {error}</p>}
-        {!error && !data && <p style={{ color: C.muted }}>Loading…</p>}
+        </motion.div>
+        {error && <p style={{ color: 'var(--red)' }}>Could not load unit “{id}”: {error}</p>}
+        {!error && !data && <p className="muted">Loading…</p>}
         {data && !data.statement && (
-          <div style={card}>
-            No statement yet: it is written after the move-out walkthrough. <a href={`/units/${id}/moveout`}>Upload the move-out video</a>.
+          <div className="card card-pad">
+            No statement yet. <a href={`/units/${id}/moveout`}>Upload the move-out video</a> to create it.
           </div>
         )}
         {data?.statement && <StatementView statement={data.statement} plan={data.plan} findings={data.findings} />}

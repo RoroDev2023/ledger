@@ -75,6 +75,37 @@ export interface Sample {
   items: DiffItem[];
 }
 
+/** The landing page's showcase unit: a believable 1-bed with one proven charge and the $0 verdicts around it. */
+export const HERO: Sample = {
+  id: 'hero',
+  title: 'Showcase',
+  checks: 'Landing page hero.',
+  plan: makePlan(
+    'hero',
+    [
+      { id: 'living', name: 'Living room', polygon: rect(0, 0, 5.2, 4.2) },
+      { id: 'bedroom', name: 'Bedroom', polygon: rect(5.2, 0, 3.6, 4.2) },
+      { id: 'kitchen', name: 'Kitchen', polygon: rect(0, 4.2, 3.2, 2.6) },
+      { id: 'bath', name: 'Bath', polygon: rect(3.2, 4.2, 2, 2.6) },
+    ],
+    [
+      { room: 'living', wall: 1, kind: 'door', offsetM: 0.8, widthM: 0.9 },
+      { room: 'living', wall: 1, kind: 'window', offsetM: 2.6, widthM: 1.8 },
+      { room: 'bedroom', wall: 4, kind: 'door', offsetM: 2.6, widthM: 0.9 },
+      { room: 'bedroom', wall: 2, kind: 'window', offsetM: 1.2, widthM: 1.6 },
+      { room: 'kitchen', wall: 1, kind: 'door', offsetM: 1.1, widthM: 0.9 },
+      { room: 'bath', wall: 1, kind: 'door', offsetM: 0.6, widthM: 0.8 },
+      { room: 'kitchen', wall: 4, kind: 'window', offsetM: 0.8, widthM: 1.1 },
+    ],
+  ),
+  items: [
+    item('bedroom.wall-3', 'new-damage', { costUsd: 72.72, reason: 'New stain: 2 of 2 same-region pairs agree it changed.' }),
+    item('living.wall-4', 'pre-existing'),
+    item('living.floor', 'moved', { reason: 'Chair moved. Furniture moves are never charged.' }),
+    item('bedroom.wall-2', 'not-visible', { reason: 'Not provable: only 1 matching pair.' }),
+  ],
+};
+
 export const SAMPLES: Sample[] = [
   {
     id: 'every-verdict',

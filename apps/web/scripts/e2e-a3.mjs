@@ -26,7 +26,7 @@ const waitText = (t, timeout = 30000) => page.waitForFunction((t) => document.bo
 
 await step('landing → New unit', async () => {
   await page.goto('http://localhost:3000/', { waitUntil: 'networkidle0' });
-  await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0' }), clickText('New unit from a floor plan')]);
+  await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0' }), clickText('Start with a floor plan')]);
   await waitText('Read plan');
 });
 await step('upload plan PDF, Argon reads it', async () => {

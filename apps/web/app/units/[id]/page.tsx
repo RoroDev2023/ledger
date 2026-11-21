@@ -1,6 +1,7 @@
 // [Alex] Unit page: the 3D evidence map next to the statement lines. Before move-out it shows the move-in record
 // (existing damage, all pre-existing); after move-out it shows the statement.
 'use client';
+import { AnimatePresence, motion } from 'motion/react';
 import dynamic from 'next/dynamic';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
@@ -9,12 +10,13 @@ import { EvidencePanel } from '../../../components/EvidencePanel';
 import { Header } from '../../../components/Header';
 import { VideoUpload } from '../../../components/VideoUpload';
 import { api, type Unit } from '../../../lib/api';
-import { C, btn, card } from '../../../lib/ui';
+import { CountUp, EASE, Icon } from '../../../components/motion';
+import { area } from '../../../lib/ui';
 
 // three.js needs the browser (WebGL), so the 3D view never renders on the server.
 const UnitModel = dynamic(() => import('@ledger/viewer/UnitModel').then((m) => m.UnitModel), {
   ssr: false,
-  loading: () => <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: '#8a8173' }}>loading 3D…</div>,
+  loading: () => <div className="faint" style={{ height: '100%', display: 'grid', placeItems: 'center' }}>Building the 3D model…</div>,
 });
 
 interface Loaded {
@@ -50,7 +52,7 @@ function UnitPage() {
           surfaceId: f.surfaceId,
           verdict: 'pre-existing' as const,
           issueType: f.type,
-          reason: `In the move-in record: ${f.type}, severity ${f.severity}/5.`,
+          reason: `${f.type.charAt(0).toUpperCase() + f.type.slice(1)}, severity ${f.severity} of 5. On record since move-in.`,
           beforeFrameId: f.frameIds[0], // a move-in frame: shown under "Move-in" in the evidence panel
           confidence: f.confidence,
           costUsd: 0,
@@ -80,80 +82,102 @@ function UnitPage() {
     : hasBaseline
       ? { href: `/units/${plan.unitId}/moveout`, label: 'Upload move-out →' }
       : null;
+  const total = plan.rooms.reduce((s, r) => s + area(r.polygon), 0);
+  const phase = statement ? 'Move-out complete' : hasBaseline ? 'Move-in on record' : 'Floor plan ready';
 
   return (
     <>
-    <Header unitId={plan.unitId} />
-    <main style={{ height: 'calc(100vh - 52px)', display: 'grid', gridTemplateRows: 'auto 1fr', padding: '18px 24px', gap: 16 }}>
-      <header style={{ display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 22 }}>{plan.unitId}</h1>
-        <span style={{ color: '#6b6255' }}>
-          {plan.rooms.map((r) => r.name).join(' · ')} · ceiling {plan.ceilingHeightM} m
-        </span>
-        <span style={{ flex: 1 }} />
-        {statement ? (
-          <span>
-            Send by <b>{statement.dueBy}</b> · total <b style={{ fontSize: 20, color: statement.totalUsd > 0 ? '#dc2626' : undefined }}>${statement.totalUsd.toFixed(2)}</b> ·{' '}
-            <a href={api.statementHtmlUrl(plan.unitId)} target="_blank" rel="noreferrer">
-              statement
-            </a>
-          </span>
-        ) : (
-          <span style={{ color: '#6b6255' }}>Move-in record · {items.length} existing issue(s)</span>
-        )}
-        <button onClick={() => void load()} style={btnSmall}>
-          Refresh
-        </button>
-        {next ? (
-          <a href={next.href} style={{ ...btn, textDecoration: 'none' }}>
-            {next.label}
-          </a>
-        ) : (
-          <button onClick={() => setUploading(true)} style={btn}>
-            Upload move-in video
-          </button>
-        )}
-      </header>
-      {uploading && !hasBaseline && (
-        <div style={{ ...card, position: 'fixed', right: 24, top: 120, width: 420, zIndex: 50, boxShadow: '0 12px 40px rgba(0,0,0,.18)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <b>Move-in walkthrough</b>
-            <button onClick={() => setUploading(false)} style={{ border: 0, background: 'none', color: C.muted }}>
-              ✕
+      <Header unitId={plan.unitId} />
+      <main style={{ maxWidth: 1440, margin: '0 auto', padding: '26px 28px 30px' }}>
+        <motion.header initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }} style={{ display: 'flex', alignItems: 'end', gap: 24, flexWrap: 'wrap', marginBottom: 18 }}>
+          <div style={{ flex: 1, minWidth: 280 }}>
+            <div className="eyebrow">{phase}</div>
+            <h1 className="display" style={{ fontSize: 52, marginTop: 8 }}>
+              {plan.unitId}
+            </h1>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+              {plan.rooms.map((r) => (
+                <span key={r.id} className="chip">
+                  {r.name}
+                </span>
+              ))}
+              <span className="chip mono">{total.toFixed(1)} m²</span>
+              <span className="chip mono">ceiling {plan.ceilingHeightM} m</span>
+            </div>
+          </div>
+          {statement ? (
+            <div style={{ textAlign: 'right' }}>
+              <div className="eyebrow">Send by {statement.dueBy}</div>
+              <div className="display" style={{ fontSize: 48, color: statement.totalUsd > 0 ? 'var(--red)' : 'var(--ink)', marginTop: 4 }}>
+                $<CountUp value={statement.totalUsd} format={(n) => n.toFixed(2)} />
+              </div>
+            </div>
+          ) : (
+            <div className="muted" style={{ fontSize: 14, textAlign: 'right' }}>
+              On record
+              <br />
+              <b style={{ color: 'var(--ink)', fontSize: 22 }}>{items.length}</b> existing issue{items.length === 1 ? '' : 's'}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-ghost" onClick={() => void load()}>
+              Refresh
             </button>
-          </div>
-          <VideoUpload
-            unitId={plan.unitId}
-            kind="baseline"
-            onDone={() => {
-              setUploading(false);
-              void load();
-            }}
-          />
-        </div>
-      )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 400px', gap: 20, minHeight: 0 }}>
-        <div style={{ position: 'relative', minHeight: 0 }}>
-          <UnitModel plan={plan} items={items} selected={selected} onSelect={setSelected} view={view} />
-          <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', gap: 6 }}>
-            {(['3d', 'top'] as const).map((v) => (
-              <button key={v} onClick={() => setView(v)} style={{ ...btnSmall, background: view === v ? '#15130f' : '#fff', color: view === v ? '#fff' : '#15130f' }}>
-                {v === '3d' ? '3D' : 'Top-down'}
+            {next ? (
+              <a href={next.href} className="btn">
+                {next.label}
+              </a>
+            ) : (
+              <button className="btn" onClick={() => setUploading(true)}>
+                Upload move-in video {Icon.arrow}
               </button>
-            ))}
+            )}
           </div>
+        </motion.header>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 400px', gap: 20, height: 'calc(100vh - 250px)', minHeight: 520 }}>
+          <motion.div initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, ease: EASE, delay: 0.1 }} className="card" style={{ position: 'relative', padding: 0, overflow: 'hidden', minHeight: 0 }}>
+            <UnitModel plan={plan} items={items} selected={selected} onSelect={setSelected} view={view} style={{ borderRadius: 0 }} />
+            <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', gap: 4, padding: 4, borderRadius: 999, background: 'rgba(255,253,249,.85)', backdropFilter: 'blur(8px)', border: '1px solid var(--line)' }}>
+              {(['3d', 'top'] as const).map((v) => (
+                <button key={v} onClick={() => setView(v)} style={{ position: 'relative', border: 0, background: 'none', padding: '6px 14px', borderRadius: 999, fontSize: 13, color: view === v ? 'var(--paper)' : 'var(--ink-2)' }}>
+                  {view === v && <motion.span layoutId="view-pill" style={{ position: 'absolute', inset: 0, borderRadius: 999, background: 'var(--ink)' }} transition={{ type: 'spring', stiffness: 400, damping: 34 }} />}
+                  <span style={{ position: 'relative' }}>{v === '3d' ? '3D' : 'Plan'}</span>
+                </button>
+              ))}
+            </div>
+            <div className="faint" style={{ position: 'absolute', left: 16, bottom: 14, fontSize: 12 }}>
+              Drag to orbit · Scroll to zoom · Click a wall
+            </div>
+          </motion.div>
+          <EvidencePanel unitId={plan.unitId} items={items} findings={data.moveOutFindings} selected={selected} onSelect={setSelected} surfaceLabel={surfaceLabel} />
         </div>
-        <EvidencePanel unitId={plan.unitId} items={items} findings={data.moveOutFindings} selected={selected} onSelect={setSelected} surfaceLabel={surfaceLabel} />
-      </div>
-    </main>
+      </main>
+
+      <AnimatePresence>
+        {uploading && !hasBaseline && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(21,18,13,.35)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center' }} onClick={() => setUploading(false)}>
+            <motion.div initial={{ y: 30, opacity: 0, scale: 0.97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 20, opacity: 0 }} transition={{ duration: 0.45, ease: EASE }} className="card" style={{ width: 560, padding: 28 }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
+                <h2 className="h2">Move-in video</h2>
+                <button className="btn btn-ghost btn-sm" onClick={() => setUploading(false)}>
+                  Close
+                </button>
+              </div>
+              <VideoUpload
+                unitId={plan.unitId}
+                kind="baseline"
+                onDone={() => {
+                  setUploading(false);
+                  void load();
+                }}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
-}
-
-const btnSmall = { padding: '6px 12px', border: '1px solid #d8d2c6', borderRadius: 8, background: '#fff' } as const;
-
-function Centered({ children }: { children: React.ReactNode }) {
-  return <main style={{ height: '100vh', display: 'grid', placeItems: 'center', color: '#6b6255' }}>{children}</main>;
 }
 
 export default function Page() {
@@ -163,3 +187,12 @@ export default function Page() {
     </Suspense>
   );
 }
+
+function Centered({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="muted" style={{ height: '100vh', display: 'grid', placeItems: 'center' }}>
+      {children}
+    </main>
+  );
+}
+

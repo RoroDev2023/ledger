@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react';
 import { Header } from '../../../../components/Header';
 import { VideoUpload } from '../../../../components/VideoUpload';
 import { api, type Unit } from '../../../../lib/api';
-import { C, card, h1, page } from '../../../../lib/ui';
+import { EASE } from '../../../../components/motion';
+import { motion } from 'motion/react';
 
 export default function MoveOut() {
   const { id } = useParams<{ id: string }>();
@@ -21,22 +22,26 @@ export default function MoveOut() {
   return (
     <>
       <Header unitId={id} />
-      <main style={{ ...page, maxWidth: 760 }}>
-        <h1 style={h1}>Move-out walkthrough</h1>
-        <p style={{ color: C.muted, marginTop: 0 }}>
-          Film the same unit again. The path and angles don&apos;t need to match the move-in video: both are pinned to the same floor plan, and only damage that
-          two before/after views agree on gets charged.
-        </p>
-        {error && <p style={{ color: C.red }}>Could not load unit “{id}”: {error}</p>}
+      <main className="page" style={{ maxWidth: 1000 }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE }}>
+          <div className="eyebrow">Unit {id}</div>
+          <h1 className="display" style={{ fontSize: 56, marginTop: 8 }}>
+            Move-out walkthrough
+          </h1>
+          <p className="lede" style={{ marginTop: 14 }}>
+            Film it again. Any path, any angle. Only damage that shows up clearly in both walkthroughs gets charged.
+          </p>
+        </motion.div>
+        {error && <p style={{ color: 'var(--red)' }}>Could not load unit “{id}”: {error}</p>}
         {unit && !hasBaseline && (
-          <div style={card}>
-            There is no move-in video for this unit yet, so there is nothing to compare against. <a href={`/owner/new`}>Start a new unit</a> or upload the move-in first.
+          <div className="card card-pad" style={{ marginTop: 24 }}>
+            There&apos;s no move-in video to compare against yet. <a href={`/units/${id}`}>Upload it first</a>.
           </div>
         )}
         {unit && hasBaseline && (
-          <div style={card}>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE, delay: 0.15 }} className="card" style={{ padding: 28, marginTop: 24 }}>
             <VideoUpload unitId={id} kind="move-out" onDone={() => router.push(`/units/${id}/statement`)} />
-          </div>
+          </motion.div>
         )}
       </main>
     </>

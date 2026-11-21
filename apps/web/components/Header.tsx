@@ -1,31 +1,37 @@
-// [Alex] Top bar on every flow page.
+// [Alex] Sticky, frosted top bar on every page.
+'use client';
 import Link from 'next/link';
-import { C } from '../lib/ui';
+import { usePathname } from 'next/navigation';
 
 export function Header({ unitId }: { unitId?: string }) {
-  const link = { color: C.muted, textDecoration: 'none', fontSize: 14 };
+  const path = usePathname();
+  const nav = (href: string, label: string) => (
+    <Link href={href} className={`navlink${path === href ? ' on' : ''}`}>
+      {label}
+    </Link>
+  );
   return (
-    <header style={{ display: 'flex', alignItems: 'baseline', gap: 18, padding: '14px 24px', borderBottom: `1px solid ${C.line}`, background: '#fff' }}>
-      <Link href="/" style={{ fontWeight: 800, letterSpacing: '.08em', color: C.ink, textDecoration: 'none' }}>
-        LEDGER
+    <header className="topbar">
+      <Link href="/" className="brand">
+        <i /> LEDGER
       </Link>
-      <Link href="/owner/new" style={link}>
-        New unit
-      </Link>
-      {unitId && (
-        <>
-          <span style={{ color: C.line }}>|</span>
-          <Link href={`/units/${unitId}`} style={link}>
-            {unitId}
-          </Link>
-          <Link href={`/units/${unitId}/moveout`} style={link}>
-            Move-out
-          </Link>
-          <Link href={`/units/${unitId}/statement`} style={link}>
-            Statement
-          </Link>
-        </>
-      )}
+      <nav style={{ display: 'flex', gap: 20, alignItems: 'center', flex: 1 }}>
+        {nav('/owner/new', 'New unit')}
+        {unitId && (
+          <>
+            <span className="faint">/</span>
+            <span className="mono" style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+              {unitId}
+            </span>
+            {nav(`/units/${unitId}`, 'Model')}
+            {nav(`/units/${unitId}/moveout`, 'Move-out')}
+            {nav(`/units/${unitId}/statement`, 'Statement')}
+          </>
+        )}
+      </nav>
+      <span className="chip">
+        <span className="dot" style={{ color: 'var(--green)' }} /> Gemini 4
+      </span>
     </header>
   );
 }

@@ -1,18 +1,28 @@
 // [Alex] Check what was read from the plan before filming: 3D preview, rooms with areas, warnings. The owner can
 // fix the ceiling height (the parser has to assume one) and room names. Saved with PATCH /units/:id/plan.
 'use client';
+import { motion } from 'motion/react';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import type { FloorPlan } from '@ledger/shared';
 import { api } from '../lib/api';
-import { C, area, btn, input, label } from '../lib/ui';
+import { area } from '../lib/ui';
+import { CountUp, Icon, Stagger, StaggerItem } from './motion';
+
+/** Parser warnings, said the way a person would. Unknown ones pass through. */
+function friendly(w: string): string {
+  const m = /^ceiling height assumed ([\d.]+) m/.exec(w);
+  if (m) return `Check the ceiling height. We assumed ${m[1]} m.`;
+  if (w.startsWith('unresolved:')) return `Some walls didn't line up: ${w.slice(11).trim()}`;
+  return w.charAt(0).toUpperCase() + w.slice(1);
+}
 
 const UnitModel = dynamic(() => import('@ledger/viewer/UnitModel').then((m) => m.UnitModel), { ssr: false });
 
 export function PlanReview({ plan, onConfirmed }: { plan: FloorPlan; onConfirmed: (p: FloorPlan) => void }) {
   const [ceiling, setCeiling] = useState(String(plan.ceilingHeightM));
   const [names, setNames] = useState<Record<string, string>>(Object.fromEntries(plan.rooms.map((r) => [r.id, r.name])));
-  const [view, setView] = useState<'top' | '3d'>('top');
+  const [view, setView] = useState<'top' | '3d'>('3d');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const doors = plan.openings.filter((o) => o.kind === 'door').length;
@@ -37,41 +47,65 @@ export function PlanReview({ plan, onConfirmed }: { plan: FloorPlan; onConfirmed
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 20 }}>
-      <div style={{ position: 'relative', height: 440 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 28 }}>
+      <div style={{ position: 'relative', height: 500 }}>
         <UnitModel plan={{ ...plan, ceilingHeightM: Number(ceiling) || plan.ceilingHeightM }} view={view} />
-        <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6 }}>
-          {(['top', '3d'] as const).map((v) => (
-            <button key={v} onClick={() => setView(v)} style={{ padding: '4px 10px', borderRadius: 8, border: `1px solid ${C.line}`, background: view === v ? C.ink : '#fff', color: view === v ? '#fff' : C.ink }}>
+        <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', gap: 6 }}>
+          {(['3d', 'top'] as const).map((v) => (
+            <button key={v} className={`btn btn-sm ${view === v ? '' : 'btn-ghost'}`} onClick={() => setView(v)} style={view === v ? undefined : { background: 'rgba(255,253,249,.8)' }}>
               {v === 'top' ? 'Plan' : '3D'}
             </button>
           ))}
         </div>
       </div>
       <div>
-        <div style={{ fontSize: 14, color: C.muted }}>
-          {plan.rooms.length} rooms · {total.toFixed(1)} m² · {doors} doors · {windows} windows · scale from {plan.scaleSource === 'labels' ? 'printed dimensions' : plan.scaleSource}
+        <div className="eyebrow">Step 2</div>
+        <h2 className="h2" style={{ marginTop: 8 }}>
+          Review the plan
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 16 }}>
+          {[
+            [<CountUp key="a" value={total} format={(n) => n.toFixed(1)} />, 'm²'],
+            [<CountUp key="d" value={doors} />, 'doors'],
+            [<CountUp key="w" value={windows} />, 'windows'],
+          ].map(([v, k], i) => (
+            <div key={i} style={{ background: 'var(--paper)', borderRadius: 12, padding: '10px 12px' }}>
+              <div className="display" style={{ fontSize: 28 }}>
+                {v}
+              </div>
+              <div className="faint" style={{ fontSize: 12 }}>
+                {k}
+              </div>
+            </div>
+          ))}
         </div>
-        <label style={label}>Rooms (rename if needed)</label>
-        {plan.rooms.map((r) => (
-          <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1fr 70px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-            <input value={names[r.id] ?? ''} onChange={(e) => setNames({ ...names, [r.id]: e.target.value })} style={input} />
-            <span style={{ fontSize: 13, color: C.faint, textAlign: 'right' }}>{area(r.polygon).toFixed(1)} m²</span>
-          </div>
-        ))}
-        <label style={label}>Ceiling height (m)</label>
-        <input type="number" step="0.05" min="1.8" max="6" value={ceiling} onChange={(e) => setCeiling(e.target.value)} style={{ ...input, width: 120 }} />
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 8 }}>
+          {plan.scaleSource === 'labels' ? 'Scaled from the printed dimensions' : plan.scaleSource === 'known-measurement' ? 'Scaled from your measurement' : 'Scale estimated, check the sizes'}
+        </div>
+        <label className="label">Rooms</label>
+        <Stagger gap={0.05}>
+          {plan.rooms.map((r) => (
+            <StaggerItem key={r.id} style={{ display: 'grid', gridTemplateColumns: '1fr 64px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+              <input className="input" value={names[r.id] ?? ''} onChange={(e) => setNames({ ...names, [r.id]: e.target.value })} style={{ padding: '8px 12px' }} />
+              <span className="mono faint" style={{ fontSize: 12.5, textAlign: 'right' }}>
+                {area(r.polygon).toFixed(1)} m²
+              </span>
+            </StaggerItem>
+          ))}
+        </Stagger>
+        <label className="label">Ceiling height (m)</label>
+        <input className="input" type="number" step="0.05" min="1.8" max="6" value={ceiling} onChange={(e) => setCeiling(e.target.value)} style={{ width: 130 }} />
         {plan.warnings.length > 0 && (
-          <ul style={{ margin: '14px 0 0', paddingLeft: 18, color: '#a16207', fontSize: 13 }}>
+          <motion.ul initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ margin: '14px 0 0', padding: '10px 12px 10px 28px', color: '#8a5a12', fontSize: 13, background: '#fbf1dc', borderRadius: 12 }}>
             {plan.warnings.map((w) => (
-              <li key={w}>{w}</li>
+              <li key={w}>{friendly(w)}</li>
             ))}
-          </ul>
+          </motion.ul>
         )}
-        <button onClick={() => void save()} disabled={busy} style={{ ...btn, marginTop: 16, width: '100%', opacity: busy ? 0.5 : 1 }}>
-          {busy ? 'Saving…' : 'Looks right, continue'}
+        <button className="btn btn-block btn-lg" onClick={() => void save()} disabled={busy} style={{ marginTop: 18 }}>
+          {busy ? 'Saving…' : 'Looks right, continue'} {!busy && Icon.arrow}
         </button>
-        {error && <p style={{ color: C.red, fontSize: 14 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--red)', fontSize: 14 }}>{error}</p>}
       </div>
     </div>
   );

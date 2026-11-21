@@ -18,6 +18,10 @@ export interface UnitModelProps {
   onSelect?: (surfaceId: string | null) => void;
   /** '3d' = rotatable dollhouse, 'top' = straight down like the paper plan. */
   view?: '3d' | 'top';
+  /** Slow turntable rotation (landing page). Stops as soon as the user drags. */
+  autoRotate?: boolean;
+  /** Background behind the model; 'none' lets the page show through. */
+  background?: string;
   style?: CSSProperties;
 }
 
@@ -26,13 +30,20 @@ const WALL_FLAGGED = '#fcd9d9';
 const FLOOR = '#e4dccd';
 const SELECTED = '#fde68a';
 
-export function UnitModel({ plan, items = [], selected = null, onSelect, view = '3d', style }: UnitModelProps) {
+export function UnitModel({ plan, items = [], selected = null, onSelect, view = '3d', autoRotate = false, background, style }: UnitModelProps) {
   const geo = useMemo(() => planGeometry(plan), [plan]);
   const charged = useMemo(() => new Set(items.filter((i) => pinStyle(i).charged).map((i) => i.surfaceId)), [items]);
   const select = (id: string | null) => onSelect?.(id);
   const colorOf = (id?: string) => (id && selected === id ? SELECTED : id && charged.has(id) ? WALL_FLAGGED : WALL);
   const [hovered, setHovered] = useState<number | null>(null);
   const placed = useMemo(() => placePins(geo, items), [geo, items]);
+  // Price tags wait until the pins have dropped in (see <Pins>): ~0.6 s camera + 0.14 s per pin + 0.7 s fall.
+  const [tagsReady, setTagsReady] = useState(false);
+  useEffect(() => {
+    setTagsReady(false);
+    const t = setTimeout(() => setTagsReady(true), 1400 + placed.length * 140);
+    return () => clearTimeout(t);
+  }, [plan.unitId, placed.length]);
 
   // Text over the 3D view (room names, pin tags). Plain DOM positioned every frame by <LabelProjector>; drei's <Html>
   // was used before but under React 19 it dropped its first label and threw removeChild errors on unmount.
@@ -41,26 +52,26 @@ export function UnitModel({ plan, items = [], selected = null, onSelect, view = 
     ...placed.flatMap(({ item, at }, i) => {
       const s = pinStyle(item);
       const active = selected === item.surfaceId;
-      if (!(s.charged || active || hovered === i)) return [];
+      if (!(s.charged || active || hovered === i) || (!tagsReady && hovered !== i)) return [];
       return [{ key: `pin-${i}`, at: [at[0], at[1] + 0.24, at[2]] as Vec3, text: s.charged ? `$${(item.costUsd ?? 0).toFixed(2)}` : `${s.label} · $0`, kind: 'pin' as const, color: s.color, z: active ? 3 : s.charged ? 2 : 1 }];
     }),
   ];
   const labelEls = useRef<(HTMLSpanElement | null)[]>([]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 360, background: 'linear-gradient(#fbfaf7, #efece6)', borderRadius: 12, ...style }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 360, background: background ?? 'radial-gradient(120% 90% at 50% 0%, #fffdf9 0%, #efe8db 70%, #e7dfcf 100%)', borderRadius: 18, ...style }}>
       <Canvas flat dpr={[1, 2]} camera={{ fov: 40, near: 0.1, far: 200 }} onPointerMissed={() => select(null)}>
         <ambientLight intensity={1.1} />
         <directionalLight position={[geo.bounds.center[0] + 6, 12, geo.bounds.center[2] + 8]} intensity={1.15} />
         <hemisphereLight args={['#ffffff', '#d9d2c3', 0.5]} />
-        <CameraRig geo={geo} view={view} />
+        <CameraRig geo={geo} view={view} autoRotate={autoRotate} />
         {geo.floors.map((f) => (
           <Floor key={f.surfaceId} floor={f} selected={selected === f.surfaceId} onClick={() => select(f.surfaceId)} />
         ))}
         {geo.physical.map((w) => (
           <BuiltWall key={w.id} wall={w} leftColor={colorOf(w.left)} rightColor={colorOf(w.right)} mode={view === 'top' ? 'plan' : 'cutaway'} onSelect={select} />
         ))}
-        <Pins placed={placed} selected={selected} hovered={hovered} onHover={setHovered} onSelect={select} />
+        <Pins key={plan.unitId + items.length} placed={placed} selected={selected} hovered={hovered} onHover={setHovered} onSelect={select} />
         <LabelProjector points={labels.map((l) => l.at)} els={labelEls} />
       </Canvas>
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', borderRadius: 12 }}>
@@ -85,32 +96,65 @@ export function UnitModel({ plan, items = [], selected = null, onSelect, view = 
   );
 }
 
-function CameraRig({ geo, view }: { geo: PlanGeometry; view: '3d' | 'top' }) {
+function CameraRig({ geo, view, autoRotate }: { geo: PlanGeometry; view: '3d' | 'top'; autoRotate: boolean }) {
   const camera = useThree((s) => s.camera);
   const controls = useRef<React.ComponentRef<typeof OrbitControls>>(null);
   const [cx, , cz] = geo.bounds.center;
   const d = geo.bounds.size;
+  // Fly-in: the camera starts far and high and eases to its resting spot. Any drag by the user ends it.
+  const fly = useRef<{ to: THREE.Vector3; active: boolean }>({ to: new THREE.Vector3(), active: false });
+  const [spin, setSpin] = useState(autoRotate);
 
   useEffect(() => {
     const cam = camera as THREE.PerspectiveCamera;
+    const to = new THREE.Vector3();
     if (view === 'top') {
       // A narrow lens from far above is almost orthographic: reads like the paper plan, no leaning walls.
       cam.fov = 14;
-      cam.position.set(cx, (d * 0.62) / Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)), cz + 0.001);
+      to.set(cx, (d * 0.62) / Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)), cz + 0.001);
     } else {
       cam.fov = 40;
-      cam.position.set(cx + d * 0.85, d * 1.25, cz + d * 1.35);
+      to.set(cx + d * 0.85, d * 1.25, cz + d * 1.35);
     }
     cam.far = 400;
     cam.updateProjectionMatrix();
+    const from = to.clone().sub(new THREE.Vector3(cx, 0, cz)).multiplyScalar(view === 'top' ? 1.25 : 1.9).add(new THREE.Vector3(cx, view === 'top' ? 0 : d * 0.6, cz));
+    cam.position.copy(from);
     cam.lookAt(cx, 0, cz);
+    fly.current = { to, active: true };
     controls.current?.target.set(cx, view === 'top' ? 0 : 0.8, cz);
     controls.current?.update();
   }, [view, camera, cx, cz, d]);
 
+  useFrame((_, delta) => {
+    const f = fly.current;
+    if (!f.active) return;
+    camera.position.lerp(f.to, 1 - Math.exp(-delta * 3.2));
+    if (camera.position.distanceTo(f.to) < 0.02) f.active = false;
+    controls.current?.update();
+  });
+
   // target is passed at creation too: if the effect above runs before the controls exist, they would otherwise
   // keep aiming at (0, 0, 0), which is beside the unit whenever the plan doesn't start at the origin.
-  return <OrbitControls ref={controls} target={[cx, view === 'top' ? 0 : 0.8, cz]} makeDefault enableRotate={view === '3d'} maxPolarAngle={Math.PI / 2.05} minDistance={1.5} maxDistance={d * 12} />;
+  return (
+    <OrbitControls
+      ref={controls}
+      target={[cx, view === 'top' ? 0 : 0.8, cz]}
+      makeDefault
+      enableDamping
+      dampingFactor={0.08}
+      autoRotate={spin && view === '3d'}
+      autoRotateSpeed={0.7}
+      onStart={() => {
+        fly.current.active = false;
+        setSpin(false);
+      }}
+      enableRotate={view === '3d'}
+      maxPolarAngle={Math.PI / 2.05}
+      minDistance={1.5}
+      maxDistance={d * 12}
+    />
+  );
 }
 
 function BuiltWall({ wall, leftColor, rightColor, mode, onSelect }: { wall: PhysicalWall; leftColor: string; rightColor: string; mode: 'cutaway' | 'plan'; onSelect: (id: string) => void }) {
@@ -184,30 +228,75 @@ function placePins(geo: PlanGeometry, items: DiffItem[]): Placed[] {
   });
 }
 
+const easeOutBack = (t: number) => 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
+
+/** Pins drop onto their walls one after another; charged pins keep a soft pulsing halo. */
 function Pins({ placed, selected, hovered, onHover, onSelect }: { placed: Placed[]; selected: string | null; hovered: number | null; onHover: (i: number | null) => void; onSelect: (id: string) => void }) {
+  const groups = useRef<(THREE.Group | null)[]>([]);
+  const halos = useRef<(THREE.Mesh | null)[]>([]);
+  const start = useRef<number | null>(null);
+  useFrame(({ clock }) => {
+    if (start.current === null) start.current = clock.elapsedTime + 0.6; // after the camera has mostly arrived
+    const t0 = clock.elapsedTime - start.current;
+    placed.forEach((p, i) => {
+      const g = groups.current[i];
+      if (g) {
+        const t = Math.min(1, Math.max(0, (t0 - i * 0.14) / 0.7));
+        const big = selected === p.item.surfaceId || hovered === i ? 1.35 : 1;
+        g.position.set(p.at[0], p.at[1] + (1 - Math.min(1, easeOutBack(t))) * 1.4, p.at[2]);
+        g.scale.setScalar(Math.max(0.001, Math.min(1, t * 1.6)) * big);
+      }
+      const h = halos.current[i];
+      if (h) {
+        const k = ((clock.elapsedTime * 0.7 + i * 0.3) % 1 + 1) % 1;
+        h.scale.setScalar(1 + k * 1.8);
+        (h.material as THREE.MeshBasicMaterial).opacity = 0.45 * (1 - k);
+      }
+    });
+  });
   return (
     <>
       {placed.map(({ item, at }, i) => {
         const s = pinStyle(item);
         const big = selected === item.surfaceId || hovered === i;
         return (
-          <mesh
+          <group
             key={i}
+            ref={(g) => {
+              groups.current[i] = g;
+            }}
             position={at}
-            scale={big ? 1.35 : 1}
-            onPointerOver={(e) => {
-              e.stopPropagation();
-              onHover(i);
-            }}
-            onPointerOut={() => onHover(null)}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(item.surfaceId);
-            }}
+            scale={0.001}
           >
-            <sphereGeometry args={[0.11, 24, 16]} />
-            <meshStandardMaterial color={s.color} emissive={s.color} emissiveIntensity={big ? 0.6 : 0.25} roughness={0.4} />
-          </mesh>
+            <mesh
+              onPointerOver={(e) => {
+                e.stopPropagation();
+                onHover(i);
+                document.body.style.cursor = 'pointer';
+              }}
+              onPointerOut={() => {
+                onHover(null);
+                document.body.style.cursor = '';
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(item.surfaceId);
+              }}
+            >
+              <sphereGeometry args={[0.11, 32, 20]} />
+              <meshStandardMaterial color={s.color} emissive={s.color} emissiveIntensity={big ? 0.65 : 0.3} roughness={0.35} metalness={0.05} />
+            </mesh>
+            {s.charged && (
+              <mesh
+                ref={(m) => {
+                  halos.current[i] = m;
+                }}
+              >
+                <sphereGeometry args={[0.11, 24, 16]} />
+                <meshBasicMaterial color={s.color} transparent opacity={0.4} depthWrite={false} />
+              </mesh>
+            )}
+          </group>
         );
       })}
     </>

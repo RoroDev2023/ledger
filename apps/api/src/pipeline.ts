@@ -90,17 +90,17 @@ export function mockPipeline(opts: { stepMs?: number; fixture?: string } = {}): 
         const area = plan.surfaces.find((s) => s.id === m.surfaceId)?.areaM2;
         const base = { surfaceId: m.surfaceId, issueType: m.type, afterFrameId: m.frameIds[0], areaM2: area, confidence: m.confidence };
         if (before) {
-          items.push({ ...base, verdict: 'pre-existing', beforeFrameId: before.frameIds[0], reason: `Same ${m.type} is in the move-in record. Not charged.` });
+          items.push({ ...base, verdict: 'pre-existing', beforeFrameId: before.frameIds[0], reason: `Same ${m.type} was there at move-in.` });
         } else if (m.surfaceId === holeWall) {
-          items.push({ ...base, verdict: 'not-visible', reason: 'Not provable: only 1 of the 2 required before/after pairs showed the same region.' });
+          items.push({ ...base, verdict: 'not-visible', reason: 'Not provable: only one clear before/after view of this spot. Two are needed.' });
         } else {
           // Mock price only. Real pricing is code in @ledger/pipeline (price.ts + pricing.json).
           const cost = Math.round((area ?? 1) * 12 * 100) / 100;
-          items.push({ ...base, verdict: 'new-damage', beforeFrameId: `${baseline[0]?.walkthroughId ?? 'baseline'}-f00024`, costUsd: cost, reason: `New ${m.type}: 2 of 2 same-region pairs agree it changed. Repaint ${area ?? '?'} m² at $12/m² (placeholder rate).` });
+          items.push({ ...base, verdict: 'new-damage', beforeFrameId: `${baseline[0]?.walkthroughId ?? 'baseline'}-f00024`, costUsd: cost, reason: `New ${m.type}, confirmed in both before/after views. Repaint ${area ?? '?'} m² at $12/m².` });
         }
       }
       const floor = plan.surfaces.find((s) => s.kind === 'floor');
-      if (floor) items.push({ surfaceId: floor.id, verdict: 'moved', reason: 'Chair moved to another spot. Furniture moves are never charged.', confidence: 0.86, costUsd: 0 });
+      if (floor) items.push({ surfaceId: floor.id, verdict: 'moved', reason: 'A chair was moved. Furniture is never charged.', confidence: 0.86, costUsd: 0 });
       return items;
     },
   };
