@@ -2,7 +2,7 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
-## 2026-11-21 13:30 ET · High-end front end: design system, motion, copy
+## 2026-11-21 13:26 ET · High-end front end: design system, motion, copy
 
 - Branch `alex/frontend-polish` (stacked on #30). New design system in `apps/web/app/globals.css` (warm paper, ink, one signal red for charges, brass accents, paper grain) with Instrument Serif headlines, Geist text, Geist Mono numbers (self-hosted via `next/font`). Motion (`motion` package) for staggered reveals, count-up totals, step pills, page-step slides, drop zones and live progress shimmer.
 - Landing page rebuilt: headline, live auto-rotating 3D unit (`HERO` sample in `@ledger/viewer/samples`), how it works, "No proof, no charge." Every page restyled (new unit, review, move-out, unit, statement, evidence panel).
