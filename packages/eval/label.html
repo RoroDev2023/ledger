@@ -1,3 +1,223 @@
 <!doctype html>
-<!-- [Elmir] E4 labeling page: show a frame next to plan.svg, click the true surface. -->
-<html><head><meta charset="utf-8"><title>LEDGER labeler</title></head><body></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LEDGER Eval Labeler</title>
+  <style>
+    :root { color-scheme: light; --ink:#17201b; --muted:#657069; --paper:#f5f3ec; --panel:#fffef9; --line:#d8d8cf; --green:#176b45; --green2:#dceee4; --orange:#e56f35; --shadow:0 12px 32px #17201b14; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:14px/1.45 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink); background:var(--paper); }
+    header { display:flex; gap:24px; align-items:end; justify-content:space-between; padding:22px 28px 16px; border-bottom:1px solid var(--line); background:#fbfaf5; }
+    h1 { margin:0; font-size:22px; letter-spacing:-.03em; }
+    h2 { margin:0 0 14px; font-size:16px; }
+    .eyebrow { color:var(--green); font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .loaders { display:flex; flex-wrap:wrap; gap:10px; }
+    .file-label, button { border:1px solid #bec5be; border-radius:9px; background:#fff; color:var(--ink); padding:8px 11px; font:inherit; font-weight:650; cursor:pointer; }
+    .file-label:hover, button:hover { border-color:var(--green); }
+    .file-label input { position:absolute; width:1px; height:1px; opacity:0; }
+    main { padding:20px 28px 40px; max-width:1600px; margin:auto; }
+    .workspace { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(380px,.75fr); gap:18px; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:52px; padding:10px 14px; border-bottom:1px solid var(--line); }
+    .status { color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .frame-stage { position:relative; display:grid; place-items:center; height:min(58vh,650px); min-height:390px; background:#19201c; }
+    #frameImage { display:none; max-width:100%; max-height:100%; object-fit:contain; }
+    .empty { max-width:320px; color:#bdc4bf; text-align:center; }
+    .frame-nav { display:flex; align-items:center; justify-content:center; gap:10px; padding:10px; border-top:1px solid var(--line); }
+    .frame-nav button { min-width:42px; }
+    .badge { padding:5px 9px; border-radius:999px; background:var(--green2); color:var(--green); font-weight:750; }
+    .badge.none { background:#eee; color:#555; }
+    #planSvg { display:block; width:100%; height:min(52vh,575px); min-height:345px; background:#faf9f4; }
+    .floor { fill:#e9eee9; stroke:#bdc8c0; stroke-width:.035; cursor:pointer; transition:.15s; }
+    .floor:hover, .floor.selected { fill:#cfe8d9; }
+    .wall { stroke:#29372f; stroke-width:.11; stroke-linecap:round; cursor:pointer; transition:.15s; }
+    .wall-hit { stroke:transparent; stroke-width:.34; cursor:pointer; }
+    .wall-group:hover .wall, .wall-group.selected .wall { stroke:var(--orange); stroke-width:.16; }
+    .surface-label { font-size:.11px; font-weight:700; fill:#233129; paint-order:stroke; stroke:#faf9f4; stroke-width:.025; pointer-events:none; text-anchor:middle; dominant-baseline:middle; }
+    .room-label { font-size:.16px; font-weight:800; fill:#748078; pointer-events:none; text-anchor:middle; }
+    .plan-actions { display:flex; gap:10px; align-items:center; padding:10px 14px 14px; }
+    .none-btn { flex:1; }
+    .none-btn.active { background:#3f4943; color:#fff; border-color:#3f4943; }
+    .form-panel { margin-top:18px; padding:18px; }
+    .meta-grid { display:grid; grid-template-columns:2fr 1fr auto; gap:12px; align-items:end; }
+    label { display:grid; gap:5px; color:var(--muted); font-size:12px; font-weight:700; }
+    input[type=text], select { width:100%; min-height:38px; padding:7px 9px; border:1px solid #c8cbc5; border-radius:8px; background:#fff; color:var(--ink); font:inherit; }
+    input:focus, select:focus { outline:2px solid #8dc7a7; outline-offset:1px; }
+    .check { display:flex; align-items:center; gap:8px; min-height:38px; color:var(--ink); white-space:nowrap; }
+    .check input { width:17px; height:17px; accent-color:var(--green); }
+    .sections { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:20px; }
+    .subsection { border-top:1px solid var(--line); padding-top:15px; }
+    .subhead { display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
+    .subhead h3 { margin:0; font-size:14px; }
+    .row { display:grid; grid-template-columns:minmax(160px,2fr) minmax(125px,1fr) minmax(125px,1fr) auto; gap:8px; margin:8px 0; align-items:center; }
+    .moved-row { grid-template-columns:minmax(150px,1.4fr) minmax(145px,1fr) minmax(145px,1fr) auto; }
+    .remove { color:#994128; padding:7px 10px; }
+    .form-actions { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:20px; padding-top:16px; border-top:1px solid var(--line); }
+    .primary { background:var(--green); color:white; border-color:var(--green); padding:10px 16px; }
+    #saveStatus { color:var(--muted); }
+    .hint { color:var(--muted); font-size:12px; }
+    @media (max-width:900px) { header { align-items:flex-start; flex-direction:column; } .workspace,.sections { grid-template-columns:1fr; } .meta-grid { grid-template-columns:1fr 1fr; } .frame-stage { min-height:300px; } }
+    @media (max-width:620px) { main,header { padding-left:14px; padding-right:14px; } .meta-grid,.row,.moved-row { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div><div class="eyebrow">Ground truth tool</div><h1>LEDGER Eval Labeler</h1></div>
+    <div class="loaders">
+      <label class="file-label">Load plan JSON<input id="planInput" type="file" accept="application/json,.json"></label>
+      <label class="file-label">Load frame images<input id="framesInput" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" multiple webkitdirectory></label>
+      <label class="file-label">Select individual frames<input id="multiFramesInput" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" multiple></label>
+    </div>
+  </header>
+  <main>
+    <section class="workspace">
+      <div class="panel">
+        <div class="panel-head"><strong>Current frame</strong><span id="frameName" class="status">No frames loaded</span></div>
+        <div class="frame-stage"><img id="frameImage" alt="Current walkthrough frame"><div id="frameEmpty" class="empty">Choose a folder or select multiple JPG/PNG frames. Use ← and → to move through them.</div></div>
+        <div class="frame-nav"><button id="prevFrame" type="button" aria-label="Previous frame">←</button><span id="frameCount">0 / 0</span><span id="currentLabel" class="badge none">unlabelled</span><button id="nextFrame" type="button" aria-label="Next frame">→</button></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><strong>Plan surfaces</strong><span id="planStatus" class="status">No plan loaded</span></div>
+        <svg id="planSvg" role="img" aria-label="Interactive top-down floor plan"></svg>
+        <div class="plan-actions"><button id="noneSurface" class="none-btn" type="button">None / can't tell</button><span class="hint">North ↑</span></div>
+      </div>
+    </section>
+
+    <section class="panel form-panel">
+      <h2>Pair changes</h2>
+      <div class="meta-grid">
+        <label>Pair ID<input id="pairId" type="text" placeholder="e.g. pair-01" autocomplete="off"></label>
+        <label>Split<select id="split"><option value="dev">dev</option><option value="test">test</option></select></label>
+        <label class="check"><input id="cleanReshoot" type="checkbox"> Clean reshoot</label>
+      </div>
+      <div class="sections">
+        <div class="subsection">
+          <div class="subhead"><h3>Surface issues</h3><button id="addChange" type="button">+ Add row</button></div>
+          <div id="changeRows"></div>
+        </div>
+        <div class="subsection">
+          <div class="subhead"><h3>Moved objects</h3><button id="addMoved" type="button">+ Add row</button></div>
+          <div id="movedRows"></div>
+        </div>
+      </div>
+      <div class="form-actions"><span id="saveStatus">Progress saves locally after a Pair ID is set.</span><button id="download" class="primary" type="button">Download JSON</button></div>
+    </section>
+  </main>
+
+  <template id="changeTemplate"><div class="row change-row"><select class="surface" aria-label="Surface"></select><select class="issue" aria-label="Issue type"><option>crack</option><option>stain</option><option>hole</option><option>scuff</option><option>missing-fixture</option><option>other</option></select><select class="kind" aria-label="Change kind"><option value="new-damage">new-damage</option><option value="pre-existing">pre-existing</option></select><button class="remove" type="button" aria-label="Remove row">×</button></div></template>
+  <template id="movedTemplate"><div class="row moved-row"><input class="object" type="text" placeholder="Object" aria-label="Object"><select class="from" aria-label="From surface"></select><select class="to" aria-label="To surface"></select><button class="remove" type="button" aria-label="Remove row">×</button></div></template>
+
+  <script>
+    'use strict';
+    const $ = (s, root = document) => root.querySelector(s);
+    const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+    const els = Object.fromEntries(['planInput','framesInput','multiFramesInput','frameImage','frameEmpty','frameName','frameCount','currentLabel','prevFrame','nextFrame','planSvg','planStatus','noneSurface','pairId','split','cleanReshoot','changeRows','movedRows','addChange','addMoved','saveStatus','download'].map(id => [id, document.getElementById(id)]));
+    const state = { plan:null, frames:[], index:0, labels:{}, objectUrl:null, loadedKey:'' };
+    const issueTypes = new Set(['crack','stain','hole','scuff','missing-fixture','other']);
+    const changeKinds = new Set(['new-damage','pre-existing']);
+    const storageKey = id => `ledger-eval-labels:${id.trim()}`;
+    const svgNS = 'http://www.w3.org/2000/svg';
+
+    function setMessage(text, error = false) { els.saveStatus.textContent = text; els.saveStatus.style.color = error ? '#a23b22' : ''; }
+    function surfaces() { return Array.isArray(state.plan?.surfaces) ? state.plan.surfaces.filter(s => s && typeof s.id === 'string') : []; }
+    function optionMarkup(optional = false) {
+      return `${optional ? '<option value="">— optional —</option>' : '<option value="">Select surface…</option>'}${surfaces().map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.id)}</option>`).join('')}`;
+    }
+    function escapeHtml(value) { const d = document.createElement('div'); d.textContent = String(value); return d.innerHTML; }
+    function refreshSurfaceSelects() {
+      $$('.change-row .surface').forEach(sel => { const v=sel.value; sel.innerHTML=optionMarkup(); sel.value=v; });
+      $$('.moved-row .from,.moved-row .to').forEach(sel => { const v=sel.value; sel.innerHTML=optionMarkup(true); sel.value=v; });
+    }
+
+    function validatePlan(plan) {
+      if (!plan || !Array.isArray(plan.rooms) || !Array.isArray(plan.surfaces)) throw new Error('Plan must contain rooms[] and surfaces[].');
+      if (!plan.rooms.every(r => r && typeof r.id === 'string' && Array.isArray(r.polygon) && r.polygon.length >= 3)) throw new Error('Every room needs an id and polygon with at least 3 points.');
+      if (!plan.surfaces.every(s => s && typeof s.id === 'string' && typeof s.kind === 'string')) throw new Error('Every surface needs an id and kind.');
+      return plan;
+    }
+
+    async function loadPlan(file) {
+      try {
+        state.plan = validatePlan(JSON.parse(await file.text()));
+        els.planStatus.textContent = `${state.plan.rooms.length} rooms · ${surfaces().length} surfaces`;
+        refreshSurfaceSelects(); drawPlan(); restoreForPair(false); save();
+      } catch (error) { state.plan=null; els.planSvg.replaceChildren(); els.planStatus.textContent='Invalid plan'; setMessage(error.message, true); }
+    }
+
+    function drawPlan() {
+      const svg=els.planSvg; svg.replaceChildren(); if (!state.plan) return;
+      const points=state.plan.rooms.flatMap(r => r.polygon).filter(p => Array.isArray(p) && p.length===2 && p.every(Number.isFinite));
+      if (!points.length) return;
+      const xs=points.map(p=>p[0]), ys=points.map(p=>p[1]); const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+      const width=Math.max(maxX-minX,.5), height=Math.max(maxY-minY,.5), pad=Math.max(width,height)*.16;
+      const fy=y => maxY-y+minY;
+      svg.setAttribute('viewBox', `${minX-pad} ${fy(maxY)-pad} ${width+pad*2} ${height+pad*2}`);
+      const roomById=new Map(state.plan.rooms.map(r=>[r.id,r]));
+      for (const room of state.plan.rooms) {
+        const floor=surfaces().find(s=>s.roomId===room.id && s.kind==='floor');
+        const poly=document.createElementNS(svgNS,'polygon'); poly.setAttribute('points',room.polygon.map(([x,y])=>`${x},${fy(y)}`).join(' ')); poly.setAttribute('class',`floor${floor && currentSurface()===floor.id?' selected':''}`); poly.setAttribute('aria-label',floor?.id||room.name||room.id);
+        if (floor) { poly.dataset.surfaceId=floor.id; poly.addEventListener('click',()=>chooseSurface(floor.id)); }
+        svg.append(poly);
+        const cx=room.polygon.reduce((n,p)=>n+p[0],0)/room.polygon.length, cy=room.polygon.reduce((n,p)=>n+fy(p[1]),0)/room.polygon.length;
+        const label=document.createElementNS(svgNS,'text'); label.setAttribute('x',cx); label.setAttribute('y',cy); label.setAttribute('class','room-label'); label.textContent=room.name||room.id; svg.append(label);
+      }
+      for (const surface of surfaces().filter(s=>s.kind==='wall' && Array.isArray(s.segment) && s.segment.length===2)) {
+        const [[x1,y1],[x2,y2]]=surface.segment; const group=document.createElementNS(svgNS,'g'); group.setAttribute('class',`wall-group${currentSurface()===surface.id?' selected':''}`); group.dataset.surfaceId=surface.id;
+        for (const cls of ['wall-hit','wall']) { const line=document.createElementNS(svgNS,'line'); Object.entries({x1,y1:fy(y1),x2,y2:fy(y2),class:cls}).forEach(([k,v])=>line.setAttribute(k,v)); group.append(line); }
+        group.addEventListener('click',()=>chooseSurface(surface.id)); svg.append(group);
+        const label=document.createElementNS(svgNS,'text'); label.setAttribute('x',(x1+x2)/2); label.setAttribute('y',(fy(y1)+fy(y2))/2); label.setAttribute('class','surface-label'); label.textContent=surface.id; svg.append(label);
+      }
+    }
+
+    function loadFrames(files) {
+      state.frames=[...files].filter(f=>/^image\/(jpeg|png)$/.test(f.type)||/\.(jpe?g|png)$/i.test(f.name)).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'}));
+      state.index=0; showFrame(); setMessage(state.frames.length ? `Loaded ${state.frames.length} frame${state.frames.length===1?'':'s'}.` : 'No JPG or PNG images found.', !state.frames.length);
+    }
+    function showFrame() {
+      if (state.objectUrl) URL.revokeObjectURL(state.objectUrl); state.objectUrl=null;
+      const frame=state.frames[state.index];
+      if (!frame) { els.frameImage.style.display='none'; els.frameEmpty.style.display='block'; els.frameName.textContent='No frames loaded'; els.frameCount.textContent='0 / 0'; }
+      else { state.objectUrl=URL.createObjectURL(frame); els.frameImage.src=state.objectUrl; els.frameImage.style.display='block'; els.frameEmpty.style.display='none'; els.frameName.textContent=frame.name; els.frameCount.textContent=`${state.index+1} / ${state.frames.length}`; }
+      updateSelection();
+    }
+    function moveFrame(delta) { if (!state.frames.length) return; state.index=Math.max(0,Math.min(state.frames.length-1,state.index+delta)); showFrame(); }
+    function currentSurface() { const f=state.frames[state.index]; return f ? state.labels[f.name] : undefined; }
+    function chooseSurface(id) { const f=state.frames[state.index]; if (!f) return setMessage('Load frames before assigning a surface.',true); state.labels[f.name]=id; updateSelection(); save(); }
+    function updateSelection() {
+      const value=currentSurface(); els.currentLabel.textContent=value || 'unlabelled'; els.currentLabel.classList.toggle('none',!value||value==='none'); els.noneSurface.classList.toggle('active',value==='none');
+      $$('.selected',els.planSvg).forEach(e=>e.classList.remove('selected')); if (value && value!=='none') $$(`[data-surface-id]`,els.planSvg).filter(e=>e.dataset.surfaceId===value).forEach(e=>e.classList.add('selected'));
+    }
+
+    function addChange(data={}) { const row=els.changeTemplate?.content?.firstElementChild?.cloneNode(true) || document.getElementById('changeTemplate').content.firstElementChild.cloneNode(true); $('.surface',row).innerHTML=optionMarkup(); $('.surface',row).value=data.surfaceId||''; $('.issue',row).value=issueTypes.has(data.issueType)?data.issueType:'crack'; $('.kind',row).value=changeKinds.has(data.kind)?data.kind:'new-damage'; bindRow(row); els.changeRows.append(row); }
+    function addMoved(data={}) { const row=document.getElementById('movedTemplate').content.firstElementChild.cloneNode(true); $('.from',row).innerHTML=optionMarkup(true); $('.to',row).innerHTML=optionMarkup(true); $('.object',row).value=data.object||''; $('.from',row).value=data.fromSurfaceId||''; $('.to',row).value=data.toSurfaceId||''; bindRow(row); els.movedRows.append(row); }
+    function bindRow(row) { row.addEventListener('input',save); $('.remove',row).addEventListener('click',()=>{row.remove();save();}); }
+
+    function collect() {
+      const newDamage=[], preExisting=[];
+      $$('.change-row',els.changeRows).forEach(row=>{ const surfaceId=$('.surface',row).value, issueType=$('.issue',row).value, kind=$('.kind',row).value; if (surfaceId) (kind==='new-damage'?newDamage:preExisting).push({surfaceId,issueType}); });
+      const moved=$$('.moved-row',els.movedRows).map(row=>{ const item={object:$('.object',row).value.trim()}; const from=$('.from',row).value,to=$('.to',row).value; if(from)item.fromSurfaceId=from;if(to)item.toSurfaceId=to;return item; }).filter(x=>x.object);
+      const frames={}; state.frames.forEach(f=>{ if(state.labels[f.name]) frames[f.name]=state.labels[f.name]; }); Object.keys(state.labels).sort().forEach(name=>{if(!(name in frames))frames[name]=state.labels[name];});
+      return {pairId:els.pairId.value.trim(),split:els.split.value,newDamage,preExisting,moved,cleanReshoot:els.cleanReshoot.checked,frames};
+    }
+    function save() { const data=collect(); if (!data.pairId) return setMessage('Progress saves locally after a Pair ID is set.'); try { localStorage.setItem(storageKey(data.pairId),JSON.stringify(data)); state.loadedKey=data.pairId; setMessage(`Saved locally at ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}.`); } catch { setMessage('Browser storage is unavailable; download JSON to preserve progress.',true); } }
+    function restoreForPair(announce=true) {
+      const id=els.pairId.value.trim(); if(!id||id===state.loadedKey)return; let raw; try{raw=localStorage.getItem(storageKey(id));}catch{return;}
+      if(!raw){state.loadedKey=id;if(announce)setMessage('No saved progress for this Pair ID yet.');return;}
+      try { const data=JSON.parse(raw); els.split.value=data.split==='test'?'test':'dev'; els.cleanReshoot.checked=Boolean(data.cleanReshoot); state.labels=data.frames&&typeof data.frames==='object'?data.frames:{}; els.changeRows.replaceChildren(); (data.newDamage||[]).forEach(x=>addChange({...x,kind:'new-damage'})); (data.preExisting||[]).forEach(x=>addChange({...x,kind:'pre-existing'})); els.movedRows.replaceChildren(); (data.moved||[]).forEach(addMoved); state.loadedKey=id; updateSelection(); drawPlan(); setMessage('Restored saved progress for this Pair ID.'); } catch { setMessage('Saved progress could not be read.',true); }
+    }
+    function download() {
+      const data=collect(); if(!data.pairId)return setMessage('Enter a Pair ID before downloading.',true); if(!['dev','test'].includes(data.split))return setMessage('Choose a valid split.',true);
+      save(); const blob=new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`${data.pairId.replace(/[^A-Za-z0-9._-]+/g,'-')}.json`; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); setMessage(`Downloaded ${a.download}.`);
+    }
+
+    els.planInput.addEventListener('change',e=>e.target.files[0]&&loadPlan(e.target.files[0]));
+    els.framesInput.addEventListener('change',e=>loadFrames(e.target.files)); els.multiFramesInput.addEventListener('change',e=>loadFrames(e.target.files));
+    els.prevFrame.addEventListener('click',()=>moveFrame(-1)); els.nextFrame.addEventListener('click',()=>moveFrame(1)); els.noneSurface.addEventListener('click',()=>chooseSurface('none'));
+    els.addChange.addEventListener('click',()=>{addChange();save();}); els.addMoved.addEventListener('click',()=>{addMoved();save();}); els.download.addEventListener('click',download);
+    els.pairId.addEventListener('change',()=>restoreForPair()); els.pairId.addEventListener('blur',()=>restoreForPair()); [els.split,els.cleanReshoot].forEach(el=>el.addEventListener('change',save));
+    document.addEventListener('keydown',e=>{ if(e.target.matches('input,select,textarea,button'))return; if(e.key==='ArrowLeft'){e.preventDefault();moveFrame(-1);} if(e.key==='ArrowRight'){e.preventDefault();moveFrame(1);} });
+    window.addEventListener('beforeunload',()=>{if(els.pairId.value.trim())save();if(state.objectUrl)URL.revokeObjectURL(state.objectUrl);});
+  </script>
+</body>
+</html>
