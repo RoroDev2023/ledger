@@ -39,6 +39,20 @@ describe('geometry cleanup', () => {
   });
 });
 
+describe('imageSize', () => {
+  it('reads GIF and WEBP (VP8X, VP8L) headers', () => {
+    const gif = Buffer.alloc(16); gif.write('GIF89a', 0); gif.writeUInt16LE(640, 6); gif.writeUInt16LE(480, 8);
+    expect(imageSize(gif)).toEqual({ width: 640, height: 480 });
+    const x = Buffer.alloc(32); x.write('RIFF', 0); x.write('WEBP', 8); x.write('VP8X', 12); x.writeUIntLE(1279, 24, 3); x.writeUIntLE(719, 27, 3);
+    expect(imageSize(x)).toEqual({ width: 1280, height: 720 });
+    const l = Buffer.alloc(32); l.write('RIFF', 0); l.write('WEBP', 8); l.write('VP8L', 12); l.writeUInt32LE((1023) | (767 << 14), 21);
+    expect(imageSize(l)).toEqual({ width: 1024, height: 768 });
+  });
+  it('rejects unknown formats with a clear message', () => {
+    expect(() => imageSize(Buffer.from('not an image at all, really not'))).toThrow(/PNG, JPEG, GIF or WEBP/);
+  });
+});
+
 describe('scale', () => {
   it('uses the median label and drops outliers', () => {
     const s = scaleFromLabels([

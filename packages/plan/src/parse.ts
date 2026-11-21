@@ -2,7 +2,7 @@
 // Argon only reads the drawing (rooms, openings, dimension labels) on a 0-1000 grid.
 // Everything numeric after that (scale, meters, walls, areas, IDs) is plain code.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
 import { z } from 'zod';
@@ -81,20 +81,54 @@ export function imageSize(buf: Buffer): { width: number; height: number } {
       i += 2 + len;
     }
   }
-  throw new Error('unsupported image: expected PNG or JPEG');
+  if (buf.length >= 10 && buf.toString('ascii', 0, 3) === 'GIF') {
+    return { width: buf.readUInt16LE(6), height: buf.readUInt16LE(8) };
+  }
+  if (buf.length >= 30 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') {
+    const chunk = buf.toString('ascii', 12, 16);
+    if (chunk === 'VP8X') return { width: 1 + buf.readUIntLE(24, 3), height: 1 + buf.readUIntLE(27, 3) };
+    if (chunk === 'VP8 ') return { width: buf.readUInt16LE(26) & 0x3fff, height: buf.readUInt16LE(28) & 0x3fff };
+    if (chunk === 'VP8L') {
+      const b = buf.readUInt32LE(21);
+      return { width: 1 + (b & 0x3fff), height: 1 + ((b >> 14) & 0x3fff) };
+    }
+  }
+  throw new Error('unsupported image: expected PNG, JPEG, GIF or WEBP');
 }
 
-/** PDF -> PNG (first page, 200 dpi) via pdftoppm; images pass through. */
+const MIME: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' };
+
+function hasCommand(cmd: string): boolean {
+  try {
+    execFileSync('/usr/bin/which', [cmd], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * PDF -> PNG (first page, 200 dpi) via pdftoppm, or macOS's built-in `sips` when poppler is not installed.
+ * Images pass through with their real MIME type.
+ */
 export function loadPlanImage(path: string): { data: Buffer; mime: string } {
   const ext = extname(path).toLowerCase();
   if (ext === '.pdf') {
     const dir = mkdtempSync(join(tmpdir(), 'ledger-plan-'));
-    execFileSync('pdftoppm', ['-r', '200', '-png', '-f', '1', '-l', '1', '-singlefile', path, join(dir, 'page')]);
+    if (hasCommand('pdftoppm')) {
+      execFileSync('pdftoppm', ['-r', '200', '-png', '-f', '1', '-l', '1', '-singlefile', path, join(dir, 'page')]);
+    } else if (process.platform === 'darwin' && existsSync('/usr/bin/sips')) {
+      execFileSync('/usr/bin/sips', ['-s', 'format', 'png', '-s', 'dpiWidth', '200', '-s', 'dpiHeight', '200', path, '--out', join(dir, 'page.png')], { stdio: 'ignore' });
+    } else {
+      throw new Error('Cannot read PDF plans: install poppler (pdftoppm), or upload a PNG/JPG instead.');
+    }
     const png = readdirSync(dir).find((f) => f.endsWith('.png'));
-    if (!png) throw new Error('pdftoppm produced no image');
+    if (!png) throw new Error('PDF conversion produced no image');
     return { data: readFileSync(join(dir, png)), mime: 'image/png' };
   }
-  return { data: readFileSync(path), mime: ext === '.png' ? 'image/png' : 'image/jpeg' };
+  const mime = MIME[ext];
+  if (!mime) throw new Error(`unsupported plan file type ${ext || '(none)'}: use PDF, PNG, JPG, WEBP or GIF`);
+  return { data: readFileSync(path), mime };
 }
 
 // ---------------------------------------------------------------------------------------------
