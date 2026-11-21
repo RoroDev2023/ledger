@@ -30,6 +30,8 @@ export interface WallGeometry {
   roomId: string;
   label: string;
   pieces: WallPiece[];
+  /** Wall length in meters. */
+  length: number;
   /** 3D point on the room-facing side of the wall, mid-length and mid-height. */
   center: Vec3;
   /** Unit vector (x, z) pointing from the wall into its room. Used to fade walls between camera and room. */
@@ -58,6 +60,17 @@ export function centroid(poly: Vec2[]): Vec2 {
   return [cx / (3 * a), cy / (3 * a)];
 }
 
+/** Even-odd ray casting. */
+export function pointInPolygon([x, y]: Vec2, poly: Vec2[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i]!;
+    const [xj, yj] = poly[j]!;
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
 /** Gaps cut into a wall: [start, end] along the wall (meters from segment start) and [bottom, top] heights. */
 export function openingGaps(wallLength: number, ceiling: number, openings: Opening[]): { from: number; to: number; bottom: number; top: number }[] {
   return openings
@@ -82,11 +95,19 @@ export function wallGeometry(surface: Surface, room: Room, ceiling: number, open
   if (length < 1e-6) return null;
   const dir: Vec2 = [dx / length, dy / length];
 
-  // Inward normal: the perpendicular that points toward the room's centroid.
+  // Inward normal. Probe a few cm to the left of the wall: if that point is inside the room, left is inward.
+  // (Pointing at the room's centroid is wrong for some walls of L-shaped and other concave rooms.)
   const mid: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-  const c = centroid(room.polygon);
   let n: Vec2 = [-dir[1], dir[0]];
-  if ((c[0] - mid[0]) * n[0] + (c[1] - mid[1]) * n[1] < 0) n = [-n[0], -n[1]];
+  const probe: Vec2 = [mid[0] + n[0] * 0.05, mid[1] + n[1] * 0.05];
+  const inside = pointInPolygon(probe, room.polygon);
+  const outside = pointInPolygon([mid[0] - n[0] * 0.05, mid[1] - n[1] * 0.05], room.polygon);
+  if (outside && !inside) n = [-n[0], -n[1]];
+  else if (inside === outside) {
+    // Wall not on the room outline (bad data): fall back to the centroid direction.
+    const c = centroid(room.polygon);
+    if ((c[0] - mid[0]) * n[0] + (c[1] - mid[1]) * n[1] < 0) n = [-n[0], -n[1]];
+  }
   const shift = WALL_THICKNESS / 2;
 
   const rotationY = Math.atan2(dy, dx);
@@ -109,7 +130,7 @@ export function wallGeometry(surface: Surface, room: Room, ceiling: number, open
   box(cursor, length, 0, ceiling);
 
   const face: Vec2 = [mid[0] + n[0] * WALL_THICKNESS, mid[1] + n[1] * WALL_THICKNESS];
-  return { surfaceId: surface.id, roomId: surface.roomId, label: surface.label, pieces, center: to3(face, ceiling / 2), inward: [n[0], -n[1]] };
+  return { surfaceId: surface.id, roomId: surface.roomId, label: surface.label, pieces, length, center: to3(face, ceiling / 2), inward: [n[0], -n[1]] };
 }
 
 export interface PlanGeometry {
@@ -149,7 +170,8 @@ export function planGeometry(plan: FloorPlan): PlanGeometry {
   return {
     walls,
     floors,
-    bounds: { min, max, center: to3(mid, 0), size: Math.max(max[0] - min[0], max[1] - min[1], 1) },
+    // size never goes below 3.5 m so the camera stays outside even a closet.
+    bounds: { min, max, center: to3(mid, 0), size: Math.max(max[0] - min[0], max[1] - min[1], 3.5) },
     ceiling: plan.ceilingHeightM,
   };
 }
@@ -163,10 +185,12 @@ export function pinAnchors(geo: PlanGeometry, surfaceId: string, count: number):
   if (wall) {
     const [cx, cy, cz] = wall.center;
     const along: Vec2 = [-wall.inward[1], wall.inward[0]]; // perpendicular to inward, in the (x, z) plane
-    const gap = 0.45;
+    // Spread over up to 70% of the wall, 35 cm to 1 m apart; neighbors alternate height so labels don't collide.
+    const gap = count > 1 ? Math.min(1, Math.max(0.35, (wall.length * 0.7) / (count - 1))) : 0;
     return Array.from({ length: count }, (_, i) => {
       const k = (i - (count - 1) / 2) * gap;
-      return [cx + along[0] * k + wall.inward[0] * 0.12, cy + 0.2, cz + along[1] * k + wall.inward[1] * 0.12];
+      const lift = count > 1 ? (i % 2 === 0 ? 0.25 : -0.2) : 0.2;
+      return [cx + along[0] * k + wall.inward[0] * 0.12, cy + lift, cz + along[1] * k + wall.inward[1] * 0.12];
     });
   }
   const floor = geo.floors.find((f) => f.surfaceId === surfaceId) ?? geo.floors.find((f) => surfaceId.startsWith(`${f.roomId}.`));

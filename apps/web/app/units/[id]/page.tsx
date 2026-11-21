@@ -2,8 +2,8 @@
 // (existing damage, all pre-existing); after move-out it shows the statement.
 'use client';
 import dynamic from 'next/dynamic';
-import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import type { DiffItem, Finding, FloorPlan, Statement } from '@ledger/shared';
 import { EvidencePanel } from '../../../components/EvidencePanel';
 import { api } from '../../../lib/api';
@@ -21,12 +21,14 @@ interface Loaded {
   moveOutFindings: Finding[];
 }
 
-export default function UnitPage() {
+function UnitPage() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [view, setView] = useState<'3d' | 'top'>('3d');
+  // ?select=<surfaceId>&view=top open the page on a given wall or view (handy for the demo and for screenshots).
+  const q = useSearchParams();
+  const [selected, setSelected] = useState<string | null>(q.get('select'));
+  const [view, setView] = useState<'3d' | 'top'>(q.get('view') === 'top' ? 'top' : '3d');
 
   const load = useCallback(async () => {
     try {
@@ -110,4 +112,12 @@ const btn = { padding: '6px 12px', border: '1px solid #d8d2c6', borderRadius: 8,
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <main style={{ height: '100vh', display: 'grid', placeItems: 'center', color: '#6b6255' }}>{children}</main>;
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<Centered>Loading…</Centered>}>
+      <UnitPage />
+    </Suspense>
+  );
 }

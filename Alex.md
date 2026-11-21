@@ -2,6 +2,13 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 12:20 ET · Viewer tested on tricky plans
+
+- Branch `alex/a2-viewer`. Added `packages/viewer/src/samples.ts`: 11 synthetic plans (every verdict, 6 pins on one wall, L shape, angled bay, building rotated 30°, coordinates at 120/80 m, 1 × 1.2 m closet, 18 × 11 m loft with 6 windows, doors at wall ends and overlapping openings, clean unit, unknown surface ids). 77 viewer tests now. `/lab?case=<id>&view=top&select=<surfaceId>` renders any of them. The unit page also takes `?view=top&select=<surfaceId>`.
+- Screenshotted every case with headless Chrome and fixed what looked wrong: inward walls now use a point-in-polygon probe (the centroid method can point the wrong way in concave rooms); pins spread by wall length with alternating height; text tags only on charged, selected or hovered pins, plus a color legend; the camera frame is at least 3.5 m so it stays outside small rooms; top-down is a near-orthographic plan view with low walls.
+- Not done: a production `next build` (dev only so far). The red "Issues" badge in dev is drei `<Html>` double-mounting under React strict mode.
+- Next step: `/demo` page (A4).
+
 ## 2026-11-21 12:00 ET · A2 3D viewer (WIP on `alex/a2-viewer`)
 
 - `packages/viewer`: `geometry.ts` (plan -> wall boxes split around doors/windows, floors, pin anchors, cutaway test) with 21 tests across all fixtures; `colors.ts` (verdict -> pin color/label, "Not provable" overrides the verdict); `<UnitModel plan items selected onSelect view />` in React Three Fiber with an architect's cutaway (walls between camera and room drop to stubs), pins with cost tags, click to select, and a 3D / top-down toggle.
