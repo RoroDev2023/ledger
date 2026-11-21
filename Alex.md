@@ -14,6 +14,32 @@ Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/w
 - Page transitions (`app/template.tsx`), loading skeletons instead of "Loading…", a "done" moment when a video finishes.
 - Pins land on the exact spot, for any surface: the spot check's `spot.where` asks what the damage is on (a plan fixture, a wall or the floor), what it's next to (fixtures, doors, windows), which side of that item (asked by its name) and how high (bands → probability-weighted meters). Stored in a new optional `DiffItem.spot { heightM, nearId }` (additive contract field; Elmir/Rahim please note). The viewer's `spotAnchor` puts the pin on that item or wall at that height beside that thing; pins draw on top so items never hide them. Checked on unit-460c3358: column mark on the column at 0.65 m, paper at 1.46 m to the right of the portrait.
 - Verified: all tests, typecheck, lint; every page loads with no browser errors.
+## 2026-11-21 15:45 ET · From Rahim: "Find fixes on Shopify" on the statement page (branch `rahim/shopify-button`)
+
+- **New:** `apps/web/components/FixKitPanel.tsx`, rendered at the bottom of `/units/:id/statement` only when the statement has a `new-damage` item. One primary button, "Find fixes on Shopify":
+  1. `POST /units/:id/fixkit` → live feed of the job's `fixkit` SSE lines (query written, searching, picked … (confidence), checkout …) plus the Decisions call/question count.
+  2. `GET /units/:id/fixkit` → kit table (need, product link, options, confidence, seller, qty × price, line total) under the big line **"Fix it yourself: $X vs $Y deduction"**.
+  3. After 1.2 s, automatically `POST /units/:id/fixkit/cart` → `cart` feed lines (opening <store> → product page → added → cart verified), with the latest agent screenshot beside the feed.
+  4. Done → one card per seller: verified badge, lines, subtotal, cart screenshot, **"Open cart"** (`cartUrl`) and, if the seller failed, "Shop checkout link" (`fallbackUrl`).
+  - A kit/cart from an earlier run is shown on reload; the button then reads "Find fixes on Shopify again".
+- **Small edits in your files:** `lib/api.ts` (Stage + `fixkit`/`cart`, the two JobEvent variants, `FixKit`/`CartSummary` types, `buildFixKit`/`fixKit`/`fillCarts`/`carts`/`apiUrl`, and `followJob` now also listens to `fixkit` and `cart`); `JobProgress.tsx` only changes its last `else` to `else if (e.type === 'error')` so the new event types can't be mistaken for errors; statement `page.tsx` +2 lines.
+- **Cart tabs stay open:** `packages/cart-agent/src/held.ts` holds the Playwright browser at module level. It is closed only by the next run's launch, `POST …/fixkit/cart/close`, or API exit (Playwright's own signal handlers).
+- Note: "Open cart" opens the store's /cart in the viewer's own browser, which has its own cookies, so the cart there may look empty. The filled carts are the tabs in the agent's Chromium window.
+
+## 2026-11-21 15:22 ET · From Rahim: cart agent API, `POST /units/:id/fixkit/cart` (branch `rahim/cart-agent`)
+
+- **Button (fix kit panel, after the kit is built):** "Watch the agent fill the carts". It POSTs `/units/:id/fixkit/cart`. A visible Chromium opens **on the laptop running the API**. For each seller it shows the store, the product page, adds the picked variant and stops on that store's `/cart` page (one tab per seller, left open). It never checks out.
+- `POST /units/:id/fixkit/cart` → `202 { jobId, events }`. Use the same `EventSource` as the other jobs. `?wait=1` runs inline → `200 { carts }`. `409` = no fixkit.json yet, or a run is already going. Optional JSON body `{ sellers?: string[], maxSellers?: number }`. A new run closes the previous run's window.
+- **SSE events on that job:**
+  - `progress` `{ stage:'cart', done, total }` (done = sellers finished).
+  - `cart` `{ type:'cart', text, event }`. `text` is a ready-made feed line, e.g. `opening Painters Solutions` → `product page: Hyde 02250 …` → `added Hyde 02250 … ×1 (store button)` → `cart verified at Painters Solutions, 1 item, $4.20`. `event.step` is `start | opening | product | popup | added | add-failed | cart | cart-verified | seller-failed | done`. `product` and `cart-verified` carry `screenshot`: a URL you can put in an `<img>` (`/units/:id/fixkit/cart/shots/<file>.png`).
+  - `done` `{ result:{ carts } }`, or `error`.
+- `carts[]`: `{ seller, shop, cartUrl, verified, itemCount, subtotal, currency, lines[{ title, quantity, via?, error? }], screenshot?, error?, fallbackUrl? }`. `verified` = every picked variant is in the store's `/cart.js` at the right quantity. `subtotal` is the store's, before tax and shipping.
+- **When a seller fails** (`verified:false`, 30 s timebox), show `fallbackUrl` as a link: it is the Shop checkout `continue_url` (an access key, so don't log it).
+- `GET /units/:id/fixkit/cart` = the last run. `POST /units/:id/fixkit/cart/close` closes the agent's window.
+- **Layout idea:** the live feed with the cart screenshots next to the real browser window. Then "Open cart at <seller>" buttons (`cartUrl`) and the line "Nothing was bought".
+- Files: new `apps/api/src/routes/cart.ts`, 2 lines in `app.ts`, additive types in `events.ts` (`Stage` + `'cart'`, a `cart` JobEvent, `CartSummary`, `done.result` may be `{ carts }`), test `apps/api/test/cart.test.ts` (fake browser).
+- Needs Chromium once on the demo laptop: `pnpm --filter @ledger/cart-agent exec playwright install chromium`. `CART_AGENT_HEADLESS=1` hides the window (CI).
 
 ## 2026-11-21 14:54 ET · Spot check finds the change on our videos, with the right proof frames
 
@@ -79,6 +105,40 @@ Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/w
 - 5 test plans in `apps/api/test/plans/` (unit-4b, studio-ft in feet, two-bed-hall, l-living, scan-2b) with truth; `check-plan` now also grades door/window positions (30 cm).
 - **Proposed prompt change in Elmir's `PLAN_PROMPT`:** trace rooms along wall center lines instead of the inside. Inside tracing made small rooms 10–17% too small because the scale comes from center-line dimensions. With center lines, all 4 clean plans pass every check (openings within 2–7 cm). The scan still fails (rooms ~6% large). Details in `apps/api/test/plans/RESULTS.md`.
 - Next step: `/demo` page (A4) for the 13:00 checkpoint.
+
+## 2026-11-21 14:40 ET · From Rahim: tenant fix kit API, `POST/GET /units/:id/fixkit` (branch `rahim/fixkit-shop`)
+
+- Small addition to your app: new `apps/api/src/routes/fixkit.ts`, 2 lines in `app.ts`, and additive types in `events.ts` (`Stage` gains `'fixkit'`, a new `fixkit` JobEvent, and `done.result` may be `{ fixkit: FixKitSummary }`). No existing route changed. Tests: `apps/api/test/fixkit.test.ts`.
+- **Button (statement page, tenant view):** "Fix it yourself: $X vs $Y deduction", where X = `diyTotal`, Y = `deductionTotal`, and the saving = `savings` (negative means DIY costs more). Show it once a diff exists.
+- `POST /units/:id/fixkit` → `202 { jobId, events: "/jobs/<jobId>/events" }`. Use the same `EventSource` as the walkthrough jobs. `409` = no diff yet. `?wait=1` runs inline and returns the kit (`200`).
+  - Optional JSON body `{ checkout?: boolean, choices?: { [item.key]: variantId } }`. With `choices`, the stored kit swaps an unsure pick for the chosen alternative and rebuilds only the checkouts (no new search or model call).
+- **SSE events on that job (in order):**
+  - `progress` `{ type:'progress', stage:'fixkit', done, total }`. `total` grows once the number of sellers is known.
+  - `fixkit` `{ type:'fixkit', text, event }`. `text` is a ready-made feed line, e.g. `picked “Zep Foaming Wall Cleaner” from Hartville Hardware · $6.27 (82%)`. `event.step` is one of:
+    - `rules` `{ diffItems, needs, uncovered }`
+    - `query` `{ key, need, query, colorHint?, finish?, fallback }`
+    - `searching` `{ key, need, query }`
+    - `picked` `{ key, need, product, seller, price, confidence, needsChoice, candidates }`
+    - `missing` `{ key, need, reason }`
+    - `checkout` `{ seller, shop, lines }` ("building checkout for <seller>")
+    - `checkout-ready` `{ seller, shop, ok, subtotal, status?, error? }`
+    - `done` `{ diyTotal, deductionTotal, savings, complete }`
+    - Every event also carries `done` and `total`.
+  - `decisions` `{ type:'decisions', stats:{ calls, questions, lastLatencyMs, avgLatencyMs } }` after each pick (Decisions calls of this job only).
+  - `done` `{ type:'done', result:{ fixkit:{ items, checkouts, diyTotal, deductionTotal, savings, complete } } }`, or `error` `{ message }`.
+- `GET /units/:id/fixkit` → the kit (`FixKitSchema` exported from `@ledger/pipeline`), `404` until built. Its parts:
+  - `items[]`: `{ key, needLabel, quantity, product.title, seller.name, price, lineTotal, url, confidence, needsChoice, alternatives[], forDiffItem.surfaceId }`.
+  - `checkouts[]`: `{ seller, subtotal, continue_url?, status, messages[], error? }`.
+  - Also `missing[]`, `uncovered[]`, `warnings[]`, `complete`.
+- **UI notes:**
+  - Link each product to `url` exactly as returned.
+  - Give one "Checkout at <seller>" button per `checkouts[].continue_url`. It opens the merchant's page, and the tenant pays there. We never place orders.
+  - `continue_url` carries an access key: don't log it or put it in analytics.
+  - Show `checkouts[].messages` (e.g. "A destination address is required"). The live checkout is `incomplete` until the tenant adds an address on the merchant page.
+  - For `needsChoice` items, show both options. Post `choices` to swap.
+  - `subtotal` is before tax and shipping.
+- Mock: `SHOP_MODE=mock` (default) serves real recorded catalog results for the rule queries. Checkout links point to `https://checkout.mock.invalid/...`.
+
 ## 2026-11-21 13:00 ET · From Rahim: `POST /units/:id/scan` added to the API (branch `rahim/scan-to-plan`)
 
 - Small addition to your app: new file `apps/api/src/routes/scan.ts`, plus 2 lines in `app.ts` (import + `app.route('/units', scanRoutes(deps))`). No existing route changed. Tests: `apps/api/test/scan.test.ts`.

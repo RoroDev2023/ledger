@@ -1,7 +1,9 @@
 // [Alex] Job registry + per-job event log, streamed to the web app over SSE.
 // Late subscribers get every past event first, so a page reload never misses progress.
+import type { CartEvent } from '@ledger/cart-agent';
+import type { FixKitEvent } from '@ledger/pipeline';
 
-export type Stage = 'frames' | 'rooms' | 'surfaces' | 'findings' | 'diff';
+export type Stage = 'frames' | 'rooms' | 'surfaces' | 'findings' | 'diff' | 'fixkit' | 'cart';
 
 /** Live Decisions API stats for the demo screen (from Rahim's calls.jsonl rows). */
 export interface DecisionsStat {
@@ -43,8 +45,42 @@ export class DecisionsTotals {
 export type JobEvent =
   | { type: 'progress'; stage: Stage; done: number; total: number }
   | { type: 'decisions'; stats: DecisionsStat }
-  | { type: 'done'; result: { walkthroughId: string; findings: number; diffItems?: number } }
+  | { type: 'done'; result: { walkthroughId: string; findings: number; diffItems?: number } | { fixkit: FixKitSummary } | { carts: CartSummary[] } }
+  /** Fix kit steps (POST /units/:id/fixkit): `event` is @ledger/pipeline's FixKitEvent, `text` a ready-made feed line. */
+  | { type: 'fixkit'; event: FixKitEvent; text: string }
+  /** Cart agent steps (POST /units/:id/fixkit/cart): `event` is @ledger/cart-agent's CartEvent (screenshot = URL), `text` a feed line. */
+  | { type: 'cart'; event: CartEvent; text: string }
   | { type: 'error'; message: string };
+
+/** Totals in the `done` event of a fix kit job; the full kit is at GET /units/:id/fixkit. */
+export interface FixKitSummary {
+  items: number;
+  checkouts: number;
+  diyTotal: number;
+  deductionTotal: number;
+  savings: number;
+  complete: boolean;
+}
+
+/** One seller's cart after the cart agent ran (POST /units/:id/fixkit/cart). Nothing is ever bought. */
+export interface CartSummary {
+  seller: string;
+  shop: string;
+  /** The store's own /cart page (the tab the agent leaves open). */
+  cartUrl: string;
+  /** Every picked variant is in the cart at the right quantity, read back from /cart.js. */
+  verified: boolean;
+  itemCount: number;
+  /** From the store's /cart.js, before tax and shipping. */
+  subtotal: number;
+  currency: string;
+  lines: { title: string; quantity: number; via?: 'button' | 'cart-api' | 'button+cart-api'; error?: string }[];
+  /** URL of the cart screenshot (GET /units/:id/fixkit/cart/shots/<file>). */
+  screenshot?: string;
+  error?: string;
+  /** Shop MCP continue_url to show instead when the browser run failed. Carries an access key: never log it. */
+  fallbackUrl?: string;
+}
 
 export type JobStatus = 'queued' | 'running' | 'done' | 'failed';
 

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.11",
+    "@ledger/cart-agent": "workspace:*",
     "@ledger/pipeline": "workspace:*",
     "@ledger/plan": "workspace:*",
     "@ledger/shared": "workspace:*",

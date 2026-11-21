@@ -2,6 +2,75 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 15:45 ET · "Find fixes on Shopify" button + cart tabs that stay open (branch `rahim/shopify-button`)
+
+- **Base:** main, which already has #35 (fixkit) and #40 (cart-agent).
+- **Web (Alex's app, small):** `FixKitPanel` on the statement page: fixkit job feed → kit with "Fix it yourself: $X vs $Y deduction" → cart job feed with screenshots → per-seller "Open cart" links. Details in Alex.md.
+- **Cart agent:** `src/held.ts` keeps the Playwright browser in a module-level reference after the run (no close at the end). `launchStoreBrowser` closes the previous window first; `closeHeldBrowser()` is exported; a window closed by hand is forgotten (`disconnected`). Never opens checkout (unchanged guards; static source test still passes).
+- **Verified:** 3 new held-browser tests; real headless Chromium script: window alive after run A, closed when run B launches, `closeHeldBrowser()` closes B. `pnpm -r typecheck`, `pnpm lint`, `pnpm -r test` (380) green. **Not verified:** the button in a browser against the live API (Rahim tests live next).
+- **Next:** live run from the statement page on the demo laptop; check the feed timing and that the tabs stay on /cart.
+
+## 2026-11-21 15:22 ET · Cart agent: a visible browser fills each seller's real Shopify cart (branch `rahim/cart-agent`)
+
+- **Base:** main plus the open #35 (`rahim/fixkit-shop`) merged in, because `buildFixKit` isn't on main yet. Conflicts were only `Alex.md` and `.env.example` (both sides kept). This PR includes #35.
+- **Ready:** `packages/cart-agent` (new, owner Rahim). `fillCarts(kit, { launch, onEvent, screenshotDir, sellers?, maxSellers?, timeboxMs=30s })` → `{ carts, close }`.
+  - Groups items by `seller.domain` and merges identical variants. Fallback link = that seller's `continue_url`.
+  - **Per seller, in one Chromium window** (headed, slowMo 300 ms, one tab each): opens the storefront homepage for 1.5 s, then the variant URL with its query string unchanged.
+  - Closes popups (common cookie/newsletter close buttons, at most 2 passes, never blocks).
+  - Adds to cart. It first clicks the theme button, using only the `/cart/add` form whose `id` equals our variant and only after the label passes the unsafe filter. If `/cart.js` hasn't changed within 5 s, it falls back to `POST /cart/add.js` with `{ items:[{ id:<numeric>, quantity }] }`.
+  - Then `/cart`, read back with `/cart.js`, and a screenshot. The tab stays open on `/cart`.
+  - Timebox 30 s per seller. Failure → `seller-failed` with the fallback link, and the run moves on.
+- **Never checks out:** no checkout or express-pay control is ever pressed (label filter `UNSAFE_TEXT`), the only typing is the quantity field, and nothing calls complete_checkout. A Playwright route also aborts every navigation to `/checkout(s)`, `/cart/checkout`, `shop.app`, or a `POST /cart` asking for checkout.
+- **Gotcha:** `seller.domain` is the `*.myshopify.com` host, but the variant URL uses the store's own domain. Cart cookies are per host, so `/cart` and `/cart.js` are read on the variant URL's origin (`cartUrl` reports which).
+- Numeric variant ID = the `?variant=` param, else the GID's trailing number (`numericVariantId`).
+- **Events:** `start → opening → product (screenshot) → [popup] → added (via button | cart-api | button+cart-api) / add-failed → cart → cart-verified (n items, $subtotal, screenshot) / seller-failed → done`, with `done/total` and `describeCartEvent()` feed lines.
+- **API:** `POST /units/:id/fixkit/cart` (202 job + SSE, `?wait=1` → `{ carts }`), `GET …/fixkit/cart`, `GET …/fixkit/cart/shots/:file`, `POST …/fixkit/cart/close`. Details and the button for Alex are in Alex.md.
+- **CLI:** `pnpm --filter @ledger/cart-agent fill <fixkit.json> [--sellers a,b] [--max-sellers N] [--max-usd N] [--headless] [--close]`. The script is named `fill` because `pnpm … run <file>` would treat the file as a script name. It writes `cart.json` (without `continue_url`) and `cart-shots/` next to the kit.
+- **Verified:**
+  - 13 cart-agent tests: variant ID parsing, grouping and filters, the event sequence, button → API fallback, add failure, timebox → fallback, no numeric ID, the checkout guard, unsafe labels, and a static source check (no complete_checkout, no checkout click/goto/fetch, quantity is the only typing). 4 API tests with a fake browser.
+  - `pnpm -r typecheck`, `pnpm lint` and `pnpm -r test` (376) are green.
+  - **Live, headed**, on the recorded real fix kit (14:28, 12 items, 10 sellers), limited with `--max-usd 5` to the 2 cheapest sellers:
+    - Painters Solutions (putty knife $4.20): **theme button**, cart verified, 1 item, $4.20, 10.1 s.
+    - Cosmas-Hardware.com (cabinet knob $2.49): **theme button**, cart verified, 1 item, $2.49, 11.0 s.
+    - Screenshots checked by eye: both store cart pages show the item. No checkout was opened.
+  - **Not verified live:** the `/cart/add.js` fallback (unit test only), quantity > 1 (the spackle ×2 seller), sellers with several lines (TouchUp.com ×3), and the API route with the real browser.
+- **For Alex:** button "Watch the agent fill the carts"; details in Alex.md.
+- **For Elmir:** `packages/cart-agent` could get a row in the AGENTS.md layout table (owner Rahim), next to `packages/shop`.
+- **Next:**
+  - Run it once through the API from the web button on the demo laptop.
+  - Then one multi-line seller (TouchUp.com) to time the 30 s box. With slowMo, 3 product pages may need ~35 s, so raise `timeboxMs` if it trips.
+
+## 2026-11-21 14:40 ET · Tenant fix kit via Shop MCP (Shopify bonus) (branch `rahim/fixkit-shop`)
+
+- **Ready:** `packages/shop` (new) is a stateless Shop MCP client for `https://mcp.shop.com/`.
+  - **Wire:** JSON-RPC `tools/call` with the documented headers (`MCP-Protocol-Version: 2026-07-28`, `Mcp-Method`, `Mcp-Name`) and `params._meta` (clientInfo `ledger-fixkit`). No auth.
+  - **Tools:** `searchCatalog` / `getProduct` / `createCheckout` only. The allowlist throws on `complete_checkout`, so it is unreachable.
+  - **Errors:** JSON-RPC 400 → `ShopRpcError`, `isError` → `ShopToolError` (with `_meta` code and `retry_after`).
+  - **Retries:** reads retry on 429/5xx/network/`rate_limited`/`upstream_unavailable`. `create_checkout` retries only on `rate_limited` or 429, with the same idempotency key.
+  - **Call log:** every call lands in the same `calls.jsonl` (`model: shop-mcp`, `tag: shop.<tool>`, `endpoint: shop`). `continue_url` and checkout ids are never logged.
+  - **Modes:** `SHOP_MODE=live|mock|record|replay`, default mock. Mock serves the closest recorded real search (`packages/shop/fixtures/search_catalog`, 9 queries recorded live today), else a synthesized catalog. Record never saves checkouts.
+- Request shapes come only from `docs/vendor/shop-{quickstart,checkout,tools,search,errors}.md`, saved verbatim from shop.dev's `.md` pages.
+- **Ready:** `buildFixKit(diffItems, plan, frames, { onEvent, checkout?, deps? }) → FixKit` and `applyChoices(kit, choices)` in `@ledger/pipeline` (`src/fixkit.ts`). Steps:
+  - (a) `fixkit-rules.json` (PLACEHOLDER caps and coverage) maps issue → needs, with a floor override. Quantity = ceil(area / coverage), clamped.
+  - (b) Hydrogen `fixkit.query.<need>` writes `{ query, colorHint?, finish? }` (zod) from the damage frame; the default query is the fallback.
+  - (c) `search_catalog` US/USD with cap × 100 and limit 10. Code re-checks available / USD / ≤ cap.
+  - (d) Decisions `choice` over `c0..cN` (title · $price · seller · options). Confidence < 0.5 → top 2 kept, `needsChoice`.
+  - (e) `get_product` re-check, then group by `seller.domain`, merge identical variants, and run `create_checkout` per seller → `continue_url`.
+  - (f) Cent math: `diyTotal`, `deductionTotal` (charged cost of the covered new-damage items), `savings`.
+  - Progress events: `rules → query → searching → picked (confidence) → checkout <seller> → checkout-ready → done`, plus `describeFixKitEvent()` for feed text.
+- **API:** `POST /units/:id/fixkit` (202 job, SSE on `/jobs/:id/events`, `?wait=1` inline, `{ choices }` to swap a pick) and `GET /units/:id/fixkit`. Event shape is in Alex.md.
+- **CLI:** `pnpm --filter @ledger/pipeline fixkit <diff.json> [--plan] [--frames] [--no-checkout]` prints the feed, the kit table and the checkout links, and writes `fixkit.json`. `pnpm --filter @ledger/shop smoke ["query"] [--max-usd N] [--checkout]` is the live check.
+- **Verified:**
+  - 9 shop tests, 12 pipeline fixkit tests and 3 API tests, all mock or on a local fake server. They cover the request shape, errors and retries, the allowlist, rule mapping, the query schema, the Decisions pick, the < 0.5 fallback and `choices`, seller grouping, one checkout per seller, savings math, and that `complete_checkout` is never sent.
+  - `pnpm -r typecheck`, `pnpm lint` and `pnpm -r test` (316) are green.
+  - **Live search** ("interior wall touch up paint" ≤ $40): 10 real products in 408 ms, schema OK.
+  - **Live create_checkout** (1 sanding sponge): status `incomplete`, `continue_url` on `shop.app`, merchant messages "sign in / destination address required". No order was placed.
+  - **Full fixkit CLI** against the real catalog (SHOP_MODE=record, GEMINI mocked, 7 diff items, 12 needs): 24 Shop calls, 0 errors, $193.48 DIY vs $711.72.
+  - **Not verified:** Hydrogen and Decisions live on fix-kit inputs (mock only), and a real damage frame.
+- **For Alex:** button "Fix it yourself: $X vs $Y deduction"; details in Alex.md.
+- **For Elmir:** `calls.jsonl` now has `shop-mcp` rows (0 tokens), so filter them in `summarizeCalls` if you only want model cost. `packages/shop` could get a row in the AGENTS.md layout table (owner Rahim).
+- **Next:** one live run with GEMINI_MODE=record on a real `run:pair` diff, then check that Hydrogen's queries and Decisions' picks look sane on real damage frames.
+
 ## 2026-11-21 13:00 ET · LiDAR scan → FloorPlan (branch `rahim/scan-to-plan`)
 
 - **Ready:** `scanToPlan(capturedRoomJson, { unitId, roomName?, log? }) → FloorPlan` in `@ledger/plan` (`packages/plan/src/scan.ts`, Elmir's package, new file only). It reads Apple RoomPlan `CapturedRoom` JSON: `walls/doors/windows/openings/objects/floors/sections`, each with `dimensions` [w, h, d] and a column-major 4×4 `transform` (flat 16 or 4 columns). Property list checked against Apple's RoomPlan docs. The docs don't name the axes, so we assume ARKit y-up with local x along the surface. Unknown fields are logged and items that don't parse are skipped, so neither is fatal.

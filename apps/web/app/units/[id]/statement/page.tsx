@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { Finding, FloorPlan, Statement } from '@ledger/shared';
 import { Header } from '../../../../components/Header';
+import { FixKitPanel } from '../../../../components/FixKitPanel';
 import { StatementView } from '../../../../components/StatementView';
 import { api, type Proof } from '../../../../lib/api';
 import { EASE, Skeleton } from '../../../../components/motion';
@@ -57,6 +58,7 @@ export default function StatementPage() {
           </div>
         )}
         {data?.statement && <StatementView statement={data.statement} plan={data.plan} findings={data.findings} proofs={data.proofs} />}
+        {data?.statement?.items.some((i) => i.verdict === 'new-damage') && <FixKitPanel unitId={id} />}
       </main>
     </>
   );

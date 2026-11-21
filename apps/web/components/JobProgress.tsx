@@ -59,7 +59,7 @@ export function JobProgress({ jobId, withDiff, onDone, onError }: { jobId: strin
         else if (e.type === 'done') {
           setState('done');
           setTimeout(() => onDone?.(), 1600);
-        } else {
+        } else if (e.type === 'error') {
           setState('error');
           setError(e.message);
           onError?.(e.message);

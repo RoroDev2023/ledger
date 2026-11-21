@@ -7,6 +7,8 @@ import { JobRegistry } from './events.js';
 import { mockPipeline, type PipelineAdapter } from './pipeline.js';
 import { SerialQueue } from './queue.js';
 import { TEST_PAGE } from './testPage.js';
+import { cartRoutes } from './routes/cart.js';
+import { fixkitRoutes } from './routes/fixkit.js';
 import { frameRoutes } from './routes/frames.js';
 import { jobRoutes } from './routes/jobs.js';
 import { resultRoutes } from './routes/results.js';
@@ -32,6 +34,8 @@ export function createApp(opts: { dataDir?: string; pipeline?: PipelineAdapter }
   app.route('/units', walkthroughRoutes(deps));
   app.route('/units', resultRoutes(deps));
   app.route('/units', frameRoutes(deps));
+  app.route('/units', fixkitRoutes(deps));
+  app.route('/units', cartRoutes(deps));
   app.route('/jobs', jobRoutes(deps));
 
   app.onError((err, c) => {
