@@ -1,9 +1,12 @@
 // [Alex] Right-hand panel: with nothing selected, every line (click to select); with a surface selected, its
 // lines with verdict, reason, cost and before/after frames (damage box drawn on the after frame).
 'use client';
+import { AnimatePresence, motion } from 'motion/react';
 import type { DiffItem, Finding } from '@ledger/shared';
-import { pinStyle } from '@ledger/viewer/colors';
+import { displayReason, pinStyle } from '@ledger/viewer/colors';
 import { api } from '../lib/api';
+import { usd } from '../lib/ui';
+import { EASE } from './motion';
 
 export interface EvidencePanelProps {
   unitId: string;
@@ -18,17 +21,28 @@ export interface EvidencePanelProps {
 export function EvidencePanel({ unitId, items, findings, selected, onSelect, surfaceLabel }: EvidencePanelProps) {
   const shown = selected ? items.filter((i) => i.surfaceId === selected) : items;
   return (
-    <aside style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto', paddingRight: 4 }}>
-      {selected && (
-        <button onClick={() => onSelect(null)} style={{ alignSelf: 'flex-start', border: 0, background: 'none', color: '#6b6255', padding: 0 }}>
-          ← all lines
-        </button>
-      )}
-      {selected && <h2 style={{ margin: 0, fontSize: 18 }}>{surfaceLabel(selected)}</h2>}
-      {shown.length === 0 && <p style={{ color: '#8a8173' }}>{selected ? 'Nothing recorded on this surface.' : 'No findings yet.'}</p>}
-      {shown.map((item, i) => (
-        <Line key={i} unitId={unitId} item={item} findings={findings} expanded={!!selected} onClick={() => onSelect(item.surfaceId)} surfaceLabel={surfaceLabel} />
-      ))}
+    <aside style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto', minHeight: 0, paddingRight: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+        <div className="eyebrow">{selected ? 'Selected' : `Findings · ${items.length}`}</div>
+        {selected && (
+          <button className="btn btn-ghost btn-sm" onClick={() => onSelect(null)}>
+            ← All
+          </button>
+        )}
+      </div>
+      {selected && <h2 className="h2" style={{ fontSize: 28 }}>{surfaceLabel(selected)}</h2>}
+      <AnimatePresence mode="popLayout">
+        {shown.length === 0 && (
+          <motion.p key="empty" className="muted" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            {selected ? 'Nothing on this wall.' : 'No findings yet.'}
+          </motion.p>
+        )}
+        {shown.map((item, i) => (
+          <motion.div key={`${selected ?? 'all'}-${item.surfaceId}-${i}`} layout initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.45, ease: EASE, delay: i * 0.05 }}>
+            <Line unitId={unitId} item={item} findings={findings} expanded={!!selected} onClick={() => onSelect(item.surfaceId)} surfaceLabel={surfaceLabel} />
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </aside>
   );
 }
@@ -37,43 +51,58 @@ function Line({ unitId, item, findings, expanded, onClick, surfaceLabel }: { uni
   const s = pinStyle(item);
   const bbox = findings.find((f) => f.surfaceId === item.surfaceId && (!item.issueType || f.type === item.issueType))?.bbox;
   return (
-    <div onClick={expanded ? undefined : onClick} style={{ background: '#fff', border: '1px solid #e6e0d4', borderLeft: `4px solid ${s.color}`, borderRadius: 10, padding: 14, cursor: expanded ? 'default' : 'pointer' }}>
+    <motion.div
+      onClick={expanded ? undefined : onClick}
+      whileHover={expanded ? undefined : { y: -2 }}
+      className="card"
+      style={{ padding: 16, cursor: expanded ? 'default' : 'pointer', position: 'relative', overflow: 'hidden', borderRadius: 16 }}
+    >
+      <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: s.color }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-        <span style={{ font: '600 12px system-ui', color: s.color, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+        <span style={{ font: '600 11px var(--sans)', color: s.color, textTransform: 'uppercase', letterSpacing: '.1em' }}>
           {s.label}
           {item.issueType ? ` · ${item.issueType}` : ''}
         </span>
-        <b style={{ fontSize: 18, color: s.charged ? '#dc2626' : '#8a8173' }}>${(item.costUsd ?? 0).toFixed(2)}</b>
+        <b className="display" style={{ fontSize: 26, color: s.charged ? 'var(--red)' : 'var(--faint)' }}>
+          {usd(item.costUsd)}
+        </b>
       </div>
       {!expanded && <div style={{ fontWeight: 600, marginTop: 2 }}>{surfaceLabel(item.surfaceId)}</div>}
-      <div style={{ color: '#4a443b', marginTop: 4, fontSize: 14 }}>{item.reason}</div>
+      <div style={{ color: 'var(--ink-2)', marginTop: 4, fontSize: 14 }}>{displayReason(item)}</div>
       {expanded && (item.beforeFrameId || item.afterFrameId) && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
           <Frame title="Move-in" src={item.beforeFrameId ? api.frameUrl(unitId, item.beforeFrameId) : null} />
           <Frame title="Move-out" src={item.afterFrameId ? api.frameUrl(unitId, item.afterFrameId) : null} bbox={bbox} color={s.color} />
         </div>
       )}
       {expanded && (
-        <div style={{ color: '#8a8173', fontSize: 12, marginTop: 8 }}>
+        <div className="faint mono" style={{ fontSize: 12, marginTop: 10 }}>
           confidence {Math.round(item.confidence * 100)}%{item.areaM2 ? ` · ${item.areaM2} m²` : ''}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
-function Frame({ title, src, bbox, color = '#dc2626' }: { title: string; src: string | null; bbox?: [number, number, number, number]; color?: string }) {
+export function Frame({ title, src, bbox, color = 'var(--red)' }: { title: string; src: string | null; bbox?: [number, number, number, number]; color?: string }) {
   return (
     <figure style={{ margin: 0 }}>
-      <figcaption style={{ fontSize: 12, color: '#6b6255', marginBottom: 4 }}>{title}</figcaption>
-      <div style={{ position: 'relative', aspectRatio: '16 / 9', background: '#ece7dd', borderRadius: 6, overflow: 'hidden' }}>
+      <figcaption className="eyebrow" style={{ fontSize: 10, marginBottom: 6 }}>
+        {title}
+      </figcaption>
+      <div style={{ position: 'relative', aspectRatio: '16 / 9', background: 'var(--paper-2)', borderRadius: 10, overflow: 'hidden' }}>
         {src ? (
           <img src={src} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         ) : (
-          <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#8a8173', fontSize: 12 }}>no frame</div>
+          <div className="faint" style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 12 }}>
+            no frame
+          </div>
         )}
         {src && bbox && (
-          <div
+          <motion.div
+            initial={{ opacity: 0, scale: 1.4 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, ease: EASE, delay: 0.25 }}
             style={{
               position: 'absolute',
               top: `${bbox[0] * 100}%`,
@@ -81,8 +110,8 @@ function Frame({ title, src, bbox, color = '#dc2626' }: { title: string; src: st
               height: `${(bbox[2] - bbox[0]) * 100}%`,
               width: `${(bbox[3] - bbox[1]) * 100}%`,
               border: `2px solid ${color}`,
-              borderRadius: 4,
-              boxShadow: '0 0 0 9999px rgba(0,0,0,.12)',
+              borderRadius: 6,
+              boxShadow: '0 0 0 9999px rgba(21,18,13,.18)',
             }}
           />
         )}

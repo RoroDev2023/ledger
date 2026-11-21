@@ -68,7 +68,9 @@ async function runJob(d: Deps, jobId: string, unitId: string, w: Walkthrough): P
       const before = [latest(unit, 'baseline'), latest(unit, 'tenant-addendum')].filter((x): x is Walkthrough => !!x);
       const baseline = (await Promise.all(before.map((b) => loadFindings(d.storage, unitId, b.id)))).flatMap((f) => f ?? []);
       totals.begin();
-      const diff = checked('diff', z.array(DiffItemSchema), await d.pipeline.runDiff({ plan, baseline, moveOut: findings, ...hooks }));
+      const dirOf = (x?: Walkthrough) => (x ? d.storage.walkthroughDir(unitId, x.id) : undefined);
+      const dirs = { baseline: dirOf(latest(unit, 'baseline')), addendum: dirOf(latest(unit, 'tenant-addendum')), moveOut: d.storage.walkthroughDir(unitId, w.id) };
+      const diff = checked('diff', z.array(DiffItemSchema), await d.pipeline.runDiff({ plan, baseline, moveOut: findings, dirs, ...hooks }));
       const statement = buildStatement(unitId, w.capturedAt, diff);
       await d.storage.writeJson(p.diff, diff);
       await d.storage.writeJson(p.statement, statement);

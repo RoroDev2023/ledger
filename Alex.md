@@ -2,6 +2,64 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
+## 2026-11-21 14:31 ET · Damage checked on both walkthroughs (default)
+
+- Move-in checks damage again (the record of what was already there), with Argon second opinions (max 3); move-out checks damage and runs the diff with Carbon. `MOVEIN_DAMAGE=off` skips the move-in damage check for a faster wall-only record (the diff can still call a mark pre-existing from two unchanged before/after pairs). Briefly made move-out-only in `18cffe5`, reverted here at Alex's request.
+
+## 2026-11-21 14:29 ET · Furniture in the 3D model
+
+- Contract (additive, optional): `Surface.at` and `Surface.footprint` for fixtures. Argon now returns fixture positions and drawn outlines (`at`, `box`); `buildPlan` stores them.
+- Viewer: `placement.ts` (pure, tested) turns fixtures into pieces: art and wall lights hang on the nearest wall facing into the room, columns are floor to ceiling, tables/cabinets use their drawn outline, a table brings chairs on both long sides (drawn chairs next to a table are skipped). `Furniture.tsx` draws them: painted portrait canvas in a dark frame with a picture light, walnut cabinet with brass pulls, white-topped table with a wood rim, terracotta chairs on chrome sleds, concrete column, brass sconces. Wall items hide with their cut-away wall. The camera starts on the side the art faces.
+- Live: conference-room.pdf → cabinet, table, portrait, column, chair with positions; rendered in 3D and plan view. Lab sample `furnished`.
+- Note: placement.ts (not furniture.ts) because macOS treats furniture.ts and Furniture.tsx as the same import.
+
+## 2026-11-21 14:24 ET · Faster and hands-free: landmarks from the plan, Argon on move-in, timeouts
+
+- Freeze found: Gemini requests had no timeout; one hung Carbon call froze a whole job. `packages/gemini` now has a per-request timeout (GEMINI_TIMEOUT_MS, retried like a network error) and GEMINI_CONCURRENCY (default 4; my .env uses 12) so second opinions run in one round.
+- Wall landmarks without typing: `ArgonPlanSchema.fixtures` has an optional `at` point and `attachWallLandmarks()` puts each drawn item on the nearest wall of its room (≤ 1 m). Live on conference-room.pdf: north = window, cabinet; east = portrait; south = door; west = column (8 s). The review boxes are pre-filled, for corrections only. (Elmir's package: prompt + schema + new function + test.)
+- Second opinions: Argon (MODEL_PLAN) on the move-in, Carbon only on the move-out and diff (`secondOpinionEnv`, SECOND_OPINION_MOVE_IN=carbon to undo). Not yet measured whether Argon is faster on these prompts.
+- Progress panel: running clock and a "second opinion" line when no event for 6 s.
+- API is stopped; Alex reruns by hand.
+
+## 2026-11-21 14:15 ET · Real pipeline behind the app; first live run on our own videos
+
+- Branch `alex/conference-room-plan` (main merged in). `apps/api/src/realPipeline.ts` runs R2–R5 like `run:pair`: keyframes → Hydrogen → localize → findings, evidence.json per walkthrough, then `diffWalkthroughs`. `PIPELINE=real` switches it on (needs `FFMPEG_PATH` if ffmpeg isn't on PATH). Decisions stats stream from calls.jsonl. Frames route serves the pipeline's real JPEGs (ids like `<wid>.f00042`). `GET /units/:id/evidence` serves diff-evidence.json; the statement shows both proving pairs on a charge.
+- Speed: Carbon takes ~60 s per call (measured), so the app caps it (6 for localization, 3 for findings; `PIPELINE_SPEED=thorough` for Rahim's defaults). A cap of 0 for localization was tried and was wrong.
+- Live result on video/IMG_0022 → IMG_0023 (conference room, plan `apps/api/test/plans/conference-room.pdf`): **missed the change**. Move-out frames 1.5–31.5 s were nearly all placed on the west wall: the Argon plan had no landmarks on the east/west walls (both described as "plain, no door or window") and Carbon was off. Findings looked at the wrong frames and found nothing.
+- Ground truth from the frames: yellow column mark is in BOTH videos (pre-existing); the new thing in the move-out is a sheet of paper on the wall light by the door, which isn't damage in the R4 checklist.
+- Fix: plan review step has "What's on each wall?" (saved via `PATCH /plan` `landmarks`), so walls can be told apart; Carbon cap back to 6. Re-run by Alex pending. For a charge test, film a move-out with something that looks like damage on a wall.
+- Note: `pnpm --filter @ledger/web e2e` uploads dummy videos, so run it against an API with the mock pipeline (no `PIPELINE=real`).
+
+## 2026-11-21 13:26 ET · High-end front end: design system, motion, copy
+
+- Branch `alex/frontend-polish` (stacked on #30). New design system in `apps/web/app/globals.css` (warm paper, ink, one signal red for charges, brass accents, paper grain) with Instrument Serif headlines, Geist text, Geist Mono numbers (self-hosted via `next/font`). Motion (`motion` package) for staggered reveals, count-up totals, step pills, page-step slides, drop zones and live progress shimmer.
+- Landing page rebuilt: headline, live auto-rotating 3D unit (`HERO` sample in `@ledger/viewer/samples`), how it works, "No proof, no charge." Every page restyled (new unit, review, move-out, unit, statement, evidence panel).
+- Viewer: camera fly-in, pins drop in one by one with a bounce, charged pins pulse, tags appear after the drop, optional autorotate.
+- Copy rewritten in one brand voice (short, concrete, no model jargon in headlines). Parser warnings are reworded for people; the "Not provable:" marker is hidden from displayed reasons (`displayReason`). Pin labels: "Moved", "Not enough evidence".
+- Verified: `pnpm --filter @ledger/web e2e` passes with zero browser errors; 271 tests, typecheck and lint clean.
+
+## 2026-11-21 13:05 ET · A3 web flows built and clicked through end to end
+
+- Branch `alex/a3-web-flows` (stacked on #25). Pages: `/owner/new` (plan PDF/image → Argon reads it → review with 3D plan preview, room areas, warnings, rename rooms, fix ceiling height → move-in video with live progress → unit page), `/units/<id>/moveout` (upload, live progress → statement), `/units/<id>/statement` (send-by date, total, charged lines first, $0 lines kept, before/after frames with the damage box, link to each line in 3D, printable version). The unit page got the header and a next-step button. `/confirm` removed (tenant sign-off is cut). Shared components: PlanUpload, PlanReview, VideoUpload (XHR upload progress), JobProgress (stage bars + Decisions counters), StatementView, Header.
+- The viewer's room names and pin tags are now our own DOM overlay projected each frame; drei `<Html>` dropped its first label and threw `removeChild` errors when a 3D view unmounted (seen in the flow). The sacrificial `<Html>` workaround is gone.
+- `PLAN_PARSER=argon` in my `.env` (documented in `.env.example`): uploads from the web app are read by live Argon.
+- `pnpm --filter @ledger/web e2e <plan.pdf>` drives real Chrome (puppeteer-core, devDependency) through the whole flow; it passed on unit-4b, studio-ft, two-bed-hall and l-living with **zero browser errors**.
+- Videos still use the mock pipeline until Rahim's R3–R5 land.
+- Next step: plug Rahim's pipeline into the API adapter when #19/#21/#22 merge; `/demo` after that.
+
+## 2026-11-21 12:43 ET · Built walls: no more doubled or overlapping walls
+
+- Branch `alex/viewer-openings` (PR #25). The viewer now draws one wall per wall line (`physicalWalls()`), centered on the line and shared by the rooms on both sides, instead of one slab per room. That removes the doubled walls between rooms, the tall-wall-plus-stub combos in the cut-away, and the slivers at corners. Each side face wears its room's color (selected / charged), and a click picks the room on the side you hit. Room edges within 35 cm and 3° count as one wall (scans put the two sides ~30 cm apart). Only exterior walls are lowered in the cut-away. Wall shadows removed (they drew dark shapes on floors).
+- 102 viewer tests, including no-overlap and every-wall-covered checks on all samples; mutation-checked. Screenshots of all 5 Argon-parsed plans look like their PDFs; the scan keeps few-cm steps from tracing error.
+- Next step: `/demo` page (A4).
+
+## 2026-11-21 12:40 ET · 3D openings fixed, 5 test plans checked live with Argon
+
+- (Correction: my entries stamped 12:45 and 13:05 were really ~12:10 and ~12:20; I had guessed the time.)
+- Branch `alex/viewer-openings` (stacked on #24 → #23). Viewer: a door attached to one room's wall now also cuts the other room's slab of a shared wall (`openingsForWall`); cut-away and top-down walls are door-only stubs (windows no longer squash into slits); stubs cast no shadow. 86 viewer tests.
+- 5 test plans in `apps/api/test/plans/` (unit-4b, studio-ft in feet, two-bed-hall, l-living, scan-2b) with truth; `check-plan` now also grades door/window positions (30 cm).
+- **Proposed prompt change in Elmir's `PLAN_PROMPT`:** trace rooms along wall center lines instead of the inside. Inside tracing made small rooms 10–17% too small because the scale comes from center-line dimensions. With center lines, all 4 clean plans pass every check (openings within 2–7 cm). The scan still fails (rooms ~6% large). Details in `apps/api/test/plans/RESULTS.md`.
+- Next step: `/demo` page (A4) for the 13:00 checkpoint.
 ## 2026-11-21 13:00 ET · From Rahim: `POST /units/:id/scan` added to the API (branch `rahim/scan-to-plan`)
 
 - Small addition to your app: new file `apps/api/src/routes/scan.ts`, plus 2 lines in `app.ts` (import + `app.route('/units', scanRoutes(deps))`). No existing route changed. Tests: `apps/api/test/scan.test.ts`.

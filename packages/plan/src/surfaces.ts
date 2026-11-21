@@ -162,7 +162,7 @@ export function buildPlan(input: {
   scaleSource: FloorPlan['scaleSource'];
   rooms: { name: string; polygon: Pt[] }[];
   openings?: { id: string; kind: 'door' | 'window'; center: Pt; widthM: number }[];
-  fixtures?: { roomName: string; name: string }[];
+  fixtures?: { roomName: string; name: string; at?: Pt; footprint?: [Pt, Pt] }[];
   warnings?: string[];
 }): FloorPlan {
   const used = new Map<string, number>();
@@ -178,7 +178,9 @@ export function buildPlan(input: {
   for (const f of input.fixtures ?? []) {
     const room = rooms.find((r) => r.name === f.roomName);
     if (!room) continue;
-    surfaces.push({ id: `${room.id}.fixture-${slug(f.name)}`, roomId: room.id, kind: 'fixture', label: `${room.name} ${f.name}` });
+    const id = `${room.id}.fixture-${slug(f.name)}`;
+    if (surfaces.some((s) => s.id === id)) continue; // the same item read twice
+    surfaces.push({ id, roomId: room.id, kind: 'fixture', label: `${room.name} ${f.name}`, ...(f.at ? { at: f.at } : {}), ...(f.footprint ? { footprint: f.footprint } : {}) });
   }
   return {
     unitId: input.unitId,

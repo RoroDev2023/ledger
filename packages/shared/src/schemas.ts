@@ -32,6 +32,8 @@ export const SurfaceSchema = z.object({
   areaM2: z.number().finite().nonnegative().optional(),
   neighbors: z.array(z.string()).optional(),
   landmarks: z.array(z.string()).optional(),
+  at: point.optional(),
+  footprint: z.tuple([point, point]).optional(),
 });
 
 export const FloorPlanSchema = z

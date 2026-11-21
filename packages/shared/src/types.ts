@@ -30,6 +30,9 @@ export interface Surface {
   neighbors?: string[];
   /** e.g. ["window", "radiator"] */
   landmarks?: string[];
+  /** Fixtures only: where it sits (plan meters), and its outline when drawn as a shape (two opposite corners). */
+  at?: [number, number];
+  footprint?: [[number, number], [number, number]];
 }
 
 export interface FloorPlan {

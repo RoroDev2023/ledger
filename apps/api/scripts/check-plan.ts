@@ -15,8 +15,8 @@ import { Storage, defaultDataDir } from '../src/storage.js';
 interface Truth {
   unitId: string;
   totalAreaM2: number;
-  rooms: { name: string; areaM2: number }[];
-  openings: { kind: 'door' | 'window'; widthM: number }[];
+  rooms: { name: string; areaM2: number; polygon: [number, number][] }[];
+  openings: { kind: 'door' | 'window'; widthM: number; a: [number, number]; b: [number, number] }[];
   argon: unknown;
 }
 
@@ -85,6 +85,34 @@ if (truth) {
     const diffs = ws(got).map((w, i) => Math.abs(w - (ws(want)[i] ?? 0)));
     if (got.length === want.length) check(Math.max(0, ...diffs) <= 0.15, `${kind} widths within 15 cm (worst ${(Math.max(0, ...diffs) * 100).toFixed(0)} cm)`);
   }
+
+  // Positions. The parse is in its own meter frame (origin at the image corner), so line it up with the truth by
+  // the corner of the bounding box first, then compare every opening's center to the nearest one of its kind.
+  const bboxMin = (pts: [number, number][]) => [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1]))] as const;
+  const [tx, ty] = bboxMin(truth.rooms.flatMap((r) => r.polygon));
+  const [px, py] = bboxMin(plan.rooms.flatMap((r) => r.polygon));
+  const walls = new Map(plan.surfaces.map((w) => [w.id, w]));
+  const parsedCenter = (o: FloorPlan['openings'][number]): [number, number] | null => {
+    const seg = walls.get(o.wallId)?.segment;
+    if (!seg) return null;
+    const [a, b] = seg;
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const t = (o.offsetM + o.widthM / 2) / len;
+    return [a[0] + (b[0] - a[0]) * t - px + tx, a[1] + (b[1] - a[1]) * t - py + ty];
+  };
+  const misplaced: string[] = [];
+  let worst = 0;
+  for (const t of truth.openings) {
+    const c: [number, number] = [(t.a[0] + t.b[0]) / 2, (t.a[1] + t.b[1]) / 2];
+    const dists = plan.openings.filter((o) => o.kind === t.kind).flatMap((o) => {
+      const p = parsedCenter(o);
+      return p ? [Math.hypot(p[0] - c[0], p[1] - c[1])] : [];
+    });
+    const dmin = dists.length ? Math.min(...dists) : Infinity;
+    worst = Math.max(worst, dmin);
+    if (dmin > 0.3) misplaced.push(`${t.kind} at (${c[0].toFixed(1)}, ${c[1].toFixed(1)}) ${Number.isFinite(dmin) ? `${dmin.toFixed(2)} m off` : 'missing'}`);
+  }
+  check(misplaced.length === 0, `every door/window within 30 cm of its true spot (worst ${Number.isFinite(worst) ? `${(worst * 100).toFixed(0)} cm` : 'missing'})${misplaced.length ? `: ${misplaced.join('; ')}` : ''}`);
 }
 
 // Save as a unit so the web app can show it.

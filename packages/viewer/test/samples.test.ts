@@ -1,7 +1,7 @@
 // Tricky plans: L shapes, angled and rotated walls, tiny and huge rooms, crowded walls, bad data.
 import { describe, expect, it } from 'vitest';
 import { FloorPlanSchema, loadPlanFixture } from '@ledger/shared';
-import { pinAnchors, planGeometry, pointInPolygon, wallGeometry } from '../src/geometry.js';
+import { STUB_HEIGHT, openingsForWall, physicalBlocksView, pinAnchors, planGeometry, pointInPolygon, wallGeometry } from '../src/geometry.js';
 import { pinKind } from '../src/colors.js';
 import { makePlan, SAMPLES } from '../src/samples.js';
 
@@ -149,5 +149,115 @@ describe('pointInPolygon', () => {
     expect(pointInPolygon([4, 4], L)).toBe(false); // the cut-out corner
     expect(pointInPolygon([5, 1], L)).toBe(true);
     expect(pointInPolygon([-1, 1], L)).toBe(false);
+  });
+});
+
+describe('doors on walls shared by two rooms', () => {
+  const plan = SAMPLES.find((x) => x.id === 'shared-doors')!.plan;
+  const geo = planGeometry(plan);
+  const wall = (id: string) => geo.walls.find((w) => w.surfaceId === id)!;
+  const doorGap = (id: string) => wall(id).stub.length === 2; // a stub split in two by one door
+
+  it('the door attached to the bedroom also cuts the living room side', () => {
+    expect(doorGap('bed.wall-4')).toBe(true);
+    expect(doorGap('living.wall-2')).toBe(true); // living wall-2 runs [5,0]->[5,4]: same line, opposite direction
+  });
+
+  it('the door attached to the kitchen also cuts the living room side', () => {
+    expect(doorGap('kitchen.wall-1')).toBe(true);
+    expect(doorGap('living.wall-3')).toBe(true);
+  });
+
+  it('projected doors land at the same plan position on both sides', () => {
+    const living = plan.surfaces.find((x) => x.id === 'living.wall-2')!;
+    const [o] = openingsForWall(living, plan).filter((x) => x.kind === 'door');
+    // bed wall-4 runs [5,4]->[5,0]; offset 2.1 -> y from 1.9 down to 1.0. Living wall-2 runs [5,0]->[5,4] -> offset 1.0.
+    expect(o!.offsetM).toBeCloseTo(1.0);
+    expect(o!.widthM).toBeCloseTo(0.9);
+  });
+
+  it('walls on other lines are not cut', () => {
+    expect(wall('living.wall-4').stub).toHaveLength(1);
+    expect(wall('bed.wall-2').stub).toHaveLength(1);
+  });
+
+  it('stubs are low, only door gaps go through them, windows only in the full wall', () => {
+    const south = wall('living.wall-1'); // 1 door + 1 window
+    expect(south.stub).toHaveLength(2);
+    for (const p of south.stub) expect(p.size[1]).toBeCloseTo(STUB_HEIGHT);
+    expect(south.pieces.length).toBeGreaterThan(south.stub.length);
+  });
+});
+
+describe('built walls: one box per wall line, shared by the rooms on both sides', () => {
+  const sides = (w: { left?: string; right?: string }) => [w.left, w.right].filter(Boolean).sort();
+
+  it('a wall between two rooms is ONE built wall with both rooms on its sides (no doubled walls)', () => {
+    const geo = planGeometry(loadPlanFixture('demo-table'));
+    const shared = geo.physical.filter((w) => sides(w).join() === ['bedroom.wall-w', 'living-room.wall-e'].join());
+    expect(shared).toHaveLength(1);
+    expect(shared[0]!.exterior).toBe(false);
+  });
+
+  for (const s of SAMPLES) {
+    it(`${s.title}: every room wall shows up on a built wall, and no two built walls overlap`, () => {
+      const geo = planGeometry(s.plan);
+      const covered = new Set(geo.physical.flatMap(sides));
+      for (const w of s.plan.surfaces.filter((x) => x.kind === 'wall')) expect(covered.has(w.id), w.id).toBe(true);
+      // Overlap check: built walls on the same line must not share any stretch longer than a wall thickness.
+      const segs = geo.physical.map((w) => {
+        const p = w.pieces.length ? w.pieces : w.stub;
+        const xs = p.flatMap((q) => {
+          const half = q.size[0] / 2;
+          const c = Math.cos(q.rotationY);
+          const sn = Math.sin(q.rotationY);
+          return [[q.position[0] - c * half, -q.position[2] - sn * half], [q.position[0] + c * half, -q.position[2] + sn * half]];
+        });
+        return { w, xs };
+      });
+      for (let i = 0; i < segs.length; i++)
+        for (let j = i + 1; j < segs.length; j++) {
+          const a = segs[i]!.w;
+          const b = segs[j]!.w;
+          const parallel = Math.abs(a.leftNormal[0] * b.leftNormal[1] - a.leftNormal[1] * b.leftNormal[0]) < 0.05;
+          const dist = Math.abs((b.center[0] - a.center[0]) * a.leftNormal[0] + (b.center[2] - a.center[2]) * a.leftNormal[1]);
+          if (!parallel || dist > 0.05) continue;
+          const along = (p: number[]) => p[0]! * -a.leftNormal[1] + -p[1]! * a.leftNormal[0];
+          const ra = segs[i]!.xs.map(along);
+          const rb = segs[j]!.xs.map(along);
+          const overlap = Math.min(Math.max(...ra), Math.max(...rb)) - Math.max(Math.min(...ra), Math.min(...rb));
+          expect(overlap, `${a.id} vs ${b.id}`).toBeLessThan(0.13);
+        }
+    });
+  }
+
+  it('the shared door cuts the single built wall, at full and stub height', () => {
+    const geo = planGeometry(SAMPLES.find((x) => x.id === 'shared-doors')!.plan);
+    const w = geo.physical.find((x) => sides(x).includes('bed.wall-4'))!;
+    expect(sides(w)).toEqual(['bed.wall-4', 'living.wall-2']);
+    expect(w.stub).toHaveLength(2);
+  });
+
+  it('only exterior walls are lowered, and only from outside', () => {
+    const geo = planGeometry(loadPlanFixture('demo-table'));
+    const south = geo.physical.find((w) => sides(w).includes('living-room.wall-s'))!;
+    const inner = geo.physical.find((w) => !w.exterior)!;
+    expect(physicalBlocksView(south, [1.5, 5, 10])).toBe(true); // camera south of the unit
+    expect(physicalBlocksView(south, [1.5, 5, -10])).toBe(false);
+    expect(physicalBlocksView(inner, [1.5, 5, 10])).toBe(false);
+  });
+
+  it('two parsed walls 30 cm apart (scan) merge into one; 50 cm apart stay two', () => {
+    const near = makePlan('near', [
+      { id: 'a', name: 'A', polygon: [[0, 0], [3, 0], [3, 3], [0, 3]] },
+      { id: 'b', name: 'B', polygon: [[3.3, 0], [6, 0], [6, 3], [3.3, 3]] },
+    ]);
+    const far = makePlan('far', [
+      { id: 'a', name: 'A', polygon: [[0, 0], [3, 0], [3, 3], [0, 3]] },
+      { id: 'b', name: 'B', polygon: [[3.5, 0], [6, 0], [6, 3], [3.5, 3]] },
+    ]);
+    const vertical = (p: typeof near) => planGeometry(p).physical.filter((w) => Math.abs(w.leftNormal[0]) > 0.9 && w.center[0] > 1 && w.center[0] < 5);
+    expect(vertical(near)).toHaveLength(1);
+    expect(vertical(far)).toHaveLength(2);
   });
 });

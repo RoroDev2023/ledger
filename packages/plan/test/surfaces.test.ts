@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlan, cleanName, compassOf, slug, wallsFromRooms } from '../src/index.js';
+import { attachWallLandmarks, buildPlan, cleanName, compassOf, slug, wallsFromRooms } from '../src/index.js';
 
 describe('wallsFromRooms', () => {
   it('names a square room n/e/s/w with area = length x height', () => {
@@ -59,5 +59,23 @@ describe('cleanName / slug with model-returned labels', () => {
     expect(cleanName('Bedroom 2')).toBe('Bedroom 2');
     expect(cleanName('WC')).toBe('WC'); // short abbreviations stay
     expect(cleanName('2')).toBe('2');
+  });
+});
+
+describe('attachWallLandmarks', () => {
+  const plan = () =>
+    buildPlan({ unitId: 'u', ceilingHeightM: 2.5, metersPerPixel: 1, scaleSource: 'labels', rooms: [{ name: 'Room', polygon: [[0, 0], [4.6, 0], [4.6, 7.2], [0, 7.2]] }] });
+  it('puts a drawn item on the nearest wall of its room', () => {
+    const p = plan();
+    attachWallLandmarks(p, [
+      { room: 'Room', name: 'Framed portrait', at: [4.4, 3.7] }, // by the east wall
+      { room: 'Room', name: 'Concrete column', at: [0.2, 1.0] }, // west wall, near the south corner
+      { room: 'Room', name: 'Table', at: [2.3, 3.6] }, // middle of the room: no wall
+      { room: 'Room', name: 'Sink', at: null },
+    ]);
+    const lm = (side: string) => p.surfaces.find((s) => s.id === `room.wall-${side}`)!.landmarks ?? [];
+    expect(lm('e')).toContain('framed portrait');
+    expect(lm('w')).toContain('concrete column');
+    expect([...lm('n'), ...lm('s'), ...lm('e'), ...lm('w')]).not.toContain('table');
   });
 });

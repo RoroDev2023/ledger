@@ -75,7 +75,68 @@ export interface Sample {
   items: DiffItem[];
 }
 
+/** The landing page's showcase unit: a believable 1-bed with one proven charge and the $0 verdicts around it. */
+export const HERO: Sample = {
+  id: 'hero',
+  title: 'Showcase',
+  checks: 'Landing page hero.',
+  plan: makePlan(
+    'hero',
+    [
+      { id: 'living', name: 'Living room', polygon: rect(0, 0, 5.2, 4.2) },
+      { id: 'bedroom', name: 'Bedroom', polygon: rect(5.2, 0, 3.6, 4.2) },
+      { id: 'kitchen', name: 'Kitchen', polygon: rect(0, 4.2, 3.2, 2.6) },
+      { id: 'bath', name: 'Bath', polygon: rect(3.2, 4.2, 2, 2.6) },
+    ],
+    [
+      { room: 'living', wall: 1, kind: 'door', offsetM: 0.8, widthM: 0.9 },
+      { room: 'living', wall: 1, kind: 'window', offsetM: 2.6, widthM: 1.8 },
+      { room: 'bedroom', wall: 4, kind: 'door', offsetM: 2.6, widthM: 0.9 },
+      { room: 'bedroom', wall: 2, kind: 'window', offsetM: 1.2, widthM: 1.6 },
+      { room: 'kitchen', wall: 1, kind: 'door', offsetM: 1.1, widthM: 0.9 },
+      { room: 'bath', wall: 1, kind: 'door', offsetM: 0.6, widthM: 0.8 },
+      { room: 'kitchen', wall: 4, kind: 'window', offsetM: 0.8, widthM: 1.1 },
+    ],
+  ),
+  items: [
+    item('bedroom.wall-3', 'new-damage', { costUsd: 72.72, reason: 'New stain: 2 of 2 same-region pairs agree it changed.' }),
+    item('living.wall-4', 'pre-existing'),
+    item('living.floor', 'moved', { reason: 'Chair moved. Furniture moves are never charged.' }),
+    item('bedroom.wall-2', 'not-visible', { reason: 'Not provable: only 1 matching pair.' }),
+  ],
+};
+
+/** The filmed conference room, furnished: portrait, wall lights, column, cabinet, long table with chairs. */
+function furnished(): FloorPlan {
+  const p = makePlan(
+    'furnished',
+    [{ id: 'conference', name: 'Conference room', polygon: rect(0, 0, 4.6, 7.2) }],
+    [
+      { room: 'conference', wall: 1, kind: 'door', offsetM: 1.2, widthM: 1.0 },
+      { room: 'conference', wall: 3, kind: 'window', offsetM: 0.6, widthM: 1.3 },
+      { room: 'conference', wall: 3, kind: 'window', offsetM: 2.7, widthM: 1.3 },
+    ],
+  );
+  const fx = (name: string, at: Vec2, footprint?: [Vec2, Vec2]) =>
+    p.surfaces.push({ id: `conference.fixture-${name.replace(/\s+/g, '-')}`, roomId: 'conference', kind: 'fixture', label: `Conference room ${name}`, at, ...(footprint ? { footprint } : {}) });
+  fx('portrait', [4.55, 3.7]);
+  fx('wall light', [4.55, 2.2]);
+  fx('wall light 2', [4.55, 5.2]);
+  fx('wall light 3', [2.9, 0.05]);
+  fx('column', [0.22, 1.0], [[0, 0.7], [0.45, 1.3]]);
+  fx('cabinet', [2.3, 6.9], [[0.5, 6.7], [4.1, 7.1]]);
+  fx('table', [2.3, 3.8], [[1.55, 1.9], [3.05, 5.7]]);
+  return p;
+}
+
 export const SAMPLES: Sample[] = [
+  {
+    id: 'furnished',
+    title: 'Furnished room',
+    checks: 'Portrait and wall lights hang on their walls, column/cabinet/table sit where drawn, chairs face the table.',
+    plan: furnished(),
+    items: [item('conference.wall-4', 'pre-existing', { reason: 'Yellow mark on the column.' }), item('conference.wall-1', 'not-visible', { reason: 'Not provable: one view only.' })],
+  },
   {
     id: 'every-verdict',
     title: 'Every verdict',
@@ -212,6 +273,26 @@ export const SAMPLES: Sample[] = [
       ],
     ),
     items: [item('room.wall-1', 'pre-existing'), item('room.wall-3', 'new-damage')],
+  },
+  {
+    id: 'shared-doors',
+    title: 'Doors between rooms',
+    checks: 'A door attached to one room still opens the wall on the other side; windows show only above the stubs.',
+    plan: makePlan(
+      'shared',
+      [
+        { id: 'living', name: 'Living', polygon: rect(0, 0, 5, 4) },
+        { id: 'bed', name: 'Bedroom', polygon: rect(5, 0, 3.5, 4) },
+        { id: 'kitchen', name: 'Kitchen', polygon: rect(0, 4, 3, 2.5) },
+      ],
+      [
+        { room: 'bed', wall: 4, kind: 'door', offsetM: 2.1, widthM: 0.9 }, // bed wall-4 runs [5,4]->[5,0]
+        { room: 'kitchen', wall: 1, kind: 'door', offsetM: 1, widthM: 0.9 }, // kitchen wall-1 runs [0,4]->[3,4]
+        { room: 'living', wall: 1, kind: 'window', offsetM: 3, widthM: 1.5 },
+        { room: 'living', wall: 1, kind: 'door', offsetM: 1, widthM: 0.9 },
+      ],
+    ),
+    items: [item('living.wall-2', 'new-damage'), item('bed.wall-4', 'pre-existing')],
   },
   {
     id: 'no-items',
