@@ -53,6 +53,9 @@ importers:
 
   packages/eval:
     dependencies:
+      '@ledger/gemini':
+        specifier: workspace:*
+        version: link:../gemini
       '@ledger/plan':
         specifier: workspace:*
         version: link:../plan

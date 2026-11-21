@@ -9,7 +9,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "fixtures": "tsx src/build-fixtures.ts"
+    "fixtures": "tsx src/build-fixtures.ts",
+    "plan-images": "tsx src/build-plan-images.ts"
   },
   "dependencies": {
     "@ledger/shared": "workspace:*",

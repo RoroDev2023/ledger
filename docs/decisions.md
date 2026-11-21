@@ -5,3 +5,4 @@ pre-event · RoroDev · planning docs prepared before the event · give all thre
 10:58 · Elmir · plan fixtures are hand-made shapes, labelled as fixtures · unblock pipeline and viewer before Argon parsing exists
 11:01 · Elmir · Argon returns coordinates on a 0-1000 grid, code converts with the real image size · Gemini models point on this grid natively; pixels are computed, not guessed
 11:10 · Elmir (proposed), Alex (logged) · charge new damage only with ≥2 agreeing same-region before/after pairs, else not provable $0; judge's card instead of judge's sketch; outsider-staged test set (~12 change + 6 clean); cut sign-off, depreciation, PDF, Shopify, phone capture · stronger proof story, avoids staged-demo and image-analyzer optics, protects the 15:00 checkpoint
+11:21 · Elmir · plan test images are drawn by us from the fixtures · exact ground truth for Argon, no listing-image rights issue
