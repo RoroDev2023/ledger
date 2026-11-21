@@ -29,6 +29,20 @@ export const DIFF = {
   OBJECT_MIN_FRAMES: 2,
   /** Media resolution for frames sent to the Decisions API. */
   IMAGE_RESOLUTION: 'medium' as const,
+  /**
+   * [Elmir] Pair sweep (sweep.ts): also compare each move-out frame with its most similar move-in frames, so a
+   * change is found even when R4 missed it or R3 put the frame on the wrong wall. Same 2-pair proof rule.
+   */
+  PAIR_SWEEP: true,
+  /** Most similar move-in frames compared per move-out frame. */
+  SWEEP_PER_AFTER: 3,
+  /** Cap on sweep Decisions calls per diff (one call per pair). */
+  SWEEP_MAX_PAIRS: 30,
+  /**
+   * P(new damage) a sweep pair needs to support a charge. Dev-tuned on synthetic-01 (Nov 21): pairs with the
+   * scratch 0.60-0.63, clean pairs 0.10-0.34 (one question per pair, concrete wording). Recheck on real dev pairs.
+   */
+  SWEEP_CHANGE_YES: 0.55,
 };
 
 export type DiffConfig = typeof DIFF;

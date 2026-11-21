@@ -26,6 +26,7 @@ import type { FrameCaption } from './landmarks.js';
 import { describePrice, loadPricing, priceDamage, usd, type DepreciationOptions, type PriceBreakdown, type Pricing } from './price.js';
 import type { OnProgress } from './progress.js';
 import { NOT_PROVABLE_PREFIX } from './statement.js';
+import { decisionsSweepAsker, pairSweep, type SweepAsker, type SweepPair } from './sweep.js';
 
 // ---------------------------------------------------------------------------------------------
 // Inputs
@@ -99,6 +100,8 @@ export interface DiffDeps {
   askQuadrants?: QuadrantAsker;
   askChange?: ChangeAsker;
   writeReason?: ReasonWriter;
+  /** [Elmir] Pair sweep asker (one Decisions call per BEFORE/AFTER pair); see sweep.ts. */
+  askSweep?: SweepAsker;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -508,6 +511,7 @@ async function evaluatePair(
 // Main
 
 const label = (s: Surface) => s.label || s.id;
+const ev_ids = (h: { proof: [SweepPair, SweepPair] }) => new Set(h.proof.flatMap((p) => [p.beforeFrameId, p.afterFrameId]));
 
 /**
  * Baseline (+ tenant addendum) vs move-out, surface by surface. Every plan surface gets a verdict:
@@ -540,7 +544,8 @@ export async function diffWalkthroughs(input: DiffInput): Promise<DiffResult> {
     warnings.push(`move-out finding ${f.id} is on unknown surface ${f.surfaceId}; skipped`);
     return false;
   });
-  const total = moveOutFindings.length + 1;
+  const sweepOn = cfg.PAIR_SWEEP && baseParts.length > 0 && input.moveOut.frames.length > 0;
+  const total = moveOutFindings.length + 1 + (sweepOn ? 1 : 0);
   let done = 0;
   const tick = () => input.onProgress?.('diff', ++done, total);
 
@@ -665,11 +670,72 @@ export async function diffWalkthroughs(input: DiffInput): Promise<DiffResult> {
     return item('not-visible', `${NOT_PROVABLE_PREFIX} suspected ${m.type} on the ${label(s)}: ${why}. $0.`, m.confidence, frameRefs);
   }
 
+  // 3b. [Elmir] Pair sweep: frame-to-frame comparison that does not depend on R4 having flagged the spot.
+  //     Only adds verdicts for surfaces the findings path did not already settle as damage/pre-existing/wear.
+  const sweepJudged: { item: DiffItem; evidence: SurfaceEvidence }[] = [];
+  if (sweepOn) {
+    try {
+      const settled = new Set(judged.filter((j) => ['new-damage', 'pre-existing', 'wear'].includes(j.item.verdict)).map((j) => j.item.surfaceId));
+      const sweep = await pairSweep({
+        baseFrames: baseParts.flatMap((w) => w.frames),
+        outFrames: input.moveOut.frames,
+        localizations: [...baseParts, input.moveOut].flatMap((w) => w.localizations ?? []),
+        ask: input.deps?.askSweep ?? decisionsSweepAsker({ env, resolution: cfg.IMAGE_RESOLUTION }),
+        cfg,
+        perAfter: cfg.SWEEP_PER_AFTER,
+        maxPairs: cfg.SWEEP_MAX_PAIRS,
+        changeYes: cfg.SWEEP_CHANGE_YES,
+      });
+      const asPair = (p: SweepPair): PairResult => ({
+        beforeFrameId: p.beforeFrameId,
+        afterFrameId: p.afterFrameId,
+        sameRegion: round3(p.sameRegion),
+        status: 'compared',
+        change: { newDamage: round3(p.newDamage), worse: 0, movedOnly: round3(p.movedOnly) },
+        signal: round3(p.newDamage),
+        role: p.supports ? 'supports' : p.moved ? 'moved' : 'unclear',
+      });
+      for (const h of sweep.hits) {
+        if (settled.has(h.surfaceId) || !surfaces.has(h.surfaceId)) continue;
+        const s = surfaces.get(h.surfaceId)!;
+        const proof: [PairResult, PairResult] = [asPair(h.proof[0]), asPair(h.proof[1])];
+        const ev: SurfaceEvidence = {
+          surfaceId: s.id,
+          issueType: h.issue,
+          verdict: h.wear ? 'wear' : 'new-damage',
+          signal: 'newDamage',
+          beforeFrameIds: [h.proof[0].beforeFrameId, h.proof[1].beforeFrameId],
+          afterFrameIds: [h.proof[0].afterFrameId, h.proof[1].afterFrameId],
+          pairs: sweep.pairs.filter((p) => p.supports && [p.afterFrameId, p.beforeFrameId].some((id) => ev_ids(h).has(id))).map(asPair),
+          proof,
+          supportingPairs: 2,
+        };
+        const refs = { beforeFrameId: h.proof[0].beforeFrameId, afterFrameId: h.proof[0].afterFrameId };
+        if (h.wear) {
+          sweepJudged.push({ item: DiffItemSchema.parse({ surfaceId: s.id, verdict: 'wear', issueType: h.issue, reason: `Wear: 2 independent before/after pairs show a new small ${h.issue} on the ${label(s)}, within normal wear and tear. Not charged.`, confidence: round3(clamp01(h.confidence)), costUsd: 0, ...refs }), evidence: ev });
+          continue;
+        }
+        const price = priceDamage({ plan, surfaceId: s.id, issueType: h.issue, pricing, depreciation: input.depreciation });
+        ev.price = price;
+        ev.reasonSource = 'template';
+        const reason = `New ${h.issue} on the ${label(s)}: 2 independent before/after pairs agree it is the same spot and that it is new; ${describePrice(price)} (placeholder rates).`;
+        sweepJudged.push({
+          item: DiffItemSchema.parse({ surfaceId: s.id, verdict: 'new-damage', issueType: h.issue, reason, confidence: round3(clamp01(h.confidence)), costUsd: price.costUsd, ...refs, ...(price.areaM2 !== undefined ? { areaM2: price.areaM2 } : {}) }),
+          evidence: ev,
+        });
+      }
+      if (!sweep.hits.length && sweep.pairs.some((p) => p.supports)) warnings.push(`pair sweep: ${sweep.pairs.filter((p) => p.supports).length} pair(s) suggested new damage but no wall had 2 independent ones; not charged`);
+    } catch (e) {
+      warnings.push(`pair sweep failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    tick();
+  }
+
   // 4. Hydrogen objects seen in both walkthroughs on different surfaces → moved (never charged).
   const movedItems = movedObjectItems(plan, baseParts, input.moveOut, cfg);
 
   // 5. Every other plan surface: hidden in either walkthrough → not-visible, else no-change.
-  const reported = new Set([...movedItems, ...judged.map((j) => j.item)].map((i) => i.surfaceId));
+  const reported = new Set([...movedItems, ...judged.map((j) => j.item), ...sweepJudged.map((j) => j.item)].map((i) => i.surfaceId));
   const fill: DiffItem[] = [];
   for (const s of plan.surfaces) {
     if (reported.has(s.id)) continue;
@@ -690,8 +756,8 @@ export async function diffWalkthroughs(input: DiffInput): Promise<DiffResult> {
 
   // Order: moved objects, then judged findings, then fill-ins (per-surface readers keep the last item).
   return {
-    items: [...movedItems, ...judged.map((j) => j.item), ...fill],
-    evidence: judged.map((j) => j.evidence),
+    items: [...movedItems, ...judged.map((j) => j.item), ...sweepJudged.map((j) => j.item), ...fill],
+    evidence: [...judged.map((j) => j.evidence), ...sweepJudged.map((j) => j.evidence)],
     warnings,
   };
 }

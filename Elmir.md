@@ -2,6 +2,14 @@
 
 Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluation (`packages/shared`, `packages/plan`, and `packages/eval`, E1–E5).
 
+## 2026-11-21 15:10 ET · Damage finding: pair sweep in the diff (branch `elmir/fix-diff`, Rahim's package, new file + small hook)
+
+- **Why it missed:** the diff only compared frames for spots the single-frame checklist (R4) had flagged, and only frames that R3 put on the SAME wall. On plain walls R3 mislabels (Alex's run: most move-out frames on the west wall; my synthetic run: the north-wall frame labelled west), so the real change was never compared.
+- **Fix (`packages/pipeline/src/sweep.ts`, on by default, `DIFF.PAIR_SWEEP`):** for each move-out keyframe, code picks the 3 most similar move-in keyframes by pixels (blurred grayscale, shift-tolerant cosine). ONE Decisions call per pair asks 5 things: same spot, new mark on the wall (concrete wording from the spike), only an object moved, more than ordinary wear, and what kind (choice). Supporting pairs are grouped by what they show (pixel similarity of the move-out frames), not by wall label; a group needs **2 independent pairs** (the same proof rule). Wall = majority label over the group's frames, move-in labels count double. Small marks -> wear, $0. Moved -> never charged. Only fills surfaces the findings path did not already settle.
+- **Live check (synthetic-01, scratch on the north wall, GEMINI_MODE=record):** 30 pairs in 2.5 s. Pairs with the scratch scored 0.60-0.63 new damage, clean pairs 0.10-0.34, so `SWEEP_CHANGE_YES = 0.55` (dev-tuned on synthetic frames only; recheck on a real dev pair). Result: **new scuff on room.wall-n, charged**, although some frames had wrong wall labels.
+- Config: `SWEEP_PER_AFTER` 3, `SWEEP_MAX_PAIRS` 30, `SWEEP_CHANGE_YES` 0.55. Evidence for the UI: the two proof pairs are in `evidence[]` like any charge.
+- Verified: 6 new tests + all 336 repo tests, typecheck, lint, one live sweep. Not verified: a full run:pair / app run on real phone video.
+
 ## 2026-11-21 11:50 ET · From Rahim: `uploadFile` is available for the Neon baseline
 
 - `import { uploadFile, gemini } from '@ledger/gemini'` (branch `rahim/r1-files-upload`, stacked on PR #14). `await uploadFile('data/pairs/<id>/baseline.mp4', 'video/mp4')` returns `{ uri, mime_type }` once the file is ACTIVE and usable. Your `runBaseline` takes `{ uri, mime }`, so pass `{ uri: f.uri, mime: f.mime_type }`, and pass `gemini` as the `BaselineModel`.
