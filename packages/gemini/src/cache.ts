@@ -37,7 +37,7 @@ export interface StoredResponse {
   key: string;
   model: string;
   tag: string;
-  endpoint: 'interactions' | 'decisions';
+  endpoint: 'interactions' | 'decisions' | 'files';
   savedAt: string;
   /** The raw API response body, exactly as received. Parsing and validation re-run on every read. */
   response: unknown;

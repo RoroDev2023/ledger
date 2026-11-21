@@ -2,6 +2,12 @@
 
 Owns the Gemini client and walkthrough pipeline (`packages/gemini` and `packages/pipeline`, R1–R5).
 
+## 2026-11-21 11:50 ET · Files API upload (branch `rahim/r1-files-upload`, stacked on PR #14)
+
+- **Ready:** `uploadFile(path, mimeType, { displayName?, env? })` in `@ledger/gemini` returns `{ uri, mime_type }`, so `{ type: 'video', ...file }` drops into both Interactions and Decisions input. It follows the resumable protocol in the new `docs/vendor/files-api.md`, the official page fetched as Markdown. The upload is streamed, not buffered, with 3 tries on 429/5xx. It polls `GET /v1beta/<name>` until the file is `ACTIVE`; a live probe showed videos arrive `PROCESSING` and turn `ACTIVE` about 1.5 s later. Identical bytes plus MIME type reuse the upload for 47 h (files expire at 48 h). Mock returns a fake `.../files/mock-<sha>` URI, and replay serves recorded uploads only. Every upload is logged to `calls.jsonl` with `tag: "upload"`, `model: "files-api"` and `endpoint: "files"`.
+- **Verified:** 5 new tests against a local fake Files API cover the headers, body bytes, PROCESSING→ACTIVE polling, cache reuse, 503 retry, no retry on 403, FAILED state, and record/replay. All 31 gemini tests, `pnpm -r typecheck` and lint pass. Live: a 2 s synthetic test-pattern mp4 uploaded in 4.4 s, and `decide` on `{ type: 'video', ...file }` answered (231 input tokens).
+- **Next:** R2 frames and Hydrogen landmarks.
+
 ## 2026-11-21 11:45 ET · R1 Gemini client (branch `rahim/r1-gemini-client`)
 
 - **Ready:** `@ledger/gemini` exports `generate<T>({ model, input | parts, schema, tag })` (POST `/v1beta/interactions`, JSON `response_format`, zod-validated, one retry with the error appended) and `decide({ input, questions, tag })` (POST `/v1beta/decisions`). `decide` returns the native `{ answers, usage }` under the caller's keys (any string: surface IDs work). On the wire it uses `q0..qN`. Requests split at 1,000 questions and ~262,144 estimated tokens, usage is summed per modality, and a 400 context overflow halves the chunk. `QuestionKeys` maps (surfaceId, purpose) to `q17` and back. `gemini = { generate, decide }` fits Elmir's `PlanModel` and `BaselineModel`.
