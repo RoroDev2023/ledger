@@ -13,6 +13,8 @@ export interface PairLabel {
   preExisting: { surfaceId: string; issueType: IssueType }[];
   /** True for a clean re-shoot with no change at all (false-alarm test). */
   cleanReshoot?: boolean;
+  /** Frame filename -> true surface id (or 'none'), from label.html; scores localization. */
+  frames?: Record<string, string>;
 }
 
 export interface Counts { tp: number; fp: number; fn: number }
