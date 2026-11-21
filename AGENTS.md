@@ -8,6 +8,8 @@ There are 3 of us, each with our own AI, building one project for the **Gemini 4
 
 The core idea: **we never compare video to video.** Both walkthroughs get pinned to the same floor plan, and the plan is the shared reference.
 
+The pitch: **an agent that won't charge what it can't prove.** A deduction needs at least 2 before/after frame pairs that agree it's the same spot and that it changed. Without that, the surface is *not provable* and costs $0. This is also what keeps LEDGER from looking like an image analyzer.
+
 Track: **Problem Statement One (5 Sigma)**, so we must show reliability against a baseline. Judging (round 1): Live demo 35% · Proof it works 25% · Creativity 20% · Gemini 4 + Decisions API use 20%.
 
 **Before starting every agent run**, read this file and all three teammate handoffs: [Rahim](Rahim.md) (RoroDev), [Alex](Alex.md), and [Elmir](Elmir.md). Read the latest entry in each so you know what is ready to use, who needs input, and where to resume. Fetch `origin` first when available. If a teammate has a newer handoff on an open task branch, read that version too (for example, `git show origin/<branch>:Alex.md`).
@@ -24,7 +26,8 @@ videos ──ffmpeg──▶ frames ──sharpness/dedupe──▶ keyframes
                   ──Hydrogen──▶ landmark captions (door, window, sink...) used as hints
         surface frames ──Decisions API──▶ damage checklist (+ calibrated confidence)
         unsure (0.3–0.7) ──Carbon──▶ second look, bbox, reason
-baseline findings vs move-out findings ──Decisions API (before|after pairs)──▶ DiffItems
+baseline findings vs move-out findings ──Decisions API (before|after pairs: same region? → changed?)──▶ DiffItems
+        ≥ 2 agreeing pairs → chargeable · otherwise not provable ($0)
 DiffItems ──deterministic pricing──▶ Statement + 3D damage map
 ```
 
@@ -113,11 +116,13 @@ Storage: `.data/units/<unitId>/{plan.json, plan.svg, walkthroughs/<wid>/{video.m
 
 ## Scope tiers (cut from the bottom when behind)
 
-**Must:** plan → 3D walls with surface IDs · both videos → localization → findings · diff with `moved` / `new-damage` / `pre-existing` · statement with before/after frames · 3D pins → frames · eval vs the single-call baseline on pairs we didn't prepare
+**Must:** plan → 3D walls with surface IDs · both videos → localization → findings · diff with `moved` / `new-damage` / `pre-existing` · **2-pair proof rule + not provable ($0)** · statement with before/after frames · 3D pins → frames · **live Decisions stats on screen** · eval vs the single-call baseline on pairs we didn't prepare
 
-**Should:** tenant sign-off · Carbon escalation visible in the UI · bboxes on frames · depreciation pricing · `not-visible`
+**Should:** Carbon escalation visible in the UI · bboxes on frames (2×2 quadrant box is enough) · `not-visible`
 
-**Could:** shop.dev cart for the tenant fix list (Shopify bonus prize) · PDF export · lease-clause linking
+**Could:** lease-clause linking
+
+**Cut unless we're ahead at 15:00:** tenant sign-off · depreciation · PDF export · shop.dev/Shopify · phone capture page
 
 ## Lanes in detail
 
@@ -132,7 +137,7 @@ Mirror each numbered item to a GitHub Issue at kickoff (Issues = source of truth
 - Split requests against **both** limits. Each chunk has 1–1,000 questions and at most 262,144 tokens including the repeated shared input, question text, criteria and formatting. If even one question plus its input exceeds the budget, report it to the caller. Across chunks, merge answers by key and sum native usage counts, including per-modality counts for repeated input.
 - Modes via `GEMINI_MODE`: `live` · `mock` (deterministic stubs from `fixtures/gemini/`) · `record` (live + save each response keyed by `sha256(model + inputs)`) · `replay` (serve recorded responses only). Record/replay makes eval runs reproducible and gives the demo a fallback.
 - Disk cache in `.data/cache/` with the same key, so dev runs don't pay twice. `p-limit(4)` concurrency, exponential backoff on 429/5xx (3 tries).
-- Call log `.data/calls.jsonl`: `{ ts, model, tag, latencyMs, inTokens, outTokens, cached }`. The eval reads it for cost/time per walkthrough.
+- Call log `.data/calls.jsonl`: `{ ts, model, tag, latencyMs, inTokens, outTokens, cached, questions }`, where `questions` is the Decisions question count (0 for other models). The eval reads it for cost/time per walkthrough, and Alex shows question counts and response times live on the demo screen (Gemini + Decisions use is 20% of the score).
 
 **R2 · Frames (`pipeline/frames.ts`)**
 - `ffmpeg -i in.mp4 -vf fps=2,scale=1280:-2 frames/%05d.jpg`; `tMs` from the index.
@@ -157,9 +162,12 @@ Mirror each numbered item to a GitHub Issue at kickoff (Issues = source of truth
 
 **R5 · Diff + pricing (`pipeline/diff.ts`, `pipeline/price.ts`)**
 - Per surface: baseline (+ tenant addendum) findings vs move-out findings.
-- For each covered surface with a move-out finding, send one Decisions input in this order: text “BEFORE”, best baseline image block, text “AFTER”, best move-out image block. Ask whether AFTER shows new damage, whether existing damage worsened, and whether only an object moved. A labeled side-by-side composite is the fallback only.
-- Verdict rules: new and damage → `new-damage`; same type at both → `pre-existing` (or `new-damage` if severity went up by ≥ 2); scuff or nail-hole class at severity ≤ 2 → `wear`; Hydrogen object present in both walkthroughs but in a different room or wall → `moved` (never charged); not covered in either → `not-visible`.
-- Pricing is deterministic code: `pricing.json` with a rate per issue type (paint $/m², patch flat fee, cleaning flat fee) × area (wall length × ceiling height − openings) × depreciation `max(0, 1 − ageYears / usefulLifeYears)`. Rates and useful-life numbers are **placeholders to confirm**, so keep them in one file. Carbon writes the one-sentence `reason` from the computed numbers.
+- For each covered surface with a move-out finding, build before/after frame pairs. Each pair is one Decisions input in this order: text “BEFORE”, baseline image block, text “AFTER”, move-out image block. A labeled side-by-side composite is the fallback only.
+- **Same region first.** On each pair, ask a `noul` “do BEFORE and AFTER show the same region of <surface>?” and skip pairs that fail it. If it's unsure (0.3–0.7), split both frames 2×2 and ask per quadrant. The matching quadrant also gives a rough box.
+- On pairs that pass, ask whether AFTER shows new damage, whether existing damage worsened, and whether only an object moved.
+- **Proof rule (hard):** `new-damage` is charged only when **≥ 2 pairs** agree it's the same spot and it changed. Fewer than 2 good pairs → *not provable*, $0, and the reason says why. Until all 3 agree to add a `not-provable` verdict to the contract, emit `not-visible` with `reason` starting “Not provable:”.
+- Verdict rules (after the proof rule): new and damage → `new-damage`; same type at both → `pre-existing` (or `new-damage` if severity went up by ≥ 2); scuff or nail-hole class at severity ≤ 2 → `wear`; Hydrogen object present in both walkthroughs but in a different room or wall → `moved` (never charged); not covered in either → `not-visible`.
+- Pricing is deterministic code: `pricing.json` with a rate per issue type (paint $/m², patch flat fee, cleaning flat fee) × area (wall length × ceiling height − openings). Depreciation `max(0, 1 − ageYears / usefulLifeYears)` is cut unless we're ahead. Rates and useful-life numbers are **placeholders to confirm**, so keep them in one file. Carbon writes the one-sentence `reason` from the computed numbers.
 - `pnpm --filter @ledger/pipeline run:pair <plan> <baseline.mp4> <moveout.mp4>` prints the diff table and writes all JSON to `.data/`.
 - Keep `eval/failures.md` as you go (input, what broke, fix, did it help). It feeds the "where it breaks" part of the pitch.
 
@@ -186,8 +194,9 @@ Mirror each numbered item to a GitHub Issue at kickoff (Issues = source of truth
 **E4 · Eval (`packages/eval`)**
 - Labels `data/labels/<pair>.json` (committed): per surface, the true issues at baseline and move-out plus moved objects; plus ~50 sampled frames per pair with the true surface ID. Small static labeling page `packages/eval/label.html` (frame + plan.svg, click a surface).
 - Splits: **dev** pairs (RoroDev tunes thresholds on these) and **test** pairs (run once at the end, reported as-is).
-- Baseline system: upload both full walkthrough videos via the Files API (inline cap is 100 MB per request). Make one Neon Interactions call via `packages/gemini` using `MODEL_BASELINE`, the plan with surface IDs, and the two video URIs labeled move-in and move-out. Ask “What changed?” and request verdicts and issue types keyed to the plan's surfaces. Validate the output and use the same held-out pairs and scorer for both systems. Any optional whole-video coverage check runs separately from this single-call comparison.
-- Metrics: plan (room count, opening recall, median dimension error %), localization top-1 accuracy, change detection precision / recall / F1 at (surface, issue type), verdict confusion matrix, $ and seconds per pair from `calls.jsonl`. Small n, so report raw counts next to percentages.
+- **Test set:** about 12 change pairs plus 6 clean re-shoots (nothing changed, filmed again from a new angle). **People outside the team make the changes** and write the ground truth, so the eval isn't made of examples we wrote to pass.
+- Baseline system: upload both full walkthrough videos via the Files API (inline cap is 100 MB per request). Make one Neon Interactions call via `packages/gemini` using `MODEL_BASELINE`, the plan with surface IDs (the baseline gets the plan too, so the comparison is fair), and the two video URIs labeled move-in and move-out. Ask “What changed?” and request verdicts and issue types keyed to the plan's surfaces. Validate the output and use the same held-out pairs and scorer for both systems. Any optional whole-video coverage check runs separately from this single-call comparison.
+- **Headline numbers:** false charges on the clean re-shoots, and dollars charged for the moved chair (should be $0). Then: plan (room count, opening recall, median dimension error %), localization top-1 accuracy, change detection precision / recall / F1 at (surface, issue type), verdict confusion matrix, $ and seconds per pair from `calls.jsonl`. Small n, so report raw counts next to percentages.
 - `pnpm eval` → `eval/results.md`: one table, ours vs baseline, plus links to the failure frames.
 
 **E5 · Pitch** — after 15:00, once numbers exist
@@ -197,13 +206,13 @@ Mirror each numbered item to a GitHub Issue at kickoff (Issues = source of truth
 
 **A1 · API (`apps/api`)** — mock end-to-end by 13:00
 - Hono on Node; multipart uploads streamed to disk (up to ~500 MB); in-process job queue (`p-queue`, concurrency 1) calling `@ledger/pipeline`.
-- `GET /jobs/:id/events` (SSE) emits `{ stage: 'frames' | 'rooms' | 'surfaces' | 'findings' | 'diff', done, total }`, so the demo shows live progress.
+- `GET /jobs/:id/events` (SSE) emits `{ stage: 'frames' | 'rooms' | 'surfaces' | 'findings' | 'diff', done, total }`, so the demo shows live progress. Also stream Decisions stats from `calls.jsonl` (calls, questions asked, latency per call) for the demo screen.
 - Statement: built from `DiffItem[]` in code (no model). `dueBy = moveOutDate + 14 days`. Disclaimer: "Draft for review, not legal advice." HTML template; PDF via Playwright `page.pdf()` if time allows.
 
 **A2 · 3D viewer (`packages/viewer`)**
 - React Three Fiber + drei. Each wall segment → box mesh (length × `ceilingHeightM` × 0.1 m) at the segment midpoint, rotated by `atan2(dy, dx)`. Split walls into pieces around openings (simpler than CSG). Floor = `ShapeGeometry` from the room polygon.
 - `mesh.userData.surfaceId` on everything, raycast on click → `onSelect(surfaceId)`.
-- Pins: one sprite per `DiffItem` at the surface center. Color by verdict: new-damage red, pre-existing blue, wear gray, moved yellow, not-visible hatched.
+- Pins: one sprite per `DiffItem` at the surface center. Color by verdict: new-damage red, pre-existing blue, wear gray, moved yellow, not-visible / not provable hatched. A not-provable pin says why and shows $0.
 - Dollhouse view: hide walls whose normal faces the camera. Top-down toggle uses `plan.svg` as a minimap. `OrbitControls`.
 - Side panel: before/after frames with the `bbox` drawn on them, verdict, reason, cost.
 
@@ -213,8 +222,8 @@ Mirror each numbered item to a GitHub Issue at kickoff (Issues = source of truth
 - `/units/:id`: 3D + baseline findings. `/units/:id/confirm`: tenant reviews the findings, agrees or adds an addendum video. `/units/:id/moveout`: record or upload. `/units/:id/statement`.
 
 **A4 · Capture + demo room**
-- Phone capture page: `getUserMedia` + `MediaRecorder` at 720p (Safari gives mp4, Chrome webm; the API transcodes with ffmpeg). On-screen guide: "pan slowly, about 5 seconds per wall."
-- `/demo`: one screen with big steps (1 plan → 2 baseline → 3 judge's turn, with timer → 4 move-out → 5 compare), live SSE progress, then 3D + statement. Emergency fallback toggle: `GEMINI_MODE=replay` of a recorded run, only if the venue Wi-Fi dies, and we say so on stage.
+- ~~Phone capture page~~ cut: upload from the phone's camera roll instead.
+- `/demo`: one screen with big steps (1 plan → 2 baseline → 3 judge's turn, with timer → 4 move-out → 5 compare), live SSE progress, then 3D + statement. A **Decisions panel** shows questions asked and response times as they happen. The compare step has a spot for a photo of **the judge's card** next to our verdicts. Emergency fallback toggle: `GEMINI_MODE=replay` of a recorded run, only if the venue Wi-Fi dies, and we say so on stage.
 
 **A5 · Submission**
 - 1-minute video showing only what we built today. README: what it does, how to run it, what was built during the event, eval table.
