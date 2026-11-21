@@ -1,52 +1,81 @@
-import { describe, expect, it, vi } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import sharp from 'sharp';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { GenerateValidationError, readCalls } from '@ledger/gemini';
 import type { Frame } from '@ledger/shared';
-import { captionFrames, mockCaptioner, type BatchCaptioner } from '../src/landmarks.js';
+import { CAPTION_TAG, captionFrames } from '../src/landmarks.js';
+
+let root: string;
+let jpg: string;
+
+/** Mock-mode env with its own DATA_DIR and fixtures dir, so tests never touch the repo's .data/. */
+function mockEnv(fixture?: unknown): NodeJS.ProcessEnv {
+  const dir = mkdtempSync(join(root, 'env-'));
+  const fixtures = join(dir, 'fixtures');
+  mkdirSync(join(fixtures, 'generate'), { recursive: true });
+  if (fixture !== undefined) writeFileSync(join(fixtures, 'generate', `${CAPTION_TAG}.json`), JSON.stringify(fixture));
+  return {
+    GEMINI_MODE: 'mock',
+    MODEL_FAST: 'test-hydrogen',
+    DATA_DIR: join(dir, 'data'),
+    GEMINI_FIXTURES_DIR: fixtures,
+    GEMINI_CACHE: '0',
+  };
+}
 
 const frame = (i: number): Frame => ({
   id: `wt.f${String(i).padStart(5, '0')}`,
   walkthroughId: 'wt',
-  tMs: i * 500,
-  path: `/tmp/${i}.jpg`,
+  tMs: (i - 1) * 500,
+  path: jpg,
   sharpness: 100,
-  phash: (BigInt(i) * 0x9e3779b97f4a7c15n % (1n << 64n)).toString(16).padStart(16, '0'),
+  phash: '0123456789abcdef',
 });
 
-describe('captionFrames', () => {
-  it('batches 8 per call and returns one caption per frame in order', async () => {
+beforeAll(async () => {
+  root = mkdtempSync(join(tmpdir(), 'ledger-captions-'));
+  jpg = join(root, 'frame.jpg');
+  await sharp({ create: { width: 16, height: 16, channels: 3, background: '#808080' } }).jpeg().toFile(jpg);
+});
+afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+describe('captionFrames via @ledger/gemini (mock mode)', () => {
+  it('sends 8 frames per Hydrogen call on MODEL_FAST and returns one caption per frame in order', async () => {
+    const env = mockEnv();
     const frames = Array.from({ length: 19 }, (_, i) => frame(i + 1));
-    const captioner = vi.fn<BatchCaptioner>(mockCaptioner);
-    const out = await captionFrames(frames, { captioner });
-    expect(captioner).toHaveBeenCalledTimes(3);
-    expect(captioner.mock.calls.map(([b]) => b.length)).toEqual([8, 8, 3]);
+    const out = await captionFrames(frames, { env });
     expect(out.map((c) => c.frameId)).toEqual(frames.map((f) => f.id));
+    const calls = readCalls(env).filter((c) => c.tag === CAPTION_TAG);
+    expect(calls).toHaveLength(3);
+    expect(calls.every((c) => c.model === 'test-hydrogen' && c.questions === 0)).toBe(true);
   });
 
-  it('maps frameIdx back to frames, normalizes terms and fills skipped frames', async () => {
+  it('maps entries back by frameId, normalizes terms and fills skipped or unknown frames', async () => {
     const frames = [frame(1), frame(2), frame(3)];
-    const out = await captionFrames(frames, {
-      captioner: async () => ({
-        frames: [
-          { frameIdx: 2, landmarks: [' Window ', 'window', ''], objects: ['Chair'] },
-          { frameIdx: 0, landmarks: ['door'], objects: [] },
-          { frameIdx: 7, landmarks: ['ghost'], objects: [] },
-        ],
-      }),
+    const env = mockEnv({
+      frames: [
+        { frameId: frames[2]!.id, landmarks: [' Window ', 'window', ''], objects: ['Chair'] },
+        { frameId: frames[0]!.id, landmarks: ['door'], objects: [] },
+        { frameId: 'wt.f99999', landmarks: ['ghost'], objects: [] },
+      ],
     });
-    expect(out).toEqual([
+    expect(await captionFrames(frames, { env })).toEqual([
       { frameId: frames[0]!.id, landmarks: ['door'], objects: [] },
       { frameId: frames[1]!.id, landmarks: [], objects: [] },
       { frameId: frames[2]!.id, landmarks: ['window'], objects: ['chair'] },
     ]);
   });
 
-  it('rejects invalid model JSON', async () => {
-    await expect(
-      captionFrames([frame(1)], { captioner: async () => ({ frames: [{ frameIdx: -1 }] }) as never }),
-    ).rejects.toThrow();
+  it('fails loudly when the model JSON does not match the schema', async () => {
+    const env = mockEnv({ frames: [{ frameId: 'wt.f00001', landmarks: 'door' }] });
+    await expect(captionFrames([frame(1)], { env })).rejects.toBeInstanceOf(GenerateValidationError);
   });
 
-  it('mock mode is deterministic', async () => {
+  it('is deterministic in mock mode', async () => {
     const frames = [frame(1), frame(2)];
-    expect(await captionFrames(frames)).toEqual(await captionFrames(frames));
+    const env = mockEnv();
+    expect(await captionFrames(frames, { env })).toEqual(await captionFrames(frames, { env }));
   });
 });
