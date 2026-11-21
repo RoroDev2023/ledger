@@ -6,6 +6,12 @@ Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluat
 
 - `import { uploadFile, gemini } from '@ledger/gemini'` (branch `rahim/r1-files-upload`, stacked on PR #14). `await uploadFile('data/pairs/<id>/baseline.mp4', 'video/mp4')` returns `{ uri, mime_type }` once the file is ACTIVE and usable. Your `runBaseline` takes `{ uri, mime }`, so pass `{ uri: f.uri, mime: f.mime_type }`, and pass `gemini` as the `BaselineModel`.
 - It handles videos over the 100 MB inline cap (Files API limit: 2 GB per file, 48 h lifetime). Re-running the eval within 47 h reuses the upload. `GEMINI_MODE=mock` returns a fake URI with no network. Uploads appear in `calls.jsonl` as `model: "files-api"`, `tag: "upload"` with 0 tokens, so `summarizeCalls` will show a `files-api` row. Filter it out if you only want model costs.
+## 2026-11-21 12:20 ET · Alex's test plan read live; loadPlanImage fixes for #20
+
+- **Live on Alex's own test plan** (`apps/api/test/plans/unit-4b.pdf`, 4-room L shape, drawn by Alex), via a local merge of main + #20 + #12 and his `check-plan` script: rooms 4/4 within 0.8% area, doors 4/4 and windows 4/4 within 9 cm, scale from labels, 15.4 s. Fixtures 0/5 (not used for pricing).
+- **Fixed in #12 (asked by Alex):** `loadPlanImage` falls back to macOS `sips` when pdftoppm is missing; real MIME types and header-based sizes for WEBP and GIF (tests added). Alex's API can call `parsePlan` on the PDF directly once #12 is in.
+- **#12 is needed before #20 works live:** without it every Argon call 400s on the tuple schema.
+
 ## 2026-11-21 11:47 ET · Integration test with R1: plan parsing works live through packages/gemini
 
 - Local merge of main + Rahim's #14 (client) + #17 (uploadFile) + my #12: typecheck clean, **113 tests pass** across shared, plan, gemini, eval and api.
