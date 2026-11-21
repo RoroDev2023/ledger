@@ -10,7 +10,9 @@ The core idea: **we never compare video to video.** Both walkthroughs get pinned
 
 Track: **Problem Statement One (5 Sigma)**, so we must show reliability against a baseline. Judging (round 1): Live demo 35% · Proof it works 25% · Creativity 20% · Gemini 4 + Decisions API use 20%.
 
-Read in order: this file → `docs/proposal.md` (product doc) → `docs/decisions.md` → `docs/demo-script.md` → your lane below.
+**Before starting every agent run**, read this file and all three teammate handoffs: [Rahim](Rahim.md) (RoroDev), [Alex](Alex.md), and [Elmir](Elmir.md). Read the latest entry in each so you know what is ready to use, who needs input, and where to resume. Fetch `origin` first when available. If a teammate has a newer handoff on an open task branch, read that version too (for example, `git show origin/<branch>:Alex.md`).
+
+Then read `docs/proposal.md`, `docs/decisions.md`, `docs/demo-script.md`, and your lane below. GitHub Issues remain the source of truth for assignments.
 
 ## Pipeline (who calls which model)
 
@@ -267,6 +269,7 @@ pnpm eval                                      # writes eval/results.md
 - **Never commit videos or photos of real homes.** They're large and can show faces, addresses and belongings. They live in `data/` (gitignored) and our shared drive. Labels (JSON) can be committed.
 
 **Git and handoffs**
+- Before ending **every** agent run, including a blocked or investigation-only run, add a dated entry at the top of your teammate's file (Rahim's agent writes `Rahim.md`, Alex's writes `Alex.md`, Elmir's writes `Elmir.md`). Record the issue or branch, what changed or was learned, how it was verified, blockers or requests for another owner, and the next concrete step. Keep earlier entries and include the update in the run's checkpoint commit and push so other worktrees can read it.
 - Branch per task: `<name>/<short-task>`; small PRs into `main`; rebase often.
 - **Push at least every ~30 min** or at every working checkpoint, even WIP. Laptops die and AI sessions hit limits; unpushed work doesn't exist.
 - Before your AI session ends or hits a limit: push, then comment on the issue with what's done, what's next and any gotchas. Anyone's agent should be able to resume from that.
