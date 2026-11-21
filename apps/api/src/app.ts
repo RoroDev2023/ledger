@@ -10,6 +10,7 @@ import { TEST_PAGE } from './testPage.js';
 import { frameRoutes } from './routes/frames.js';
 import { jobRoutes } from './routes/jobs.js';
 import { resultRoutes } from './routes/results.js';
+import { scanRoutes } from './routes/scan.js';
 import { unitsRoutes } from './routes/units.js';
 import { walkthroughRoutes } from './routes/walkthroughs.js';
 import { HttpError, Storage, defaultDataDir } from './storage.js';
@@ -27,6 +28,7 @@ export function createApp(opts: { dataDir?: string; pipeline?: PipelineAdapter }
   app.get('/', (c) => c.html(TEST_PAGE));
   app.get('/health', (c) => c.json({ ok: true, pipeline: deps.pipeline.name, queued: deps.queue.size }));
   app.route('/units', unitsRoutes(deps));
+  app.route('/units', scanRoutes(deps));
   app.route('/units', walkthroughRoutes(deps));
   app.route('/units', resultRoutes(deps));
   app.route('/units', frameRoutes(deps));
