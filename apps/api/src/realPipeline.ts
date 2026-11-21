@@ -78,11 +78,10 @@ export function realPipeline(base: Pick<PipelineAdapter, 'parsePlan'>): Pipeline
           env,
           onProgress: (stage, d, t) => hooks.onProgress(stage, d, t),
         });
-        // The move-in is only a record of which frames show which wall. Damage is looked for once, at move-out; the
-        // diff then compares each suspected spot with the move-in frames of that same wall, and two "unchanged"
-        // pairs make it pre-existing. Skips the move-in damage check and its slow second opinions.
-        // MOVEIN_DAMAGE=on brings the move-in damage check back (a move-in damage list for the tenant to review).
-        const checkDamage = walkthrough.kind === 'move-out' || process.env.MOVEIN_DAMAGE === 'on';
+        // Both walkthroughs are checked for damage: the move-in list is the record of what was already there.
+        // MOVEIN_DAMAGE=off skips it on the move-in (faster; the diff can still call a mark pre-existing when two
+        // before/after pairs of that spot agree nothing changed).
+        const checkDamage = walkthrough.kind === 'move-out' || process.env.MOVEIN_DAMAGE !== 'off';
         const found = checkDamage
           ? await detectFindings(plan, frames, loc, { walkthroughId: wid, config: speedConfig().findings, env, onProgress: (_s, d, t) => hooks.onProgress('findings', d, t) })
           : { findings: [], notVisible: [] as string[] };

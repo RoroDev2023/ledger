@@ -2,11 +2,9 @@
 
 Owns the 3D viewer, API, and web app (`packages/viewer`, `apps/api`, and `apps/web`, A1–A5).
 
-## 2026-11-21 14:30 ET · Damage only at move-out (move-in = wall record)
+## 2026-11-21 14:31 ET · Damage checked on both walkthroughs (default)
 
-- Alex's idea: the move-in only records which frames show which wall (keyframes, Hydrogen, localization with Argon second opinions). Damage is looked for once, on the move-out; R5 then compares each suspected spot with the move-in frames of that same wall (coverage). Two independent "unchanged" pairs already make it `pre-existing` in diff.ts, so a mark that was there at move-in still comes out $0. `MOVEIN_DAMAGE=on` brings the move-in damage check back.
-- UI: move-in progress hides the Damage row; unit page says "Move-in recorded · damage is checked at move-out".
-- Trade-off: no move-in damage list for the tenant to review before move-out. Not yet run live.
+- Move-in checks damage again (the record of what was already there), with Argon second opinions (max 3); move-out checks damage and runs the diff with Carbon. `MOVEIN_DAMAGE=off` skips the move-in damage check for a faster wall-only record (the diff can still call a mark pre-existing from two unchanged before/after pairs). Briefly made move-out-only in `18cffe5`, reverted here at Alex's request.
 
 ## 2026-11-21 14:29 ET · Furniture in the 3D model
 

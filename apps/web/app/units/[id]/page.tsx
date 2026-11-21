@@ -116,9 +116,9 @@ function UnitPage() {
             <div className="muted" style={{ fontSize: 14, textAlign: 'right' }}>
               {hasBaseline ? (
                 <>
-                  Move-in recorded
+                  On record since move-in
                   <br />
-                  <span style={{ color: 'var(--ink)' }}>Damage is checked at move-out</span>
+                  <b style={{ color: 'var(--ink)', fontSize: 22 }}>{items.length}</b> existing issue{items.length === 1 ? '' : 's'}
                 </>
               ) : (
                 'No move-in video yet'
