@@ -13,7 +13,9 @@
     "plan-eval": "tsx src/plan-eval.ts",
     "kit": "tsx src/kit.ts",
     "baseline": "tsx src/baseline-run.ts",
-    "proof-slide": "tsx src/proof-slide.ts"
+    "proof-slide": "tsx src/proof-slide.ts",
+    "card": "tsx src/card.ts",
+    "pairs": "tsx src/pairs.ts"
   },
   "dependencies": {
     "@ledger/shared": "workspace:*",

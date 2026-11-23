@@ -2,6 +2,15 @@
 
 Owns the workspace scaffold, shared contract, plan parser, fixtures, and evaluation (`packages/shared`, `packages/plan`, and `packages/eval`, E1–E5).
 
+## 2026-11-21 13:45 ET · Eval now works with scanned rooms (branch `elmir/eval-scan-flow`)
+
+- **Per-pair folder:** `data/pairs/<pairId>/` = `baseline.mp4` + `moveout.mp4` + the plan: `room.json` (AirDrop from Rahim's scanner; converted once with `scanToPlan` and cached as `plan.json`), or `plan.json`, or `plan.txt` holding a fixture name (e.g. `judging-room`). New `packages/eval/src/plan-source.ts`.
+- **Cards for a scanned room:** `pnpm --filter @ledger/eval kit <path>/room.json --cards 10` prints the plan + judge cards with that scan's wall ids (`room-1.wall-n` ...). Fixtures still work (`kit demo-table`).
+- **Typing a card:** `pnpm --filter @ledger/eval card test-03 --new room-1.wall-n:scratch --moved bag:room-1.wall-e` (or `--clean`; `--split dev`) writes `data/labels/test-03.json`. Wall ids are checked against the pair's plan; scratch = scuff.
+- **Batch run:** `pnpm --filter @ledger/eval pairs [ids] [--jobs 2]` runs LEDGER (`run:pair --unit <pairId>`) and the Neon baseline for every pair with both videos and a plan, skips done work, logs times to `.data/eval/pairs-log.jsonl`. Then `pnpm eval --split test` and `proof-slide`.
+- **Live run finding (synthetic pair, judging-room plan, GEMINI_MODE=record):** did not finish in 15 min. Decisions calls 0.7-2 s each (48 calls, ~1 min); Carbon fallbacks dominate: `localize.carbon` 15 calls avg 126 s (max 348 s), `findings.carbon` 8 calls avg 51 s, ~68 output tokens each. Told Rahim: cap Carbon (~8 s, timeout = unsure = not provable) or use Hydrogen in demo mode. Synthetic frames may over-trigger low confidence; recheck on a real dev pair.
+- Verified: eval typecheck, 18 eval tests (6 new), lint; kit PDF rendered from the scanner test fixture and checked by eye; card rejects wall ids not in the plan; pairs skips folders without videos.
+
 ## 2026-11-21 11:50 ET · From Rahim: `uploadFile` is available for the Neon baseline
 
 - `import { uploadFile, gemini } from '@ledger/gemini'` (branch `rahim/r1-files-upload`, stacked on PR #14). `await uploadFile('data/pairs/<id>/baseline.mp4', 'video/mp4')` returns `{ uri, mime_type }` once the file is ACTIVE and usable. Your `runBaseline` takes `{ uri, mime }`, so pass `{ uri: f.uri, mime: f.mime_type }`, and pass `gemini` as the `BaselineModel`.

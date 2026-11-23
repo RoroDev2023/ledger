@@ -1,10 +1,12 @@
-// pnpm --filter @ledger/eval kit  ->  eval/kit/demo-kit.html (+ .pdf if Chrome is available)
-// Printable kit for the demo table and the test pairs: the plan, and judge cards whose wall names
+// pnpm --filter @ledger/eval kit [plan] [--cards N]  ->  eval/kit/<name>-kit.html (+ .pdf if Chrome is available)
+// [plan] = a fixture name (default demo-table), a FloorPlan JSON, or the scanner's RoomPlan room.json.
+// Printable kit for the demo and the test pairs: the plan, and judge cards whose wall names
 // are generated from the plan, so what a person writes maps 1:1 to our surface IDs.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { FIXTURES_DIR, loadPlanFixture, type FloorPlan } from '@ledger/shared';
+import { FIXTURES_DIR, listPlanFixtures, type FloorPlan } from '@ledger/shared';
+import { renderPlanSvg, resolvePlan } from './plan-source.js';
 
 const ISSUES = ['scratch / scuff', 'stain', 'hole', 'crack', 'missing fixture', 'other'];
 
@@ -24,9 +26,15 @@ function card(plan: FloorPlan, n: number): string {
 </section>`;
 }
 
-const name = process.argv[2] ?? 'demo-table';
-const plan = loadPlanFixture(name);
-const svg = readFileSync(join(FIXTURES_DIR, 'plan-images', `${name}.svg`), 'utf8');
+const args = process.argv.slice(2);
+const ci = args.indexOf('--cards');
+const nCards = ci >= 0 ? Math.max(1, Number(args[ci + 1]) || 2) : 2;
+const planArg = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--cards') ?? 'demo-table';
+const isFixture = listPlanFixtures().includes(planArg);
+const plan = resolvePlan(planArg, process.env.INIT_CWD ?? process.cwd());
+const name = isFixture ? planArg : plan.unitId;
+const fixtureSvg = join(FIXTURES_DIR, 'plan-images', `${planArg}.svg`);
+const svg = isFixture && existsSync(fixtureSvg) ? readFileSync(fixtureSvg, 'utf8') : renderPlanSvg(plan);
 
 const html = `<!doctype html><html><head><meta charset="utf-8"><title>LEDGER demo kit · ${name}</title>
 <style>
@@ -42,7 +50,7 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><title>LEDGER dem
   .small { font-size: 10px; color: #444; margin: 2px 0 6px; }
 </style></head><body>
 <div class="plan"><h1>${name === 'demo-table' ? 'Unit 4B' : name} · floor plan</h1>${svg}</div>
-${card(plan, 1)}${card(plan, 2)}
+${Array.from({ length: nCards }, (_, i) => card(plan, i + 1)).join('')}
 </body></html>`;
 
 const outDir = resolve(import.meta.dirname, '..', '..', '..', 'eval', 'kit');
